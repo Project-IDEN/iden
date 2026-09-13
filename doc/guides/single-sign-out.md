@@ -93,5 +93,13 @@ an unregistered redirect target is an open redirector.
    session. Applications the session never reached are not told.
 3. The session and cookie are cleared.
 
+The same happens however the session ends, so your application receives the same logout token in
+every case:
+
+- the person signs out, or ends the session from their sessions page;
+- someone else signs in on that browser, which holds one account at a time;
+- the password is changed or reset — every session except the one making the change;
+- an administrator deactivates or deletes the account, or resets its password.
+
 Access tokens already issued run to their expiry. They are self-contained by design, and ten minutes
 is the trade that buys offline validation.

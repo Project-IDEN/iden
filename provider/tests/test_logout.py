@@ -12,9 +12,11 @@ import pytest
 from sqlalchemy import select
 
 from provider.authz.logout import service as logout_service
+from provider.authz.recovery import service as recovery_service
 from provider.authz.services import session_store
 from provider.core.crypto import verify_jwt
 from provider.shared.models import AuditEvent, Client
+from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD
 from tests.flows import get_tokens, pkce_pair, query_of, sign_in, start
 
 POST_LOGOUT_URI = "http://localhost:5173/"
@@ -327,3 +329,110 @@ class TestSwitchingAccount:
 
         assert deliveries == []
         assert (await refresh(client, tokens["refresh_token"])).status_code == 200
+
+
+class TestEndingEverySession:
+    """A password change, a reset, deactivation and deletion end every session
+    a person has at once. Each has to reach the applications those sessions
+    signed into — revoking the refresh tokens stops new access tokens, but an
+    application keeps its own session until it is told."""
+
+    MEMBER = TestSwitchingAccount.OTHER
+
+    async def sign_in_member(self, client):
+        """A browser session for the member that has reached the dashboard."""
+        client.cookies.clear()
+        _, challenge = pkce_pair()
+        response = await start(client, challenge)
+        step = await sign_in(client, query_of(response)["challenge"], **self.MEMBER)
+        await client.get(step.json()["resumeUrl"])
+        client.cookies.clear()
+
+    async def test_a_password_change_tells_every_session(
+        self, client, redis, admin_user, self_headers, listening, deliveries
+    ):
+        first = claims_of((await get_tokens(client))["id_token"])["sid"]
+        client.cookies.clear()
+        second = claims_of((await get_tokens(client))["id_token"])["sid"]
+        client.cookies.clear()
+
+        response = await client.post(
+            "/entity/credentials/password",
+            json={"currentPassword": ADMIN_PASSWORD, "newPassword": "a-new-passphrase"},
+            headers=self_headers,
+        )
+
+        assert response.json()["sessionsEnded"] == 2
+        assert {claims_of(token)["sid"] for _, token in deliveries} == {first, second}
+        assert await session_store.list_for_user(redis, admin_user.id) == []
+
+    async def test_the_session_making_the_change_survives(
+        self, client, redis, admin_user, self_headers, listening, deliveries
+    ):
+        """Signing someone out of the page they are using to secure their
+        account is hostile. The browser sends its cookie; that session stays."""
+        other = claims_of((await get_tokens(client))["id_token"])["sid"]
+        client.cookies.clear()
+        await get_tokens(client)  # this browser, which keeps its cookie
+
+        response = await client.post(
+            "/entity/credentials/password",
+            json={"currentPassword": ADMIN_PASSWORD, "newPassword": "a-new-passphrase"},
+            headers=self_headers,
+        )
+
+        assert response.json()["sessionsEnded"] == 1
+        assert [claims_of(token)["sid"] for _, token in deliveries] == [other]
+        assert len(await session_store.list_for_user(redis, admin_user.id)) == 1
+
+    async def test_a_password_reset_tells_every_session(
+        self, client, redis, admin_user, listening, deliveries, monkeypatch
+    ):
+        links: list[str] = []
+
+        async def capture(*, to: str, subject: str, body: str) -> None:
+            links.append(body.split("token=")[1].strip())
+
+        monkeypatch.setattr(recovery_service.notifier, "send", capture)
+        sid = claims_of((await get_tokens(client))["id_token"])["sid"]
+        client.cookies.clear()
+
+        await client.post("/api/v1/auth/password-reset", json={"email": ADMIN_EMAIL})
+        await client.post(
+            "/api/v1/auth/password-reset/confirm",
+            json={"token": links[0], "newPassword": "a-new-passphrase"},
+        )
+
+        assert [claims_of(token)["sid"] for _, token in deliveries] == [sid]
+        assert await session_store.list_for_user(redis, admin_user.id) == []
+
+    async def test_deactivation_tells_every_session(
+        self, client, member, admin_headers, listening, deliveries
+    ):
+        await self.sign_in_member(client)
+
+        response = await client.patch(
+            f"/admin/users/{member.id}", json={"isActive": False}, headers=admin_headers
+        )
+
+        assert response.status_code == 200
+        assert [claims_of(token)["sub"] for _, token in deliveries] == [str(member.id)]
+
+    async def test_deletion_tells_every_session(
+        self, client, db, member, admin_headers, listening, deliveries
+    ):
+        """Deletion writes the delivery to the audit log in the same transaction
+        that removes the person it names, and must still commit."""
+        await self.sign_in_member(client)
+
+        response = await client.delete(
+            f"/admin/users/{member.id}", headers=admin_headers
+        )
+
+        assert response.status_code == 204
+        assert [claims_of(token)["sub"] for _, token in deliveries] == [str(member.id)]
+        row = await db.scalar(
+            select(AuditEvent).where(AuditEvent.action == "POST backchannel_logout")
+        )
+        assert row is not None
+        assert row.actor_user_id is None

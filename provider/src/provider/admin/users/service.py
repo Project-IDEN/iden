@@ -14,7 +14,7 @@ from provider.admin.users.errors import (
     UserNotFound,
 )
 from provider.admin.users.schemas import UserCreate, UserUpdate
-from provider.authz.services import session_store
+from provider.authz.logout import service as logout_service
 from provider.authz.services.token_service import now
 from provider.core.security import hash_secret
 from provider.shared.models import (
@@ -184,7 +184,7 @@ async def revoke_everything(session: AsyncSession, redis: Redis, user_id: UUID) 
         .where(RefreshToken.user_id == user_id, RefreshToken.revoked_at.is_(None))
         .values(revoked_at=now())
     )
-    await session_store.delete_all_for_user(redis, user_id)
+    await logout_service.end_all_sessions(session, redis, user_id)
 
 
 async def reset_password(

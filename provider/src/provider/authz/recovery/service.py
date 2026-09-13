@@ -12,8 +12,8 @@ from redis.asyncio import Redis
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from provider.authz.logout import service as logout_service
 from provider.authz.recovery.errors import InvalidResetToken
-from provider.authz.services import session_store
 from provider.core import notifier
 from provider.core.config import settings
 from provider.core.security import generate_token, hash_secret, hash_token
@@ -75,5 +75,5 @@ async def confirm_reset(
         .where(RefreshToken.user_id == user.id, RefreshToken.revoked_at.is_(None))
         .values(revoked_at=datetime.now(UTC))
     )
-    await session_store.delete_all_for_user(redis, user.id)
+    await logout_service.end_all_sessions(session, redis, user.id)
     await session.commit()

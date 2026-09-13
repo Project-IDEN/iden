@@ -140,6 +140,31 @@ async def end_session(
     await session_store.delete(redis, login_session.id)
 
 
+async def end_all_sessions(
+    session: AsyncSession, redis: Redis, user_id: uuid.UUID, *, keep: str | None = None
+) -> int:
+    """End every browser session this person has, except `keep` — the cookie
+    of the one making the change, when there is one. Returns how many ended.
+
+    Each is ended as `end_session` ends one, applications told and all, bar the
+    refresh tokens: those are the caller's to revoke, by user rather than by
+    session, because a refresh token outlives the session that issued it and
+    those have to stop working too.
+    """
+    kept = session_store.public_id_of(keep) if keep else None
+    ended = 0
+
+    for live in await session_store.list_for_user(redis, user_id):
+        if live.id == kept:
+            continue
+        client_ids = await session_store.clients_for_public_id(redis, live.id)
+        await notify(session, client_ids=client_ids, subject=user_id, sid=live.id)
+        await session_store.delete_by_public_id(redis, user_id, live.id)
+        ended += 1
+
+    return ended
+
+
 async def revoke_session_tokens(session: AsyncSession, sid: str) -> None:
     """Revoke every refresh token the session produced.
 

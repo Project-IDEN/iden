@@ -6,7 +6,7 @@ from redis.asyncio import Redis
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from provider.authz.services import session_store
+from provider.authz.logout import service as logout_service
 from provider.core.security import hash_secret, verify_secret
 from provider.entity.credentials.errors import EmailTaken, SamePassword, WrongPassword
 from provider.shared.models import RefreshToken, User
@@ -28,10 +28,9 @@ async def _invalidate_everything_else(
         .values(revoked_at=datetime.now(UTC))
     )
 
-    ended = await session_store.delete_all_for_user(redis, user.id)
-    if keep_session:
-        ended -= 1
-    return max(ended, 0)
+    return await logout_service.end_all_sessions(
+        session, redis, user.id, keep=keep_session
+    )
 
 
 async def change_password(

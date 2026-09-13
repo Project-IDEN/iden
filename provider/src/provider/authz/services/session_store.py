@@ -272,18 +272,3 @@ async def delete(redis: Redis, session_id: str) -> None:
     await redis.delete(_key(session_id), _clients_key(session_id))
     if session is not None:
         await redis.srem(_user_key(session.user_id), _key(session_id))
-
-
-async def delete_all_for_user(redis: Redis, user_id: UUID) -> int:
-    """Sign a user out everywhere. Used when a password changes or an account
-    is deactivated — a credential change that leaves old sessions alive has not
-    really taken effect."""
-    keys = [str(key) for key in await redis.smembers(_user_key(user_id))]
-    if keys:
-        # The index stores session keys; the client set for each is the same
-        # hash under a different prefix, so both go in one delete.
-        await redis.delete(
-            *keys, *(key.replace("session:", "session_clients:", 1) for key in keys)
-        )
-    await redis.delete(_user_key(user_id))
-    return len(keys)
