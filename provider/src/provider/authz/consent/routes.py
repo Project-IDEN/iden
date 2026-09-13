@@ -85,4 +85,7 @@ async def consent(
     await record_consent(session, user, client, granted)
     await session.commit()
 
+    challenge.consented_by = user.id
+    await challenge_store.save(redis, challenge)
+
     return ConsentResponse(redirect_url=challenge_store.resume_url(challenge))

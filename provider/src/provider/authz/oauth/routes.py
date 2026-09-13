@@ -7,6 +7,7 @@ from urllib.parse import unquote_plus, urlencode
 import jwt
 from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import RedirectResponse
+from redis.asyncio import Redis
 from sqlalchemy import select
 
 from provider.authz import session_cookie
@@ -78,6 +79,22 @@ def _stale(login_session: session_store.Session, max_age: int | None) -> bool:
         return False
     age = tokens.now() - login_session.authenticated_at
     return age.total_seconds() > max_age
+
+
+async def _resumed(
+    redis: Redis, challenge_id: str | None, params: dict[str, str]
+) -> challenge_store.Challenge | None:
+    """The challenge this request is returning from, if it is one.
+
+    Only an exact match counts. A challenge vouches for the interactions done
+    for *one* request; if any parameter differs this is a different request —
+    another client, other scopes — and a consent given to the first must not
+    carry over to it.
+    """
+    if not challenge_id:
+        return None
+    challenge = await challenge_store.get(redis, challenge_id)
+    return challenge if challenge and challenge.params == params else None
 
 
 def _id_token_claims(hint: str) -> dict | None:
@@ -183,6 +200,15 @@ async def authorize(
     max_age: Annotated[int | None, Query(ge=0)] = None,
     login_hint: Annotated[str | None, Query()] = None,
     id_token_hint: Annotated[str | None, Query()] = None,
+    resume: Annotated[
+        str | None,
+        Query(
+            description=(
+                "Set by IDEN on the way back from the Auth UI, naming the "
+                "challenge this request went through. Clients never send it."
+            )
+        ),
+    ] = None,
 ) -> Response:
     client = await get_client(session, client_id)
     if client is None:
@@ -226,6 +252,8 @@ async def authorize(
 
     silent = Prompt.NONE in prompts
     params = dict(request.query_params)
+    params.pop("resume", None)
+    resumed = await _resumed(redis, resume, params)
 
     async def interact(path: str, user_id: uuid.UUID | None = None, **extra: str):
         """Hand the request to the Auth UI — unless the client forbade it.
@@ -237,7 +265,10 @@ async def authorize(
         """
         if silent:
             raise fail(SILENT_ERRORS[path], "This request needs interaction.")
-        challenge = await challenge_store.create(redis, params)
+        # A returning request keeps its challenge. A new one would forget what
+        # the first recorded — a login followed by consent would come back
+        # with a challenge that never saw the login, and ask for it again.
+        challenge = resumed or await challenge_store.create(redis, params)
         if user_id is not None:
             challenge.user_id = user_id
             await challenge_store.save(redis, challenge)
@@ -252,13 +283,20 @@ async def authorize(
     if login_session is None:
         return await interact("/auth/login")
 
+    # Both demands below are met by a sign-in made for this request. Without
+    # this, the resume URL — which carries the original `prompt` and `max_age`
+    # — would demand the sign-in it had just been given, on every return.
+    signed_in_for_this = (
+        resumed is not None and login_session.authenticated_at >= resumed.created_at
+    )
+
     # `prompt=login` and `select_account` force a fresh authentication. IDEN has
     # one account per session, so account selection is re-authentication; it is
     # accepted rather than refused so a conforming client is not broken by it.
-    if prompts & {Prompt.LOGIN, Prompt.SELECT_ACCOUNT}:
+    if not signed_in_for_this and prompts & {Prompt.LOGIN, Prompt.SELECT_ACCOUNT}:
         return await interact("/auth/login", step_up="1")
 
-    if _stale(login_session, max_age):
+    if not signed_in_for_this and _stale(login_session, max_age):
         return await interact("/auth/login", login_session.user_id, step_up="1")
 
     acr = auth_methods.derive_acr(login_session.amr)
@@ -282,7 +320,8 @@ async def authorize(
     requested = parse_scope(scope)
     granted = resolve_for_user(requested, client, user)
 
-    if Prompt.CONSENT in prompts or await consent_required(
+    consented_for_this = resumed is not None and resumed.consented_by == user.id
+    if (Prompt.CONSENT in prompts and not consented_for_this) or await consent_required(
         session, user, client, granted
     ):
         return await interact("/auth/consent", user.id)
@@ -299,6 +338,10 @@ async def authorize(
         authenticated_at=login_session.authenticated_at,
     )
     await session.commit()
+    # Spent. A challenge left behind would let its resume URL be replayed for
+    # ten minutes with everything it vouched for still vouched for.
+    if resumed is not None:
+        await challenge_store.delete(redis, resumed.id)
     # What makes single sign-out possible: this is the only record that the
     # session ever reached this client.
     await session_store.add_client(redis, login_session.id, client.client_id)

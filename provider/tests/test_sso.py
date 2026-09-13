@@ -1,6 +1,8 @@
 """Phase 3.1 and 3.2 — the session behind single sign-on, and the parameters a
 relying party uses to steer it."""
 
+from urllib.parse import parse_qs, urlparse
+
 import jwt
 import pytest
 
@@ -20,6 +22,10 @@ pytestmark = pytest.mark.usefixtures("admin_user", "dashboard")
 
 def decode(token: str) -> dict:
     return jwt.decode(token, options={"verify_signature": False})
+
+
+def query_of_url(url: str) -> dict[str, str]:
+    return {k: v[0] for k, v in parse_qs(urlparse(url).query).items()}
 
 
 async def authorize(client, **overrides):
@@ -199,6 +205,108 @@ class TestPromptLoginAndConsent:
         response = await authorize(client, prompt="consent")
 
         assert "/auth/consent" in response.headers["location"]
+
+
+async def play_the_auth_ui(client, response) -> tuple[dict[str, str], list[str]]:
+    """Sign in or approve whatever is asked, following the way back each time,
+    until the client has its answer. Returns that answer and the screens shown.
+
+    A screen shown twice fails at once rather than looping: that is the bug this
+    exists to catch.
+    """
+    shown: list[str] = []
+    while "/auth/" in response.headers["location"]:
+        screen = urlparse(response.headers["location"]).path
+        assert screen not in shown, f"{screen} asked for again after {shown}"
+        shown.append(screen)
+
+        challenge_id = query_of(response)["challenge"]
+        if screen == "/auth/login":
+            step = await sign_in(client, challenge_id)
+            onward = step.json()["resumeUrl"]
+        else:
+            step = await client.post(
+                "/api/v1/auth/consent",
+                json={"challengeId": challenge_id, "approved": True},
+            )
+            onward = step.json()["redirectUrl"]
+        response = await client.get(onward)
+
+    return query_of(response), shown
+
+
+class TestTheWayBack:
+    """The resume URL carries the original request, `prompt` and `max_age`
+    included. Each of these once demanded again the interaction it had just
+    been given, forever — and the tests above never noticed, because they stop
+    at the first redirect."""
+
+    @pytest.mark.parametrize(
+        ("prompt", "screens"),
+        [
+            ("login", ["/auth/login"]),
+            ("select_account", ["/auth/login"]),
+            ("consent", ["/auth/consent"]),
+            ("login consent", ["/auth/login", "/auth/consent"]),
+        ],
+    )
+    async def test_a_prompt_is_satisfied_once(self, client, prompt, screens):
+        await get_tokens(client)
+
+        answer, shown = await play_the_auth_ui(
+            client, await authorize(client, prompt=prompt)
+        )
+
+        assert shown == screens
+        assert "code" in answer
+
+    async def test_max_age_zero_is_met_by_the_sign_in_it_asked_for(self, client):
+        await get_tokens(client)
+
+        answer, shown = await play_the_auth_ui(
+            client, await authorize(client, max_age=0)
+        )
+
+        assert shown == ["/auth/login"]
+        assert "code" in answer
+
+    async def test_max_age_zero_from_a_cold_browser_signs_in_once(self, client):
+        answer, shown = await play_the_auth_ui(
+            client, await authorize(client, max_age=0)
+        )
+
+        assert shown == ["/auth/login"]
+        assert "code" in answer
+
+    async def test_a_consent_does_not_carry_over_to_another_request(self, client):
+        """The challenge vouches for one request. Presented with different
+        parameters it vouches for nothing."""
+        await get_tokens(client)
+        asked = await authorize(client, prompt="consent")
+        approved = await client.post(
+            "/api/v1/auth/consent",
+            json={"challengeId": query_of(asked)["challenge"], "approved": True},
+        )
+
+        params = query_of_url(approved.json()["redirectUrl"])
+        response = await client.get(
+            "/oauth2/authorize", params={**params, "scope": "openid"}
+        )
+
+        assert "/auth/consent" in response.headers["location"]
+
+    async def test_a_spent_resume_url_vouches_for_nothing(self, client):
+        """Replayed after the code was issued, the resume URL is a new request
+        again — and `prompt=login` asks again, as it should."""
+        await get_tokens(client)
+        asked = await authorize(client, prompt="login")
+        step = await sign_in(client, query_of(asked)["challenge"])
+        resume_url = step.json()["resumeUrl"]
+        assert "code" in query_of(await client.get(resume_url))
+
+        replayed = await client.get(resume_url)
+
+        assert "/auth/login" in replayed.headers["location"]
 
 
 class TestIdTokenHint:
