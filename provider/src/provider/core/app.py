@@ -154,9 +154,16 @@ async def handle_http_exception(
     answers with Starlette's `{"detail": ...}`. Handled centrally rather than by
     replacing HTTPException everywhere, because the raising code is right; it is
     only the serialization that was inconsistent.
+
+    A route that raises with a domain error as the detail keeps that error's
+    code: the status is the route's to choose, but `totp_not_enrolled` and
+    `invalid_totp_code` are both a 400 and a caller has to be able to tell them
+    apart.
     """
     body = ErrorResponse(
-        code=STATUS_CODES.get(exc.status_code, "error"),
+        code=exc.detail.code
+        if isinstance(exc.detail, IdenError)
+        else STATUS_CODES.get(exc.status_code, "error"),
         message=str(exc.detail),
     )
     return JSONResponse(

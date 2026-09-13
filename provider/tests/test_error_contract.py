@@ -4,6 +4,8 @@ import pytest
 from redis.exceptions import ConnectionError
 from sqlalchemy.exc import OperationalError
 
+from tests.flows import pkce_pair, query_of, sign_in, start
+
 
 class TestErrorContract:
     """One body shape everywhere except the OAuth endpoints, which keep the
@@ -58,6 +60,40 @@ class TestErrorContract:
         assert response.status_code == 400
         assert response.json()["error"] == "invalid_request"
         assert "code" not in response.json()
+
+
+@pytest.mark.usefixtures("admin_user", "dashboard")
+class TestSignInRefusalsKeepTheirCode:
+    """The sign-in steps choose their own status, and the domain code has to
+    survive that: a wrong code and a missing authenticator are both a 400, and
+    the Auth UI can tell them apart by nothing else."""
+
+    async def test_a_wrong_password(self, client):
+        _, challenge = pkce_pair()
+        challenge_id = query_of(await start(client, challenge))["challenge"]
+
+        response = await sign_in(client, challenge_id, password="not-the-password")
+
+        assert response.status_code == 401
+        assert response.json()["code"] == "invalid_credentials"
+
+    async def test_a_code_from_someone_with_no_authenticator(self, client):
+        _, challenge = pkce_pair()
+        challenge_id = query_of(await start(client, challenge))["challenge"]
+        await sign_in(client, challenge_id)
+
+        response = await client.post(
+            "/api/v1/auth/totp", json={"challengeId": challenge_id, "code": "000000"}
+        )
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "totp_not_enrolled"
+
+    async def test_an_expired_challenge(self, client):
+        response = await client.get("/api/v1/auth/challenge/gone")
+
+        assert response.status_code == 404
+        assert response.json()["code"] == "challenge_not_found"
 
 
 class TestDependencyOutage:

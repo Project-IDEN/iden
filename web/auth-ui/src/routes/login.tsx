@@ -220,7 +220,7 @@ function TotpStep({
 
   const problem = mutation.error instanceof IdenError ? mutation.error : null;
   const message =
-    problem?.status === 400
+    problem?.code === "invalid_totp_code"
       ? "That code is not right. Codes change every 30 seconds — try the current one."
       : problem?.status === 401
         ? "Your sign-in timed out. Return to the application and start again."

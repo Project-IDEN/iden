@@ -94,7 +94,7 @@ async def read_challenge(
 ) -> ChallengeResponse:
     challenge = await challenge_store.get(redis, challenge_id)
     if challenge is None:
-        raise HTTPException(status_code=404, detail=ChallengeNotFound.message)
+        raise HTTPException(status_code=404, detail=ChallengeNotFound())
 
     client = await session.scalar(
         select(Client).where(Client.client_id == challenge.params["client_id"])
@@ -160,7 +160,7 @@ async def login(
 ) -> AuthStepResponse:
     challenge = await challenge_store.get(redis, body.challenge_id)
     if challenge is None:
-        raise HTTPException(status_code=404, detail=ChallengeNotFound.message)
+        raise HTTPException(status_code=404, detail=ChallengeNotFound())
 
     # Counted per account as well as per address: credential stuffing rotates
     # addresses and does not rotate the target.
@@ -175,9 +175,9 @@ async def login(
             body.email,
             window=ratelimit.LOGIN_FAILURES["window"],
         )
-        raise HTTPException(status_code=401, detail=exc.message) from exc
+        raise HTTPException(status_code=401, detail=exc) from exc
     except InactiveUser as exc:
-        raise HTTPException(status_code=403, detail=exc.message) from exc
+        raise HTTPException(status_code=403, detail=exc) from exc
 
     # Cleared on success, so someone under attack can still sign in with the
     # password they know.
@@ -255,15 +255,15 @@ async def totp(
     redis: RedisDep,
 ) -> AuthStepResponse:
     if login_session is None:
-        raise HTTPException(status_code=401, detail=NoSession.message)
+        raise HTTPException(status_code=401, detail=NoSession())
 
     challenge = await challenge_store.get(redis, body.challenge_id)
     if challenge is None:
-        raise HTTPException(status_code=404, detail=ChallengeNotFound.message)
+        raise HTTPException(status_code=404, detail=ChallengeNotFound())
 
     user = await session.get(User, login_session.user_id)
     if user is None:
-        raise HTTPException(status_code=401, detail=NoSession.message)
+        raise HTTPException(status_code=401, detail=NoSession())
 
     set_actor(request, user_id=user.id)
 
@@ -280,7 +280,7 @@ async def totp(
             str(user.id),
             window=ratelimit.TOTP_FAILURES["window"],
         )
-        raise HTTPException(status_code=400, detail=exc.message) from exc
+        raise HTTPException(status_code=400, detail=exc) from exc
 
     await ratelimit.clear(redis, ratelimit.TOTP_FAILURES["bucket"], str(user.id))
 

@@ -43,11 +43,11 @@ async def consent(
     redis: RedisDep,
 ) -> ConsentResponse:
     if login_session is None:
-        raise HTTPException(status_code=401, detail=NoSession.message)
+        raise HTTPException(status_code=401, detail=NoSession())
 
     challenge = await challenge_store.get(redis, body.challenge_id)
     if challenge is None:
-        raise HTTPException(status_code=404, detail=ChallengeNotFound.message)
+        raise HTTPException(status_code=404, detail=ChallengeNotFound())
 
     if not body.approved:
         await challenge_store.delete(redis, challenge.id)
@@ -65,7 +65,7 @@ async def consent(
 
     user = await session.get(User, login_session.user_id)
     if user is None:
-        raise HTTPException(status_code=401, detail=NoSession.message)
+        raise HTTPException(status_code=401, detail=NoSession())
 
     set_actor(request, user_id=user.id)
 
@@ -73,7 +73,7 @@ async def consent(
         select(Client).where(Client.client_id == challenge.params["client_id"])
     )
     if client is None:
-        raise HTTPException(status_code=404, detail=ChallengeNotFound.message)
+        raise HTTPException(status_code=404, detail=ChallengeNotFound())
 
     # The resolved set, not the requested one. A user shown a consent screen
     # agrees to what they are actually granting; recording the raw request would
