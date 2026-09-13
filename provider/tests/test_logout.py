@@ -12,9 +12,10 @@ import pytest
 from sqlalchemy import select
 
 from provider.authz.logout import service as logout_service
+from provider.authz.services import session_store
 from provider.core.crypto import verify_jwt
 from provider.shared.models import AuditEvent, Client
-from tests.flows import get_tokens
+from tests.flows import get_tokens, pkce_pair, query_of, sign_in, start
 
 POST_LOGOUT_URI = "http://localhost:5173/"
 
@@ -64,6 +65,24 @@ async def listening(db, dashboard) -> Client:
 
 def claims_of(token: str) -> dict:
     return jwt.decode(token, options={"verify_signature": False})
+
+
+async def refresh(client, refresh_token: str):
+    return await client.post(
+        "/oauth2/token",
+        data={
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": "dashboard",
+        },
+    )
+
+
+async def switch_account(client, prompt: str, **credentials):
+    """Ask to sign in again on a browser that already has a session, and do."""
+    _, challenge = pkce_pair()
+    response = await start(client, challenge, prompt=prompt)
+    return await sign_in(client, query_of(response)["challenge"], **credentials)
 
 
 class TestFanOut:
@@ -255,3 +274,56 @@ class TestAudit:
         )
         assert row is not None
         assert row.status_code == 0
+
+
+class TestSwitchingAccount:
+    """IDEN holds one account per browser. When someone else signs in on it, the
+    previous person is signed out — and that has to mean what signing out means
+    everywhere else, not only that their session disappears from Redis."""
+
+    OTHER = {"email": "student@test.local", "password": "correct-horse-battery-staple"}
+
+    async def test_the_previous_persons_refresh_tokens_are_revoked(
+        self, client, member
+    ):
+        tokens = await get_tokens(client)
+
+        switched = await switch_account(client, "select_account", **self.OTHER)
+
+        assert switched.status_code == 200
+        assert (await refresh(client, tokens["refresh_token"])).status_code == 400
+
+    async def test_the_applications_they_reached_are_told(
+        self, client, member, admin_user, listening, deliveries
+    ):
+        tokens = await get_tokens(client)
+        sid = claims_of(tokens["id_token"])["sid"]
+
+        await switch_account(client, "login", **self.OTHER)
+
+        assert len(deliveries) == 1
+        claims = verify_jwt(deliveries[0][1], audience="dashboard")
+        assert claims["sub"] == str(admin_user.id)
+        assert claims["sid"] == sid
+
+    async def test_their_session_is_gone_and_the_new_one_is_not(
+        self, client, redis, member, admin_user
+    ):
+        await get_tokens(client)
+
+        await switch_account(client, "select_account", **self.OTHER)
+
+        assert await session_store.list_for_user(redis, admin_user.id) == []
+        assert len(await session_store.list_for_user(redis, member.id)) == 1
+
+    async def test_the_same_person_again_ends_nothing(
+        self, client, listening, deliveries
+    ):
+        """`prompt=login` by the person already signed in is a fresh proof on the
+        same session, not a sign-out."""
+        tokens = await get_tokens(client)
+
+        await switch_account(client, "login")
+
+        assert deliveries == []
+        assert (await refresh(client, tokens["refresh_token"])).status_code == 200

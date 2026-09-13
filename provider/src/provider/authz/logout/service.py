@@ -11,9 +11,11 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 import httpx
+from redis.asyncio import Redis
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from provider.authz.services import session_store
 from provider.core import audit
 from provider.core.config import settings
 from provider.core.crypto import LOGOUT_TOKEN_TYP, sign_jwt
@@ -117,6 +119,25 @@ async def notify(
             actor_user_id=subject,
             detail={"sid": sid, "uri": client.backchannel_logout_uri},
         )
+
+
+async def end_session(
+    session: AsyncSession, redis: Redis, login_session: session_store.Session
+) -> None:
+    """End one browser session completely: revoke what it issued, tell the
+    applications it reached, then delete it.
+
+    In that order because the record of which applications it reached lives with
+    the session and goes when it does. Deleting alone ends nothing that matters —
+    every application keeps its own session, and its refresh token keeps working.
+    """
+    sid = login_session.public_id
+    client_ids = await session_store.clients_for(redis, login_session.id)
+
+    await revoke_session_tokens(session, sid)
+    await notify(session, client_ids=client_ids, subject=login_session.user_id, sid=sid)
+    await session.commit()
+    await session_store.delete(redis, login_session.id)
 
 
 async def revoke_session_tokens(session: AsyncSession, sid: str) -> None:

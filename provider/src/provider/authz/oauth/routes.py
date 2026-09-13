@@ -1009,17 +1009,7 @@ async def _logout(
     state: str | None,
 ) -> Response:
     if login_session is not None:
-        sid = login_session.public_id
-        # Read before the delete: the record of which clients this session
-        # reached lives with the session and goes when it does.
-        client_ids = await session_store.clients_for(redis, login_session.id)
-
-        await logout_service.revoke_session_tokens(session, sid)
-        await logout_service.notify(
-            session, client_ids=client_ids, subject=login_session.user_id, sid=sid
-        )
-        await session.commit()
-        await session_store.delete(redis, login_session.id)
+        await logout_service.end_session(session, redis, login_session)
 
     client = await get_client(session, client_id or _hinted_client(id_token_hint))
     target = None

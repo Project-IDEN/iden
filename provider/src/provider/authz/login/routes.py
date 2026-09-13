@@ -23,6 +23,7 @@ from provider.authz.login.service import (
     enrolled_methods,
     verify_totp,
 )
+from provider.authz.logout import service as logout_service
 from provider.authz.services import auth_methods, challenge_store, session_store
 from provider.authz.services.scope_resolver import OIDC_SCOPES, parse_scope
 from provider.core import ratelimit
@@ -201,10 +202,13 @@ async def login(
             redis, login_session, AmrMethod.PWD, **origin
         )
     else:
-        # A different person on the same browser. The previous session ends
-        # here rather than lingering until its TTL.
+        # A different person on the same browser. IDEN holds one account per
+        # browser, so the previous person is signed out here — fully, as
+        # /oauth2/logout would: deleting their session alone would leave every
+        # application it reached still signed in as them, with refresh tokens
+        # nobody could find to revoke.
         if login_session is not None:
-            await session_store.delete(redis, login_session.id)
+            await logout_service.end_session(session, redis, login_session)
         login_session = await session_store.create(
             redis, user.id, AmrMethod.PWD, **origin
         )
