@@ -4,6 +4,8 @@ from provider.authz.services.auth_methods import (
     derive_acr,
     meets,
     normalized_amr,
+    outstanding,
+    reachable_levels,
     supported,
 )
 from provider.shared.enums import AcrLevel
@@ -59,3 +61,26 @@ def test_meets_compares_levels_in_order(amr, required, expected):
 
 def test_face_is_not_registered_until_the_biometric_module_is_enabled():
     assert supported() == ["pwd", "otp"]
+
+
+def test_only_reachable_levels_are_advertised():
+    assert reachable_levels() == ["iden:loa:1", "iden:loa:2"]
+
+
+@pytest.mark.parametrize(
+    "amr,enrolled,required,expected",
+    [
+        # Nothing asked, nothing owed.
+        (["pwd"], {"pwd"}, None, []),
+        # The person's own rule: an authenticator, once set up, is always owed.
+        (["pwd"], {"pwd", "otp"}, None, ["otp"]),
+        (["pwd", "otp"], {"pwd", "otp"}, None, []),
+        # The client's rule, when the person can meet it.
+        (["pwd"], {"pwd", "otp"}, "iden:loa:2", ["otp"]),
+        # ...and when they cannot: nothing to ask for, so /authorize refuses.
+        (["pwd"], {"pwd"}, "iden:loa:2", []),
+        (["pwd", "otp"], {"pwd", "otp"}, "iden:loa:3", []),
+    ],
+)
+def test_outstanding_asks_only_for_what_can_help(amr, enrolled, required, expected):
+    assert outstanding(amr, enrolled, required) == expected

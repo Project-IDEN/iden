@@ -69,3 +69,13 @@ async def test_metadata_advertises_the_session_controls(client, catalogue):
     assert body["backchannel_logout_session_supported"] is True
     assert body["end_session_endpoint"].endswith("/oauth2/logout")
     assert "sid" in body["claims_supported"]
+
+
+async def test_only_levels_a_registered_method_reaches_are_advertised(
+    client, catalogue
+):
+    """`iden:loa:3` needs a face, and nothing registers one yet. Advertising it
+    invites a request that can only ever be refused."""
+    body = (await client.get("/.well-known/openid-configuration")).json()
+
+    assert body["acr_values_supported"] == ["iden:loa:1", "iden:loa:2"]

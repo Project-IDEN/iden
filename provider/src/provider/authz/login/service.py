@@ -12,6 +12,7 @@ from provider.authz.login.errors import (
     TotpNotEnrolled,
 )
 from provider.core.security import hash_secret, verify_secret
+from provider.shared.enums import AmrMethod
 from provider.shared.models import TotpCredential, User
 
 # Verifying against this when no user matches keeps the response time of an
@@ -52,6 +53,19 @@ async def verify_totp(session: AsyncSession, user: User, code: str) -> None:
     # between the phone and the server (RFC 6238 Section 6).
     if not pyotp.TOTP(credential.secret).verify(code, valid_window=1):
         raise InvalidTotpCode
+
+
+async def enrolled_methods(session: AsyncSession, user_id: UUID) -> set[str]:
+    """The methods this person could sign in with right now.
+
+    The highest level they can reach is derived from this, which is what lets a
+    request for more than that be refused instead of shown a form they cannot
+    complete.
+    """
+    methods = {AmrMethod.PWD.value}
+    if await has_confirmed_totp(session, user_id):
+        methods.add(AmrMethod.OTP.value)
+    return methods
 
 
 async def has_confirmed_totp(session: AsyncSession, user_id: UUID) -> bool:

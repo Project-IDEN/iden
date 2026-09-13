@@ -40,6 +40,9 @@ def normalized_amr(amr: list[str]) -> list[str]:
     return factors
 
 
+LEVELS = [AcrLevel.LOA1, AcrLevel.LOA2, AcrLevel.LOA3]
+
+
 def derive_acr(amr: list[str]) -> AcrLevel:
     """Assurance level from the methods actually used.
 
@@ -63,9 +66,42 @@ def meets(acr: AcrLevel, required: str | None) -> bool:
     if not required:
         return True
 
-    order = [AcrLevel.LOA1, AcrLevel.LOA2, AcrLevel.LOA3]
     requested = [AcrLevel(v) for v in required.split() if v in set(AcrLevel)]
     if not requested:
         return True
 
-    return order.index(acr) >= min(order.index(level) for level in requested)
+    return LEVELS.index(acr) >= min(LEVELS.index(level) for level in requested)
+
+
+def reachable_levels() -> list[str]:
+    """The levels some combination of registered methods can reach.
+
+    What discovery may honestly advertise: `iden:loa:3` needs a face, so it is
+    listed once something registers one and not before.
+    """
+    top = derive_acr(supported())
+    return [level.value for level in LEVELS[: LEVELS.index(top) + 1]]
+
+
+def outstanding(amr: list[str], enrolled: set[str], required: str | None) -> list[str]:
+    """The methods still to be used before this sign-in is enough — none when
+    it already is.
+
+    Two reasons to ask for more, and they answer to different people.
+
+    The client can demand a level through `acr_values`. That is worth asking
+    for only when this person's methods can reach it; a level they cannot reach
+    is for /authorize to refuse, never a form nobody could get past.
+
+    The *person* demands a second factor by having set one up at all. Once they
+    have, a password alone stops being enough to sign in as them, whatever the
+    client asked for. A second factor that applied only when an application
+    requested it would protect nobody — whoever holds the password would use an
+    application that does not ask.
+    """
+    unused = sorted(enrolled - set(amr))
+    owes_second_factor = AmrMethod.OTP in unused
+    falls_short = not meets(derive_acr(amr), required) and meets(
+        derive_acr(list(enrolled)), required
+    )
+    return unused if owes_second_factor or falls_short else []

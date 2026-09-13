@@ -1,8 +1,11 @@
 from datetime import UTC, datetime
 
 import jwt
+import pyotp
 import pytest
+from sqlalchemy import delete
 
+from provider.shared.models import TotpCredential
 from tests.conftest import ADMIN_EMAIL, REDIRECT_URI
 from tests.flows import (
     DEFAULT_SCOPE,
@@ -19,6 +22,28 @@ pytestmark = pytest.mark.usefixtures("admin_user", "dashboard")
 
 def decode(token: str) -> dict:
     return jwt.decode(token, options={"verify_signature": False})
+
+
+@pytest.fixture
+async def enrolled(db, admin_user):
+    """Give the administrator a confirmed authenticator."""
+    secret = pyotp.random_base32()
+    db.add(
+        TotpCredential(
+            user_id=admin_user.id,
+            secret=secret,
+            confirmed_at=datetime.now(UTC),
+        )
+    )
+    await db.commit()
+    return secret
+
+
+async def enter_code(client, challenge_id: str, secret: str):
+    return await client.post(
+        "/api/v1/auth/totp",
+        json={"challengeId": challenge_id, "code": pyotp.TOTP(secret).now()},
+    )
 
 
 class TestAuthorizeValidation:
@@ -152,16 +177,27 @@ class TestLogin:
 
 
 class TestStepUp:
-    async def test_session_below_the_requested_acr_forces_a_step_up(self, client):
+    async def test_session_below_the_requested_acr_forces_a_step_up(
+        self, client, db, admin_user
+    ):
+        """A password-only session, from before the authenticator was set up."""
         _, challenge = pkce_pair()
         challenge_id = query_of(await start(client, challenge))["challenge"]
         await sign_in(client, challenge_id)
+        db.add(
+            TotpCredential(
+                user_id=admin_user.id,
+                secret=pyotp.random_base32(),
+                confirmed_at=datetime.now(UTC),
+            )
+        )
+        await db.commit()
 
         response = await start(client, challenge, acr_values="iden:loa:2")
 
-        assert "step_up=1" in response.headers["location"]
+        assert "/auth/login" in response.headers["location"]
 
-    async def test_login_reports_totp_required_when_acr_is_unmet(self, client):
+    async def test_login_asks_for_the_code_when_acr_is_unmet(self, client, enrolled):
         _, challenge = pkce_pair()
         response = await start(client, challenge, acr_values="iden:loa:2")
         challenge_id = query_of(response)["challenge"]
@@ -300,6 +336,79 @@ class TestTokenExchange:
         assert response.json()["error"] == "invalid_grant"
 
 
+class TestAnUnreachableLevel:
+    """A level this person has no way to reach is refused, not shown as a form.
+
+    Both of these once left the person on a code form with no way off it: one
+    with no authenticator to take a code from, the other entering correct codes
+    that could never be enough.
+    """
+
+    async def test_no_authenticator_means_no_code_form(self, client):
+        _, challenge = pkce_pair()
+        response = await start(client, challenge, acr_values="iden:loa:2")
+
+        step = (await sign_in(client, query_of(response)["challenge"])).json()
+        back = query_of(await client.get(step["resumeUrl"]))
+
+        assert step["status"] == "complete"
+        assert back["error"] == "unmet_authentication_requirements"
+        assert back["state"] == "xyz"
+
+    async def test_a_signed_in_session_is_refused_without_a_prompt(self, client):
+        await get_tokens(client)
+        _, challenge = pkce_pair()
+
+        response = await start(client, challenge, acr_values="iden:loa:2")
+
+        assert query_of(response)["error"] == "unmet_authentication_requirements"
+
+    async def test_the_refusal_is_the_same_under_prompt_none(self, client):
+        """`login_required` would send a silent client to an interactive sign-in
+        that could not succeed either."""
+        await get_tokens(client)
+        _, challenge = pkce_pair()
+
+        response = await start(
+            client, challenge, acr_values="iden:loa:2", prompt="none"
+        )
+
+        assert query_of(response)["error"] == "unmet_authentication_requirements"
+
+    async def test_a_level_no_method_reaches_ends_after_the_code(
+        self, client, enrolled
+    ):
+        """`iden:loa:3` needs a face. The code is still owed — this person has an
+        authenticator — but after it there is nothing left to ask for."""
+        _, challenge = pkce_pair()
+        response = await start(client, challenge, acr_values="iden:loa:3")
+        challenge_id = query_of(response)["challenge"]
+        await sign_in(client, challenge_id)
+
+        step = (await enter_code(client, challenge_id, enrolled)).json()
+        back = query_of(await client.get(step["resumeUrl"]))
+
+        assert step["status"] == "complete"
+        assert back["error"] == "unmet_authentication_requirements"
+
+    async def test_a_session_already_above_it_is_not_refused(
+        self, client, db, enrolled
+    ):
+        """The authenticator was removed after they used it. The session still
+        reached the level, and it is the session being asked about."""
+        _, challenge = pkce_pair()
+        response = await start(client, challenge)
+        challenge_id = query_of(response)["challenge"]
+        await sign_in(client, challenge_id)
+        await enter_code(client, challenge_id, enrolled)
+        await db.execute(delete(TotpCredential))
+        await db.commit()
+
+        response = await start(client, challenge, acr_values="iden:loa:2")
+
+        assert "code" in query_of(response)
+
+
 class TestEnrolledTotpIsMandatory:
     """A second factor that only applies when a client asks for it protects
     nobody: the attacker holding the password uses a client that does not ask.
@@ -307,24 +416,6 @@ class TestEnrolledTotpIsMandatory:
     Once someone has confirmed an authenticator, a password alone stops being
     enough to sign in as them — whatever the client requested.
     """
-
-    @pytest.fixture
-    async def enrolled(self, db, admin_user):
-        """Give the administrator a confirmed authenticator."""
-        import pyotp
-
-        from provider.shared.models import TotpCredential
-
-        secret = pyotp.random_base32()
-        db.add(
-            TotpCredential(
-                user_id=admin_user.id,
-                secret=secret,
-                confirmed_at=datetime.now(UTC),
-            )
-        )
-        await db.commit()
-        return secret
 
     async def test_password_alone_no_longer_completes_the_login(self, client, enrolled):
         _, challenge = pkce_pair()
@@ -337,19 +428,12 @@ class TestEnrolledTotpIsMandatory:
         assert body["resumeUrl"] is None
 
     async def test_the_code_completes_it(self, client, enrolled):
-        import pyotp
-
         _, challenge = pkce_pair()
         start_response = await start(client, challenge)
         challenge_id = query_of(start_response)["challenge"]
         await sign_in(client, challenge_id)
 
-        body = (
-            await client.post(
-                "/api/v1/auth/totp",
-                json={"challengeId": challenge_id, "code": pyotp.TOTP(enrolled).now()},
-            )
-        ).json()
+        body = (await enter_code(client, challenge_id, enrolled)).json()
 
         assert body["status"] == "complete"
         assert body["acr"] == "iden:loa:2"
@@ -387,10 +471,6 @@ class TestEnrolledTotpIsMandatory:
     ):
         """A credential exists from the moment the QR code is opened. Treating
         that as a factor would lock out anyone who walked away from the screen."""
-        import pyotp
-
-        from provider.shared.models import TotpCredential
-
         db.add(TotpCredential(user_id=admin_user.id, secret=pyotp.random_base32()))
         await db.commit()
 

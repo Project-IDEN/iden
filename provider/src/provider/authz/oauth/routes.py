@@ -13,7 +13,7 @@ from sqlalchemy import select
 from provider.authz import session_cookie
 from provider.authz.consent.service import consent_required
 from provider.authz.deps import LoginSessionDep
-from provider.authz.login.service import has_confirmed_totp
+from provider.authz.login.service import enrolled_methods
 from provider.authz.logout import service as logout_service
 from provider.authz.oauth.errors import (
     InvalidClient,
@@ -52,7 +52,6 @@ from provider.core.redis import RedisDep
 from provider.core.security import hash_token
 from provider.entity.profile import service as profile_service
 from provider.shared.enums import (
-    AmrMethod,
     ClientType,
     CodeChallengeMethod,
     GrantType,
@@ -162,6 +161,10 @@ def _auth_ui(path: str, challenge_id: str, **extra: str) -> RedirectResponse:
         "when consent is needed. Otherwise issues a code and returns to "
         "`redirect_uri` — which is single sign-on: a second application reaching "
         "this endpoint with a live session gets a code without a prompt.\n\n"
+        "An `acr_values` the person has no way to reach — a level that needs an "
+        "authenticator they have not set up — returns "
+        "`unmet_authentication_requirements` to `redirect_uri` rather than a "
+        "sign-in page they could never get past.\n\n"
         "`prompt=none` never shows UI. When interaction would have been needed it "
         "returns `login_required`, `consent_required`, or "
         "`account_selection_required` to `redirect_uri` instead (OIDC Core "
@@ -299,23 +302,31 @@ async def authorize(
     if not signed_in_for_this and _stale(login_session, max_age):
         return await interact("/auth/login", login_session.user_id, step_up="1")
 
-    acr = auth_methods.derive_acr(login_session.amr)
-    if not auth_methods.meets(acr, acr_values):
-        return await interact("/auth/login", login_session.user_id, step_up="1")
-
     user = await session.get(User, login_session.user_id)
     if user is None or not user.is_active:
         return await interact("/auth/login")
 
-    # Someone who has set up an authenticator must have used it, whatever this
-    # client asked for. Enforced *here* rather than only in the login step
-    # machine because this is the endpoint that issues the code: a session that
-    # skipped the code form and came straight back to the resume URL would
-    # otherwise be handed one anyway, which is the whole attack.
-    if AmrMethod.OTP not in login_session.amr and await has_confirmed_totp(
-        session, login_session.user_id
+    # A level this person has no way to reach is refused here, before any form
+    # is shown: asking for a code that cannot be enough — or that they have no
+    # authenticator to produce — only leaves them stuck on the page. The error
+    # is OIDC's own for this, and the client decides what to do instead.
+    enrolled = await enrolled_methods(session, user.id)
+    acr = auth_methods.derive_acr(login_session.amr)
+    reachable = auth_methods.derive_acr(list(enrolled))
+    if not auth_methods.meets(acr, acr_values) and not auth_methods.meets(
+        reachable, acr_values
     ):
-        return await interact("/auth/login", login_session.user_id, step_up="1")
+        raise fail(
+            "unmet_authentication_requirements",
+            f"This account has no sign-in method that reaches {acr_values}.",
+        )
+
+    # Enforced *here* rather than only in the login step machine because this
+    # is the endpoint that issues the code: a session that skipped the code form
+    # and came straight back to the resume URL would otherwise be handed one
+    # anyway, which is the whole attack.
+    if auth_methods.outstanding(login_session.amr, enrolled, acr_values):
+        return await interact("/auth/login", user.id, step_up="1")
 
     requested = parse_scope(scope)
     granted = resolve_for_user(requested, client, user)

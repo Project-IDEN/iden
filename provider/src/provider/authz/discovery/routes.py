@@ -7,7 +7,7 @@ from provider.authz.services.scope_resolver import OIDC_SCOPES
 from provider.core.config import settings
 from provider.core.crypto import jwks
 from provider.core.db import DBSessionDep
-from provider.shared.enums import AcrLevel, CodeChallengeMethod, GrantType, Prompt
+from provider.shared.enums import CodeChallengeMethod, GrantType, Prompt
 from provider.shared.models import Scope
 
 router = APIRouter(tags=["discovery"])
@@ -69,7 +69,7 @@ async def _metadata(session: DBSessionDep) -> OpenIDConfiguration:
             "none",
         ],
         code_challenge_methods_supported=[CodeChallengeMethod.S256.value],
-        acr_values_supported=[level.value for level in AcrLevel],
+        acr_values_supported=auth_methods.reachable_levels(),
         amr_values_supported=auth_methods.supported(),
         prompt_values_supported=[value.value for value in Prompt],
         backchannel_logout_supported=True,

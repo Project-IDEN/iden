@@ -20,7 +20,7 @@ from provider.authz.login.schemas import (
 )
 from provider.authz.login.service import (
     authenticate_password,
-    has_confirmed_totp,
+    enrolled_methods,
     verify_totp,
 )
 from provider.authz.services import auth_methods, challenge_store, session_store
@@ -46,25 +46,14 @@ OIDC_SCOPE_DESCRIPTIONS = {
 }
 
 
-async def _next_step(session, challenge, *, totp_enrolled: bool) -> AuthStepResponse:
-    """What still has to happen before the authorization request can resume.
-
-    Two separate reasons to ask for a code, and they answer to different people.
-    The client can demand a level through `acr_values`. The *person* demands it
-    by having set up an authenticator at all: once they have, a password alone
-    stops being enough to sign in as them, whatever the client asked for.
-
-    That second rule is the point of enrolling. A second factor that only
-    applies when an application happens to request it protects nobody — the
-    attacker with the password simply uses an application that does not ask.
-    """
+async def _next_step(session, challenge, enrolled: set[str]) -> AuthStepResponse:
+    """What still has to happen before the authorization request can resume —
+    see `auth_methods.outstanding` for when that is another method."""
     acr = auth_methods.derive_acr(session.amr)
     amr = auth_methods.normalized_amr(session.amr)
 
-    needs_step_up = not auth_methods.meets(acr, challenge.params.get("acr_values"))
-    owes_second_factor = totp_enrolled and AmrMethod.OTP not in session.amr
-
-    if needs_step_up or owes_second_factor:
+    required = challenge.params.get("acr_values")
+    if auth_methods.outstanding(session.amr, enrolled, required):
         return AuthStepResponse(status="totp_required", acr=acr, amr=amr)
 
     return AuthStepResponse(
@@ -220,9 +209,7 @@ async def login(
     await challenge_store.save(redis, challenge)
 
     return await _next_step(
-        login_session,
-        challenge,
-        totp_enrolled=await has_confirmed_totp(session, user.id),
+        login_session, challenge, await enrolled_methods(session, user.id)
     )
 
 
@@ -285,9 +272,9 @@ async def totp(
     await ratelimit.clear(redis, ratelimit.TOTP_FAILURES["bucket"], str(user.id))
 
     await session_store.add_method(redis, login_session, AmrMethod.OTP)
-    # Enrollment is settled by the code that just verified, so this cannot ask
-    # for another one.
-    return await _next_step(login_session, challenge, totp_enrolled=True)
+    return await _next_step(
+        login_session, challenge, await enrolled_methods(session, user.id)
+    )
 
 
 @router.post(
