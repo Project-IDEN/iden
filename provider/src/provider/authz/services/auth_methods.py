@@ -1,8 +1,14 @@
 """The authentication method registry and the acr derivation it feeds.
 
-This is the seam that lets the biometric module add `face` in Phase 4 without
-the AuthZ core learning anything about faces: it calls `register()` at import,
-and discovery, acr derivation, and the login UI pick it up automatically.
+This is the seam the biometric module adds `face` through in Phase 4. Calling
+`register()` is enough for acr derivation and for discovery, which lists the
+method in `amr_values_supported` and any level it newly reaches in
+`acr_values_supported`.
+
+Two things are not automatic, and a new method needs both: a check in
+`login.service.enrolled_methods` for whether a person has it set up, and a form
+in the Auth UI for when a step names it in `methods`. The contract between the
+two — `method_required` plus the methods owed — does not change.
 """
 
 from dataclasses import dataclass

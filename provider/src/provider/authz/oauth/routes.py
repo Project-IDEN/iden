@@ -258,23 +258,32 @@ async def authorize(
     params.pop("resume", None)
     resumed = await _resumed(redis, resume, params)
 
-    async def interact(path: str, user_id: uuid.UUID | None = None, **extra: str):
+    async def interact(
+        path: str,
+        user_id: uuid.UUID | None = None,
+        methods: list[str] | None = None,
+        **extra: str,
+    ):
         """Hand the request to the Auth UI — unless the client forbade it.
 
         Under `prompt=none` this raises instead, and raises *before* creating a
         challenge: a challenge is the pending half of an interaction, and one
         left in Redis for an interaction that will never happen is both a leak
         and a lie about what took place.
+
+        `methods` makes it a step-up: the browser is signed in and owes only
+        one of those, so the page asks for that and not the password again.
         """
         if silent:
             raise fail(SILENT_ERRORS[path], "This request needs interaction.")
         # A returning request keeps its challenge. A new one would forget what
         # the first recorded — a login followed by consent would come back
         # with a challenge that never saw the login, and ask for it again.
-        challenge = resumed or await challenge_store.create(redis, params)
+        challenge = resumed or challenge_store.new(params)
         if user_id is not None:
             challenge.user_id = user_id
-            await challenge_store.save(redis, challenge)
+        challenge.methods = methods or []
+        await challenge_store.save(redis, challenge)
         return _auth_ui(path, challenge.id, **extra)
 
     # A hint naming someone other than the person signed in is not an error --
@@ -325,8 +334,8 @@ async def authorize(
     # is the endpoint that issues the code: a session that skipped the code form
     # and came straight back to the resume URL would otherwise be handed one
     # anyway, which is the whole attack.
-    if auth_methods.outstanding(login_session.amr, enrolled, acr_values):
-        return await interact("/auth/login", user.id, step_up="1")
+    if methods := auth_methods.outstanding(login_session.amr, enrolled, acr_values):
+        return await interact("/auth/login", user.id, methods=methods)
 
     requested = parse_scope(scope)
     granted = resolve_for_user(requested, client, user)

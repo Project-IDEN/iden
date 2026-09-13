@@ -23,16 +23,23 @@ class TotpRequest(CamelCaseBaseModel):
 
 
 class AuthStepResponse(CamelCaseBaseModel):
-    status: Literal["complete", "totp_required"] = Field(
+    status: Literal["complete", "method_required"] = Field(
         description=(
-            "`complete` — follow `resumeUrl` to finish the authorization request. "
-            "`totp_required` — a second factor is needed before the requested "
-            "assurance level is met."
+            "`complete` — follow `resumeUrl`; the authorization request decides "
+            "what happens next. `method_required` — another sign-in method is "
+            "owed first, one of those in `methods`."
         )
+    )
+    methods: list[str] = Field(
+        default_factory=list,
+        description=(
+            "The `amr` values that would satisfy a `method_required` step — any "
+            "one of them is enough. Empty when the step is complete."
+        ),
     )
     resume_url: str | None = Field(
         default=None,
-        description="Where to send the browser next. Null when a step-up is pending.",
+        description="Where to send the browser next. Null while a method is owed.",
     )
     acr: str = Field(description="Assurance level reached so far.")
     amr: list[str] = Field(description="Methods used so far.")
@@ -54,6 +61,13 @@ class ChallengeResponse(CamelCaseBaseModel):
     )
     authenticated: bool = Field(
         description="Whether a session already exists in this browser."
+    )
+    methods: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Set for a step-up: the browser is signed in and owes one of these "
+            "`amr` values, so the page starts there rather than at the password."
+        ),
     )
     login_hint: str | None = Field(
         default=None,

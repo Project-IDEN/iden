@@ -30,16 +30,18 @@ class Challenge:
     # Who approved the consent screen for this request, which is what
     # satisfies `prompt=consent` on the way back, for the same reason.
     consented_by: UUID | None = None
+    # Set when the browser is signed in already and owes only one of these —
+    # a step-up. The login page starts at them, not at the password it has.
+    methods: list[str] = field(default_factory=list)
 
 
 def _key(challenge_id: str) -> str:
     return f"challenge:{hash_token(challenge_id)}"
 
 
-async def create(redis: Redis, params: dict[str, str]) -> Challenge:
-    challenge = Challenge(id=generate_token(), params=params)
-    await save(redis, challenge)
-    return challenge
+def new(params: dict[str, str]) -> Challenge:
+    """A challenge for a new request, not yet saved."""
+    return Challenge(id=generate_token(), params=params)
 
 
 async def save(redis: Redis, challenge: Challenge) -> None:
@@ -51,6 +53,7 @@ async def save(redis: Redis, challenge: Challenge) -> None:
             "consented_by": str(challenge.consented_by)
             if challenge.consented_by
             else None,
+            "methods": challenge.methods,
         }
     )
     await redis.set(_key(challenge.id), payload, ex=settings.iden_challenge_ttl)
@@ -78,6 +81,7 @@ async def get(redis: Redis, challenge_id: str | None) -> Challenge | None:
         if created_at
         else datetime.now(UTC),
         consented_by=UUID(consented_by) if consented_by else None,
+        methods=data.get("methods", []),
     )
 
 

@@ -825,10 +825,11 @@ token with the named scope; **session** = browser session cookie. `Phase` refers
 | `POST` | `/api/v1/auth/password-reset` | public | Begin recovery. Always `202` with an empty body, even for an unknown address — a different answer would enumerate accounts | 4 |
 | `POST` | `/api/v1/auth/password-reset/confirm` | public | Single-use token, 15-minute TTL; revokes every session and refresh token on success | 4 |
 
-Login returns `complete` with a `resumeUrl`, or `totpRequired` when the client asked for an
-assurance level a password alone does not reach. It never reports `consentRequired`: consent is
-decided by `/authorize`, which is the only endpoint that knows the full picture, and the browser
-reaches it again by following `resumeUrl`.
+Login returns `complete` with a `resumeUrl`, or `method_required` with the `methods` still owed —
+when the person has an authenticator set up, or the client asked for a level a password alone does
+not reach and this person can reach it. It never reports `consentRequired`, and never refuses a level
+outright: both are decided by `/authorize`, which is the only endpoint that knows the full picture,
+and the browser reaches it again by following `resumeUrl`.
 
 ### Admin RS
 

@@ -251,8 +251,9 @@ later, while the panel is open, is the demonstration.
 
 The server room wants `iden:loa:2`, which means two factors. Sign in as that
 person, go to the dashboard's security settings, and set up an authenticator
-app. Without it the step-up round trip has nothing to step up *to*, and IDEN
-will send you back to a password form that cannot raise your assurance level.
+app. Without it the step-up round trip has nothing to step up *to*: IDEN
+answers *Prove it again* with `unmet_authentication_requirements`, and the
+panel shows that instead of a sign-in page you could never get past.
 
 ## What you do not need
 

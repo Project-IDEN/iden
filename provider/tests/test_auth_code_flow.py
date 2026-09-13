@@ -204,8 +204,59 @@ class TestStepUp:
 
         body = (await sign_in(client, challenge_id)).json()
 
-        assert body["status"] == "totp_required"
+        assert body["status"] == "method_required"
+        assert body["methods"] == ["otp"]
         assert body["resumeUrl"] is None
+
+    async def test_a_signed_in_session_is_asked_only_for_the_code(
+        self, client, db, admin_user
+    ):
+        """The password is already in the session. Asking for it again on a
+        step-up would be a second proof of the same factor, which raises
+        nothing."""
+        tokens = await get_tokens(client)
+        secret = pyotp.random_base32()
+        db.add(
+            TotpCredential(
+                user_id=admin_user.id, secret=secret, confirmed_at=datetime.now(UTC)
+            )
+        )
+        await db.commit()
+
+        verifier, challenge = pkce_pair()
+        response = await start(client, challenge, acr_values="iden:loa:2")
+        challenge_id = query_of(response)["challenge"]
+        page = (await client.get(f"/api/v1/auth/challenge/{challenge_id}")).json()
+
+        step = (await enter_code(client, challenge_id, secret)).json()
+        code = query_of(await client.get(step["resumeUrl"]))["code"]
+        exchanged = await client.post(
+            "/oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": REDIRECT_URI,
+                "code_verifier": verifier,
+                "client_id": "dashboard",
+            },
+        )
+        claims = decode(exchanged.json()["id_token"])
+
+        assert page["methods"] == ["otp"]
+        assert step["status"] == "complete"
+        assert claims["acr"] == "iden:loa:2"
+        # A step-up adds to the sign-in; it is not a new one.
+        assert claims["auth_time"] == decode(tokens["id_token"])["auth_time"]
+
+    async def test_a_re_authentication_still_starts_at_the_password(self, client):
+        await get_tokens(client)
+        _, challenge = pkce_pair()
+
+        response = await start(client, challenge, max_age=0)
+        challenge_id = query_of(response)["challenge"]
+        page = (await client.get(f"/api/v1/auth/challenge/{challenge_id}")).json()
+
+        assert page["methods"] == []
 
     async def test_met_acr_proceeds_normally(self, client):
         _, challenge = pkce_pair()
@@ -424,7 +475,8 @@ class TestEnrolledTotpIsMandatory:
 
         body = (await sign_in(client, challenge_id)).json()
 
-        assert body["status"] == "totp_required"
+        assert body["status"] == "method_required"
+        assert body["methods"] == ["otp"]
         assert body["resumeUrl"] is None
 
     async def test_the_code_completes_it(self, client, enrolled):

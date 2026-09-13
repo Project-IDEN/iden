@@ -87,6 +87,8 @@ export interface paths {
          *
          *     Redirects to the hosted Auth UI when the browser has no session, when the session does not meet the requested `acr_values` or `max_age`, or when consent is needed. Otherwise issues a code and returns to `redirect_uri` — which is single sign-on: a second application reaching this endpoint with a live session gets a code without a prompt.
          *
+         *     An `acr_values` the person has no way to reach — a level that needs an authenticator they have not set up — returns `unmet_authentication_requirements` to `redirect_uri` rather than a sign-in page they could never get past.
+         *
          *     `prompt=none` never shows UI. When interaction would have been needed it returns `login_required`, `consent_required`, or `account_selection_required` to `redirect_uri` instead (OIDC Core Section 3.1.2.6) — this is how a browser application checks silently whether someone is still signed in.
          *
          *     `client_id` and `redirect_uri` errors render as JSON rather than redirecting: before those two are validated the URI is unverified, and redirecting to it would make this an open redirector (RFC 6749 Section 3.1.2.3).
@@ -291,10 +293,12 @@ export interface paths {
          * Sign in with a password
          * @description Verifies the password, records `pwd` in the session's `amr`, and returns where to go next.
          *
-         *     The response is `totpRequired` rather than a resume URL in two cases, and they answer to different people:
+         *     The response is `method_required`, naming the methods owed, rather than a resume URL in two cases, and they answer to different people:
          *
-         *     - the client asked for an assurance level a password alone does not reach (`acr_values`), or
+         *     - the client asked for an assurance level a password alone does not reach (`acr_values`) and this person has a method that does, or
          *     - **this person has an authenticator set up.** Once they do, a password alone stops being enough to sign in as them, whatever the client asked for. A second factor that applied only when an application requested it would protect nobody — whoever holds the password would use an application that does not ask.
+         *
+         *     A level this person cannot reach at all is not asked for here. The response is `complete`, and the authorization request it resumes returns `unmet_authentication_requirements` to the client.
          *
          *     **Required scope:** none — this is how a session is established.
          */
@@ -316,7 +320,7 @@ export interface paths {
         put?: never;
         /**
          * Verify a time-based one-time code
-         * @description Adds `otp` to the session's `amr`, raising its assurance level. Used both as a second factor during login and as a mid-session step-up when a client requests a higher `acr_values`.
+         * @description Adds `otp` to the session's `amr`, raising its assurance level. Used both as a second factor during login and as a mid-session step-up when a client requests a higher `acr_values` — in which case the challenge lists `otp` in `methods` and the Auth UI starts here, without asking for the password the session already has.
          *
          *     **Required scope:** none — requires an existing session cookie.
          */
@@ -1723,13 +1727,18 @@ export interface components {
         AuthStepResponse: {
             /**
              * Status
-             * @description `complete` — follow `resumeUrl` to finish the authorization request. `totp_required` — a second factor is needed before the requested assurance level is met.
+             * @description `complete` — follow `resumeUrl`; the authorization request decides what happens next. `method_required` — another sign-in method is owed first, one of those in `methods`.
              * @enum {string}
              */
-            status: "complete" | "totp_required";
+            status: "complete" | "method_required";
+            /**
+             * Methods
+             * @description The `amr` values that would satisfy a `method_required` step — any one of them is enough. Empty when the step is complete.
+             */
+            methods?: string[];
             /**
              * Resumeurl
-             * @description Where to send the browser next. Null when a step-up is pending.
+             * @description Where to send the browser next. Null while a method is owed.
              */
             resumeUrl?: string | null;
             /**
@@ -1831,6 +1840,11 @@ export interface components {
              * @description Whether a session already exists in this browser.
              */
             authenticated: boolean;
+            /**
+             * Methods
+             * @description Set for a step-up: the browser is signed in and owes one of these `amr` values, so the page starts there rather than at the password.
+             */
+            methods?: string[];
             /**
              * Loginhint
              * @description The address the client suggested, for prefilling the form. A hint from the client, never an assertion of who is signing in — the password is still what decides that.
@@ -3323,6 +3337,8 @@ export interface operations {
                 max_age?: number | null;
                 login_hint?: string | null;
                 id_token_hint?: string | null;
+                /** @description Set by IDEN on the way back from the Auth UI, naming the challenge this request went through. Clients never send it. */
+                resume?: string | null;
             };
             header?: never;
             path?: never;

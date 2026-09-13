@@ -53,8 +53,10 @@ async def _next_step(session, challenge, enrolled: set[str]) -> AuthStepResponse
     amr = auth_methods.normalized_amr(session.amr)
 
     required = challenge.params.get("acr_values")
-    if auth_methods.outstanding(session.amr, enrolled, required):
-        return AuthStepResponse(status="totp_required", acr=acr, amr=amr)
+    if methods := auth_methods.outstanding(session.amr, enrolled, required):
+        return AuthStepResponse(
+            status="method_required", methods=methods, acr=acr, amr=amr
+        )
 
     return AuthStepResponse(
         status="complete",
@@ -106,6 +108,7 @@ async def read_challenge(
         ],
         acr_values=challenge.params.get("acr_values"),
         authenticated=challenge.user_id is not None,
+        methods=challenge.methods,
         login_hint=challenge.params.get("login_hint"),
     )
 
@@ -117,15 +120,18 @@ async def read_challenge(
     description=(
         "Verifies the password, records `pwd` in the session's `amr`, and "
         "returns where to go next.\n\n"
-        "The response is `totpRequired` rather than a resume URL in two cases, "
-        "and they answer to different people:\n\n"
+        "The response is `method_required`, naming the methods owed, rather "
+        "than a resume URL in two cases, and they answer to different people:\n\n"
         "- the client asked for an assurance level a password alone does not "
-        "reach (`acr_values`), or\n"
+        "reach (`acr_values`) and this person has a method that does, or\n"
         "- **this person has an authenticator set up.** Once they do, a password "
         "alone stops being enough to sign in as them, whatever the client asked "
         "for. A second factor that applied only when an application requested it "
         "would protect nobody — whoever holds the password would use an "
         "application that does not ask.\n\n"
+        "A level this person cannot reach at all is not asked for here. The "
+        "response is `complete`, and the authorization request it resumes "
+        "returns `unmet_authentication_requirements` to the client.\n\n"
         "**Required scope:** none — this is how a session is established."
     ),
     responses={
@@ -220,7 +226,9 @@ async def login(
     description=(
         "Adds `otp` to the session's `amr`, raising its assurance level. Used "
         "both as a second factor during login and as a mid-session step-up when "
-        "a client requests a higher `acr_values`.\n\n"
+        "a client requests a higher `acr_values` — in which case the challenge "
+        "lists `otp` in `methods` and the Auth UI starts here, without asking "
+        "for the password the session already has.\n\n"
         "**Required scope:** none — requires an existing session cookie."
     ),
     responses={

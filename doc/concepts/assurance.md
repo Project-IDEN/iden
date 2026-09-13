@@ -52,7 +52,28 @@ An application asks by adding `acr_values=iden:loa:2` to its authorization reque
 does not reach that level, IDEN sends the person through the missing step rather than refusing —
 they finish where they were going, having proved more on the way.
 
+The missing step is only the method they still owe. Someone already signed in with a password is
+asked for the code from their authenticator, not for the password again; `auth_time` stays the time
+they signed in, because a step-up adds to a sign-in rather than starting a new one.
+
 Levels are ordered, so a request for `iden:loa:2` is satisfied by a session at `iden:loa:3`.
+
+### A level they cannot reach
+
+If nothing this person has set up reaches the level — `iden:loa:2` from someone with no
+authenticator — there is no step to send them through. IDEN returns to your `redirect_uri` with:
+
+```
+error=unmet_authentication_requirements
+```
+
+This is the error [OpenID Connect defines](https://openid.net/specs/openid-connect-unmet-authentication-requirements-1_0.html)
+for exactly this case. The alternative — a code form they have no authenticator to answer — would
+leave them stuck on a page with no way off it. What to do instead is your application's decision:
+explain what is needed, or send them to set up an authenticator.
+
+Discovery lists only the levels a registered method can reach, so `acr_values_supported` does not
+include `iden:loa:3` until something registers a face.
 
 ## Demanding freshness: `max_age`
 

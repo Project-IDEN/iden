@@ -38,7 +38,7 @@ export function LoginRoute() {
 }
 
 function LoginFlow({ challengeId, isStepUp }: { challengeId: string; isStepUp: boolean }) {
-  const [step, setStep] = useState<"credentials" | "totp">("credentials");
+  const [step, setStep] = useState<"credentials" | "totp">();
 
   const challenge = useQuery({
     queryKey: ["challenge", challengeId],
@@ -46,9 +46,13 @@ function LoginFlow({ challengeId, isStepUp }: { challengeId: string; isStepUp: b
     retry: false,
   });
 
-  /** `complete` means the provider can finish the authorization request. */
+  /**
+   * `complete` hands the request back to the provider, which decides what
+   * happens next. A code is the only method this page can ask for; face will
+   * be a second form, chosen from `methods`.
+   */
   function advance(result: AuthStep) {
-    if (result.status === "totp_required") {
+    if (result.status === "method_required") {
       setStep("totp");
       return;
     }
@@ -80,9 +84,15 @@ function LoginFlow({ challengeId, isStepUp }: { challengeId: string; isStepUp: b
   }
 
   const client = challenge.data.clientName;
+  // A step-up on a browser that is already signed in owes a method, not the
+  // password it gave earlier, so it starts at the code.
+  const owed = (challenge.data.methods ?? []).length > 0;
+  const current = step ?? (owed ? "totp" : "credentials");
 
-  if (step === "totp") {
-    return <TotpStep challengeId={challengeId} clientName={client} onDone={advance} />;
+  if (current === "totp") {
+    return (
+      <TotpStep challengeId={challengeId} clientName={client} isStepUp={owed} onDone={advance} />
+    );
   }
 
   return (
@@ -205,10 +215,12 @@ function SignInProblem({ problem }: { problem: IdenError | null }) {
 function TotpStep({
   challengeId,
   clientName,
+  isStepUp,
   onDone,
 }: {
   challengeId: string;
   clientName: string;
+  isStepUp: boolean;
   onDone: (result: AuthStep) => void;
 }) {
   const form = useForm({ resolver: zodResolver(totp), defaultValues: { code: "" } });
@@ -232,8 +244,12 @@ function TotpStep({
     <AuthLayout
       eyebrow={clientName}
       step="totp"
-      title="Enter your code"
-      lede="Open your authenticator app and enter the six-digit code for this account."
+      title={isStepUp ? "Confirm it's you" : "Enter your code"}
+      lede={
+        isStepUp
+          ? "This application needs a code from your authenticator app before it continues."
+          : "Open your authenticator app and enter the six-digit code for this account."
+      }
     >
       <form
         noValidate

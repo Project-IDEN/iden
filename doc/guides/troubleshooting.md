@@ -29,6 +29,12 @@ Symptom first, then what IDEN is actually telling you.
     If it happens when you did not expect it, the session exists but does not satisfy what you asked
     for — usually `max_age` has elapsed, or an `acr_values` you requested is not met.
 
+??? failure "`error=unmet_authentication_requirements`"
+    You sent an `acr_values` this person has no way to reach — usually `iden:loa:2` from someone who
+    has not set up an authenticator. IDEN refuses rather than showing a code form they could not
+    answer. Tell them what is needed, or send them to set one up and try again. See
+    [Assurance and step-up](../concepts/assurance.md#a-level-they-cannot-reach).
+
 ??? failure "`error=consent_required`"
     `prompt=none` again, but the person has not agreed to these permissions. Repeat the request
     without `prompt=none` so they can be asked.
