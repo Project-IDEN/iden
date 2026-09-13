@@ -83,6 +83,6 @@ services:
       DOOR_PANEL_ORIGIN: ${DOOR_PANEL_ORIGIN:-http://localhost:5401}
       # By service name, not through the host: these two share a network, and
       # localhost inside this container is this container.
-      DOOR_API_ORIGIN: http://door-api:5400
+      DOOR_API_ORIGIN: ${DOOR_API_ORIGIN:-http://door-api:5400}
     ports:
       - "5401:5401"
