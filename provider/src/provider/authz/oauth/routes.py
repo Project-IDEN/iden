@@ -96,6 +96,16 @@ async def _resumed(
     return challenge if challenge and challenge.params == params else None
 
 
+def _signed_in_for(
+    challenge: challenge_store.Challenge | None, login_session: session_store.Session
+) -> bool:
+    """Whether this session's sign-in was made for the request `challenge`
+    holds — which is what the browser carries back from the Auth UI."""
+    return (
+        challenge is not None and login_session.authenticated_at >= challenge.created_at
+    )
+
+
 def _id_token_claims(hint: str) -> dict | None:
     """The claims of an `id_token_hint`, or None if it is not one of ours.
 
@@ -290,6 +300,14 @@ async def authorize(
     # it means this client is asking about a different account, so the session
     # in hand is not the one it wants (OIDC Core Section 3.1.3.1).
     if login_session is not None and _hint_mismatch(id_token_hint, login_session):
+        # Unless someone just signed in for this request and is still not the
+        # person named. Asking again would ask forever; OIDC Core Section
+        # 3.1.2.1 has the request fail instead.
+        if _signed_in_for(resumed, login_session):
+            raise fail(
+                "login_required",
+                "The person who signed in is not the one id_token_hint names.",
+            )
         login_session = None
 
     if login_session is None:
@@ -298,9 +316,7 @@ async def authorize(
     # Both demands below are met by a sign-in made for this request. Without
     # this, the resume URL — which carries the original `prompt` and `max_age`
     # — would demand the sign-in it had just been given, on every return.
-    signed_in_for_this = (
-        resumed is not None and login_session.authenticated_at >= resumed.created_at
-    )
+    signed_in_for_this = _signed_in_for(resumed, login_session)
 
     # `prompt=login` and `select_account` force a fresh authentication. IDEN has
     # one account per session, so account selection is re-authentication; it is

@@ -29,6 +29,10 @@ Symptom first, then what IDEN is actually telling you.
     If it happens when you did not expect it, the session exists but does not satisfy what you asked
     for — usually `max_age` has elapsed, or an `acr_values` you requested is not met.
 
+    Without `prompt=none`, it means you sent an `id_token_hint` naming one person and someone else
+    signed in. IDEN will not hand you a code for a person you did not ask about, and asking again
+    would only show them the same form.
+
 ??? failure "`error=unmet_authentication_requirements`"
     You sent an `acr_values` this person has no way to reach — usually `iden:loa:2` from someone who
     has not set up an authenticator. IDEN refuses rather than showing a code form they could not

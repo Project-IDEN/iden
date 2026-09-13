@@ -309,6 +309,30 @@ class TestTheWayBack:
         assert "/auth/login" in replayed.headers["location"]
 
 
+MEMBER = {"email": "student@test.local", "password": "correct-horse-battery-staple"}
+
+
+async def id_token_of_member(client) -> str:
+    """A real ID token for the member, from a browser of its own."""
+    client.cookies.clear()
+    verifier, challenge = pkce_pair()
+    response = await client.get("/oauth2/authorize", params=authorize_params(challenge))
+    step = await sign_in(client, query_of(response)["challenge"], **MEMBER)
+    code = query_of(await client.get(step.json()["resumeUrl"]))["code"]
+    tokens = await client.post(
+        "/oauth2/token",
+        data={
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+            "code_verifier": verifier,
+            "client_id": "dashboard",
+        },
+    )
+    client.cookies.clear()
+    return tokens.json()["id_token"]
+
+
 class TestIdTokenHint:
     async def test_a_matching_hint_is_transparent(self, client):
         tokens = await get_tokens(client)
@@ -330,6 +354,29 @@ class TestIdTokenHint:
         response = await authorize(client, id_token_hint=forged)
 
         assert "/auth/login" in response.headers["location"]
+
+    async def test_the_person_named_signing_in_gets_a_code(self, client, member):
+        hint = await id_token_of_member(client)
+        await get_tokens(client)  # the administrator, in this browser
+
+        response = await authorize(client, id_token_hint=hint)
+        step = await sign_in(client, query_of(response)["challenge"], **MEMBER)
+        answer = query_of(await client.get(step.json()["resumeUrl"]))
+
+        assert "code" in answer
+
+    async def test_someone_else_signing_in_ends_the_request(self, client, member):
+        """The administrator signs in again, and is still not the member the
+        client asked about. Showing the form again would show it forever."""
+        hint = await id_token_of_member(client)
+        await get_tokens(client)
+
+        response = await authorize(client, id_token_hint=hint)
+        step = await sign_in(client, query_of(response)["challenge"])
+        answer = query_of(await client.get(step.json()["resumeUrl"]))
+
+        assert answer["error"] == "login_required"
+        assert answer["state"] == "xyz"
 
     async def test_an_expired_hint_still_counts(self, client):
         """ID tokens live ten minutes; a hint about a past login is expected to
