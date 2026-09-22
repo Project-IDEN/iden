@@ -7,92 +7,16 @@ the server, not by the registrant — see `service.py` for why each one is.
 
 from datetime import datetime
 from typing import Literal
-from urllib.parse import urlsplit
 from uuid import UUID
 
 from pydantic import Field, field_validator
 
 from provider.core.schemas import CamelCaseBaseModel
+from provider.shared.client_uris import REDIRECT_URI_RULES, validate_redirect_uris
 
+# A quota, not a rule: five callbacks is more than an application needs, and a
+# showcase with fifty participants should not let one of them fill the column.
 MAX_URIS = 5
-MAX_URI_LENGTH = 2048
-
-# RFC 8252 Section 7.3: the only hosts an `http` redirect may name. A native app
-# receives its callback on a loopback port; anything else must be TLS.
-LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1"})
-
-REDIRECT_URI_RULES = (
-    "`https://` anywhere; `http://` only on localhost or 127.0.0.1; or a "
-    "reverse-DNS private-use scheme for a native app, e.g. "
-    "`com.example.app:/callback` (RFC 8252). Printable ASCII only, and no "
-    "wildcards, fragments, or credentials in the authority — the value is "
-    "matched **exactly** at "
-    "`/authorize`, so register the URI your app actually sends."
-)
-
-
-def _validate_uri(value: str) -> str:
-    if not value or len(value) > MAX_URI_LENGTH:
-        raise ValueError(f"redirect URI must be 1-{MAX_URI_LENGTH} characters")
-
-    # Every character must be printable US-ASCII, which is what a URI is made
-    # of (RFC 3986 Section 2) — anything else is percent-encoded. Three things
-    # ride on this one rule:
-    #
-    #   - `urlsplit` silently removes tab and newline (WHATWG URL), so a URI
-    #     containing them would be validated as one string and stored as another;
-    #   - a raw NUL is not valid UTF-8 to PostgreSQL, so it would leave
-    #     validation as a 500 rather than a 422;
-    #   - a non-ASCII host is sent by a client library in punycode, so it could
-    #     never match what was registered — while reading, to a human, like the
-    #     domain it imitates.
-    if any(character < "!" or character > "~" for character in value):
-        raise ValueError(
-            f"redirect URI must be printable ASCII; percent-encode anything "
-            f"else: {value!r}"
-        )
-
-    if "*" in value:
-        raise ValueError(f"redirect URI must not contain a wildcard: {value}")
-
-    parsed = urlsplit(value)
-
-    if not parsed.scheme:
-        raise ValueError(f"redirect URI must be absolute: {value}")
-
-    # RFC 6749 Section 3.1.2. The fragment is where an implicit-flow response
-    # goes; a registered one cannot be matched and only confuses the comparison.
-    if parsed.fragment or value.endswith("#"):
-        raise ValueError(f"redirect URI must not contain a fragment: {value}")
-
-    if "@" in parsed.netloc:
-        raise ValueError(
-            f"redirect URI must not contain credentials in the authority: {value}"
-        )
-
-    if parsed.scheme == "https":
-        if not parsed.hostname:
-            raise ValueError(f"https redirect URI needs a host: {value}")
-    elif parsed.scheme == "http":
-        if parsed.hostname not in LOOPBACK_HOSTS:
-            raise ValueError(
-                f"http is allowed only on localhost or 127.0.0.1 — use https: {value}"
-            )
-    elif "." not in parsed.scheme:
-        # RFC 8252 Section 7.1: a native app's private-use scheme is a domain
-        # name the developer controls, reversed. Requiring the dot is also what
-        # keeps `javascript:` and `data:` out.
-        raise ValueError(
-            f"a custom scheme must be reverse-DNS, e.g. com.example.app: {value}"
-        )
-
-    return value
-
-
-def _validate_uris(values: list[str]) -> list[str]:
-    if len(values) > MAX_URIS:
-        raise ValueError(f"at most {MAX_URIS} URIs")
-    return [_validate_uri(value) for value in values]
 
 
 class ApplicationCreate(CamelCaseBaseModel):
@@ -119,7 +43,7 @@ class ApplicationCreate(CamelCaseBaseModel):
     @field_validator("redirect_uris", "post_logout_redirect_uris")
     @classmethod
     def check_uris(cls, values: list[str]) -> list[str]:
-        return _validate_uris(values)
+        return validate_redirect_uris(values, maximum=MAX_URIS)
 
 
 class ApplicationUpdate(CamelCaseBaseModel):
@@ -137,7 +61,9 @@ class ApplicationUpdate(CamelCaseBaseModel):
     @field_validator("redirect_uris", "post_logout_redirect_uris")
     @classmethod
     def check_uris(cls, values: list[str] | None) -> list[str] | None:
-        return None if values is None else _validate_uris(values)
+        return (
+            None if values is None else validate_redirect_uris(values, maximum=MAX_URIS)
+        )
 
 
 class ApplicationResponse(CamelCaseBaseModel):

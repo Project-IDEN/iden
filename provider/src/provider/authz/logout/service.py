@@ -54,7 +54,15 @@ def mint_logout_token(client: Client, *, subject: uuid.UUID, sid: str) -> str:
 
 
 async def _deliver(http: httpx.AsyncClient, client: Client, token: str) -> int:
-    """POST one logout token. Returns the status, or 0 if it never arrived."""
+    """POST one logout token. Returns the status, or 0 if it never arrived.
+
+    `InvalidURL` is caught alongside `HTTPError` and is not a subclass of it: a
+    stored URI httpx cannot parse raised from here, escaped this handler, and
+    failed the whole sign-out — for every session that had touched the client,
+    not just this delivery. Registration now rejects such a value, and this is
+    the second half of that: delivery is best effort by design, and "best
+    effort" has to hold for a bad URI as much as for an unreachable host.
+    """
     try:
         response = await http.post(
             client.backchannel_logout_uri or "",
@@ -62,7 +70,7 @@ async def _deliver(http: httpx.AsyncClient, client: Client, token: str) -> int:
             headers={"content-type": "application/x-www-form-urlencoded"},
         )
         return response.status_code
-    except httpx.HTTPError as exc:
+    except (httpx.HTTPError, httpx.InvalidURL) as exc:
         logger.warning(
             "Back-channel logout failed",
             client_id=client.client_id,

@@ -49,6 +49,7 @@ def deliveries(monkeypatch):
             AsyncClient=factory,
             MockTransport=httpx.MockTransport,
             HTTPError=httpx.HTTPError,
+            InvalidURL=httpx.InvalidURL,
             Request=httpx.Request,
             Response=httpx.Response,
         ),
@@ -135,7 +136,11 @@ class TestFanOut:
         monkeypatch.setattr(
             logout_service,
             "httpx",
-            SimpleNamespace(AsyncClient=factory, HTTPError=httpx.HTTPError),
+            SimpleNamespace(
+                AsyncClient=factory,
+                HTTPError=httpx.HTTPError,
+                InvalidURL=httpx.InvalidURL,
+            ),
         )
         await get_tokens(client)
 
@@ -266,6 +271,7 @@ class TestAudit:
                     transport=httpx.MockTransport(explode), **kw
                 ),
                 HTTPError=httpx.HTTPError,
+                InvalidURL=httpx.InvalidURL,
             ),
         )
         await get_tokens(client)
