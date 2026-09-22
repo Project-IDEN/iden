@@ -12,6 +12,18 @@ READ = Depends(require_scope("entity:totp:read"))
 ENROLL = Depends(require_scope("entity:totp:enroll"))
 FRESH = Depends(require_fresh_auth(max_age=300))
 
+FRESHNESS = (
+    "**Needs a recent sign-in.** Enrolling is not a smaller act than removing. "
+    "Once a confirmed authenticator exists it is owed at *every* subsequent "
+    "sign-in, whatever the application asked for — so somebody holding a stolen "
+    "access token could enrol one of their own and lock the account's owner out "
+    "for good: the owner cannot produce the code, a password reset does not "
+    "clear the credential, and removing it needs the recent sign-in they can no "
+    "longer complete. The refusal is RFC 9470's "
+    "`insufficient_user_authentication` with the `max_age` that would satisfy "
+    "it.\n\n"
+)
+
 
 @router.get(
     "",
@@ -42,10 +54,14 @@ async def read_status(user: CurrentUserDep, session: DBSessionDep) -> TotpStatus
         "Nothing is active yet: `POST /entity/totp/confirm` with a generated "
         "code finishes it. Two steps on purpose — a mis-scanned QR code would "
         "otherwise lock someone out of their own account.\n\n"
-        "**Required scope:** `entity:totp:enroll`"
+        + FRESHNESS
+        + "**Required scope:** `entity:totp:enroll`"
     ),
-    responses={409: {"model": ErrorResponse, "description": "Already enrolled"}},
-    dependencies=[ENROLL],
+    responses={
+        403: {"model": ErrorResponse, "description": "Sign-in is not recent enough"},
+        409: {"model": ErrorResponse, "description": "Already enrolled"},
+    },
+    dependencies=[ENROLL, FRESH],
 )
 async def enroll(user: CurrentUserDep, session: DBSessionDep) -> TotpEnrollment:
     secret, uri = await service.begin(session, user)
@@ -58,13 +74,15 @@ async def enroll(user: CurrentUserDep, session: DBSessionDep) -> TotpEnrollment:
     summary="Finish setting up an authenticator",
     description=(
         "Proves the app was scanned correctly and is keeping the right time.\n\n"
-        "**Required scope:** `entity:totp:enroll`"
+        + FRESHNESS
+        + "**Required scope:** `entity:totp:enroll`"
     ),
     responses={
+        403: {"model": ErrorResponse, "description": "Sign-in is not recent enough"},
         404: {"model": ErrorResponse, "description": "Nothing pending to confirm"},
         422: {"model": ErrorResponse, "description": "Wrong code"},
     },
-    dependencies=[ENROLL],
+    dependencies=[ENROLL, FRESH],
 )
 async def confirm(
     body: TotpConfirm, user: CurrentUserDep, session: DBSessionDep

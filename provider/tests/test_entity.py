@@ -187,6 +187,25 @@ class TestTotp:
 
         assert response.status_code == 403
 
+    async def test_enrolment_needs_a_recent_sign_in(self, client, stale_headers):
+        """Enrolling is not the safe half of this pair.
+
+        A confirmed authenticator is owed at every later sign-in, so a stolen
+        token that could enrol one would lock the account's owner out for good:
+        they cannot produce the code, a password reset leaves the credential in
+        place, and removing it needs the recent sign-in they can no longer get.
+        """
+        response = await client.post("/entity/totp/enroll", headers=stale_headers)
+
+        assert response.status_code == 403
+
+    async def test_confirmation_needs_a_recent_sign_in(self, client, stale_headers):
+        response = await client.post(
+            "/entity/totp/confirm", json={"code": "000000"}, headers=stale_headers
+        )
+
+        assert response.status_code == 403
+
 
 class TestPermissions:
     async def test_reports_where_each_permission_comes_from(
