@@ -3,13 +3,12 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select, update
 
-from provider.core.auth import require_scope
+from provider.core.auth import CurrentUserDep, require_scope
 from provider.core.db import DBSessionDep
 from provider.entity.connections.schemas import (
     ConnectionListResponse,
     ConnectionSummary,
 )
-from provider.entity.deps import CurrentUserDep
 from provider.shared.models import Client, ConsentGrant, RefreshToken
 
 router = APIRouter(prefix="/entity/connections", tags=["entity: connections"])

@@ -3,11 +3,10 @@ from fastapi import APIRouter, Depends, Request, Response
 from provider.authz import session_cookie
 from provider.authz.logout import service as logout_service
 from provider.authz.services import session_store
-from provider.core.auth import require_fresh_auth, require_scope
+from provider.core.auth import CurrentUserDep, require_fresh_auth, require_scope
 from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse
-from provider.entity.deps import CurrentUserDep
 from provider.entity.sessions.schemas import SessionListResponse, SessionSummary
 from provider.shared import user_agent
 

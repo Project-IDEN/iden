@@ -12,7 +12,9 @@ from provider.authz.services.token_service import is_denylisted
 from provider.core.audit import set_actor
 from provider.core.config import settings
 from provider.core.crypto import ACCESS_TOKEN_TYP, verify_jwt
+from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
+from provider.shared.models import User
 
 
 @dataclass
@@ -195,3 +197,25 @@ def require_fresh_auth(max_age: int = 300):
 
 
 FreshTokenDep = Annotated[AccessToken, Depends(require_fresh_auth())]
+
+
+async def get_current_user(token: CurrentTokenDep, session: DBSessionDep) -> User:
+    """The person a route acts for, taken from the token's `sub`.
+
+    No self-service route accepts a user id in a path or a body, which removes
+    an entire class of IDOR bugs by construction rather than by remembering to
+    check. Lives in core because both `/entity/*` and `/developer/*` start here.
+    """
+    user = await session.get(User, uuid.UUID(token.subject))
+    if user is None or not user.is_active:
+        # The token is valid but its subject is gone or disabled. 401, not 404:
+        # the caller needs to authenticate again, not look somewhere else.
+        raise HTTPException(
+            status_code=401,
+            detail="This account is no longer active.",
+            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+        )
+    return user
+
+
+CurrentUserDep = Annotated[User, Depends(get_current_user)]

@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from provider.core.auth import require_scope
+from provider.core.auth import CurrentUserDep, require_scope
 from provider.core.config import settings
 from provider.core.db import DBSessionDep
 from provider.core.schemas import ErrorResponse
 from provider.core.storage import Storage, StorageDep
-from provider.entity.deps import CurrentUserDep
 from provider.entity.profile import service
 from provider.entity.profile.errors import PhotoTooLarge
 from provider.entity.profile.schemas import (

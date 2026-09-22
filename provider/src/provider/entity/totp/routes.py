@@ -1,9 +1,8 @@
 from fastapi import APIRouter, Depends, Response
 
-from provider.core.auth import require_fresh_auth, require_scope
+from provider.core.auth import CurrentUserDep, require_fresh_auth, require_scope
 from provider.core.db import DBSessionDep
 from provider.core.schemas import ErrorResponse
-from provider.entity.deps import CurrentUserDep
 from provider.entity.totp import service
 from provider.entity.totp.schemas import TotpConfirm, TotpEnrollment, TotpStatus
 

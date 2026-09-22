@@ -2,9 +2,8 @@ from fastapi import APIRouter, Depends
 from pydantic import Field
 
 from provider.authz.services.scope_resolver import scope_provenance
-from provider.core.auth import require_scope
+from provider.core.auth import CurrentUserDep, require_scope
 from provider.core.schemas import CamelCaseBaseModel
-from provider.entity.deps import CurrentUserDep
 
 router = APIRouter(prefix="/entity/permissions", tags=["entity: permissions"])
 

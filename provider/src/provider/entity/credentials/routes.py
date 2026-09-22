@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, Request
 
 from provider.authz import session_cookie
-from provider.core.auth import require_fresh_auth, require_scope
+from provider.core.auth import CurrentUserDep, require_fresh_auth, require_scope
 from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse
@@ -11,7 +11,6 @@ from provider.entity.credentials.schemas import (
     EmailChange,
     PasswordChange,
 )
-from provider.entity.deps import CurrentUserDep
 
 router = APIRouter(prefix="/entity/credentials", tags=["entity: credentials"])
 
