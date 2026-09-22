@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -19,7 +20,7 @@ from provider.admin.users.schemas import (
     UserUpdate,
 )
 from provider.authz.services.scope_resolver import scope_provenance
-from provider.core.auth import require_scope
+from provider.core.auth import AccessToken, require_scope
 from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse, Page, PageMeta, PaginationDep
@@ -29,6 +30,32 @@ router = APIRouter(prefix="/admin/users", tags=["admin: users"])
 
 READ = Depends(require_scope("admin:users:read"))
 WRITE = Depends(require_scope("admin:users:write"))
+
+# Assigning permissions is its own scope, split out of `admin:users:write`: it is
+# the only administrative act that can raise somebody's authority, so it is the
+# one worth being able to withhold from an account that otherwise manages people.
+GrantsToken = Annotated[AccessToken, Depends(require_scope("admin:grants:write"))]
+
+# Taken as a parameter rather than a bare dependency because the handler needs it:
+# what a caller may grant is bounded by the scopes in their own token — see
+# `admin.delegation`.
+WriteToken = Annotated[AccessToken, Depends(require_scope("admin:users:write"))]
+
+OUTRANK_NOTE = (
+    "\n\n**You cannot act on an account above your own.** If the target holds an "
+    "`admin:` or `biometric:` scope the caller does not, the request is refused "
+    "with `403 cannot_administer` — otherwise resetting a password and clearing "
+    "an authenticator would together be a way to become somebody more "
+    "privileged than you."
+)
+
+DELEGATION_NOTE = (
+    "\n\n**You cannot grant what you do not hold.** Any `admin:` or `biometric:` "
+    "scope in what this would confer must already be in the caller's own token, "
+    "or the request is refused with `403 cannot_delegate`. Scopes belonging to "
+    "your organization's own APIs are unrestricted — granting those is what an "
+    "administrator is for."
+)
 
 
 def to_response(user) -> UserResponse:
@@ -100,16 +127,23 @@ async def list_users(
         "Omit `password` and one is generated and returned **once** in "
         "`generatedPassword`. It is argon2-hashed on the way in and cannot be "
         "recovered afterwards.\n\n"
-        "**Required scope:** `admin:users:write`"
+        "**Required scope:** `admin:users:write`" + DELEGATION_NOTE
     ),
     responses={
+        403: {
+            "model": ErrorResponse,
+            "description": "A role or group would confer a scope the caller lacks",
+        },
         404: {"model": ErrorResponse, "description": "Unknown role or group ids"},
         409: {"model": ErrorResponse, "description": "Email or username already taken"},
     },
-    dependencies=[WRITE],
 )
-async def create_user(body: UserCreate, session: DBSessionDep) -> UserCreated:
-    user, generated = await service.create_user(session, body)
+async def create_user(
+    body: UserCreate, session: DBSessionDep, token: WriteToken
+) -> UserCreated:
+    user, generated = await service.create_user(
+        session, body, caller_scopes=token.scopes
+    )
     return UserCreated(**to_response(user).model_dump(), generated_password=generated)
 
 
@@ -176,12 +210,19 @@ async def effective_scopes(user_id: UUID, session: DBSessionDep) -> EffectiveSco
             "description": "Email or username taken, or would leave no administrator",
         },
     },
-    dependencies=[WRITE],
 )
 async def update_user(
-    user_id: UUID, body: UserUpdate, session: DBSessionDep, redis: RedisDep
+    user_id: UUID,
+    body: UserUpdate,
+    session: DBSessionDep,
+    redis: RedisDep,
+    token: WriteToken,
 ) -> UserResponse:
-    return to_response(await service.update_user(session, redis, user_id, body))
+    return to_response(
+        await service.update_user(
+            session, redis, user_id, body, caller_scopes=token.scopes
+        )
+    )
 
 
 @router.put(
@@ -192,22 +233,29 @@ async def update_user(
         "**Replaces the entire set.** Roles inherited from groups are unaffected "
         "— those are managed on the group.\n\n"
         "Refused with `409` when it would leave no active user holding "
-        "`admin:users:write`: nothing in the API can grant it back.\n\n"
-        "**Required scope:** `admin:users:write`"
+        "`admin:grants:write`: nothing in the API can grant it back.\n\n"
+        "**Required scope:** `admin:grants:write`" + DELEGATION_NOTE
     ),
     responses={
+        403: {
+            "model": ErrorResponse,
+            "description": "A role would confer a scope the caller does not hold",
+        },
         404: {
             "model": ErrorResponse,
             "description": "No such user, or unknown role ids",
         },
         409: {"model": ErrorResponse, "description": "Would leave no administrator"},
     },
-    dependencies=[WRITE],
 )
 async def set_roles(
-    user_id: UUID, body: RoleAssignment, session: DBSessionDep
+    user_id: UUID, body: RoleAssignment, session: DBSessionDep, token: GrantsToken
 ) -> UserResponse:
-    return to_response(await service.set_roles(session, user_id, body.role_ids))
+    return to_response(
+        await service.set_roles(
+            session, user_id, body.role_ids, caller_scopes=token.scopes
+        )
+    )
 
 
 @router.put(
@@ -220,23 +268,28 @@ async def set_roles(
         "Prefer roles: a direct grant is invisible in any role listing and is "
         "easy to forget when someone changes jobs.\n\n"
         "Refused with `409` when it would leave no active user holding "
-        "`admin:users:write`.\n\n"
-        "**Required scope:** `admin:users:write`"
+        "`admin:grants:write`.\n\n"
+        "**Required scope:** `admin:grants:write`" + DELEGATION_NOTE
     ),
     responses={
+        403: {
+            "model": ErrorResponse,
+            "description": "One of the scopes is not one the caller holds",
+        },
         404: {
             "model": ErrorResponse,
             "description": "No such user, or unknown scope ids",
         },
         409: {"model": ErrorResponse, "description": "Would leave no administrator"},
     },
-    dependencies=[WRITE],
 )
 async def set_scopes(
-    user_id: UUID, body: ScopeAssignment, session: DBSessionDep
+    user_id: UUID, body: ScopeAssignment, session: DBSessionDep, token: GrantsToken
 ) -> UserResponse:
     return to_response(
-        await service.set_direct_scopes(session, user_id, body.scope_ids)
+        await service.set_direct_scopes(
+            session, user_id, body.scope_ids, caller_scopes=token.scopes
+        )
     )
 
 
@@ -249,16 +302,63 @@ async def set_scopes(
         "and refresh token is revoked, because a credential change that leaves "
         "old sessions alive has not really taken effect.\n\n"
         "Omit `password` to have one generated and returned once.\n\n"
-        "**Required scope:** `admin:users:write`"
+        "**Required scope:** `admin:users:write`" + OUTRANK_NOTE
     ),
-    responses={404: {"model": ErrorResponse, "description": "No such user"}},
-    dependencies=[WRITE],
+    responses={
+        404: {"model": ErrorResponse, "description": "No such user"},
+        403: {
+            "model": ErrorResponse,
+            "description": "This account holds authority the caller does not",
+        },
+    },
 )
 async def reset_password(
-    user_id: UUID, body: PasswordReset, session: DBSessionDep, redis: RedisDep
+    user_id: UUID,
+    body: PasswordReset,
+    session: DBSessionDep,
+    redis: RedisDep,
+    token: WriteToken,
 ) -> PasswordResetResult:
-    generated = await service.reset_password(session, redis, user_id, body.password)
+    generated = await service.reset_password(
+        session, redis, user_id, body.password, caller_scopes=token.scopes
+    )
     return PasswordResetResult(password=generated, sessions_revoked=True)
+
+
+@router.delete(
+    "/{user_id}/totp",
+    status_code=204,
+    summary="Clear a user's authenticator",
+    description=(
+        "The way back from a lost phone, and the only one there is.\n\n"
+        "An enrolled authenticator is otherwise a one-way door: once confirmed "
+        "it is owed at **every** sign-in, whatever the application asked for; "
+        "removing it through `/entity/totp` needs a recent sign-in the person "
+        "can no longer complete; and a password reset leaves the credential in "
+        "place. Losing the device therefore locked the account for good, with a "
+        "hand-edited database as the way out.\n\n"
+        "**This lowers the account to a single factor** until they enrol again, "
+        "so it is worth confirming who is asking by some means other than the "
+        "request. It is recorded in the audit log with the administrator who did "
+        "it.\n\n"
+        "Returns `204` whether or not an authenticator was enrolled — there is "
+        "nothing to report about the difference, and a `404` would only say "
+        "whether a particular person uses one.\n\n"
+        "**Required scope:** `admin:users:write`" + OUTRANK_NOTE
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "No such user"},
+        403: {
+            "model": ErrorResponse,
+            "description": "This account holds authority the caller does not",
+        },
+    },
+)
+async def clear_totp(
+    user_id: UUID, session: DBSessionDep, token: WriteToken
+) -> Response:
+    await service.clear_totp(session, user_id, caller_scopes=token.scopes)
+    return Response(status_code=204)
 
 
 @router.delete(
@@ -268,18 +368,21 @@ async def reset_password(
     description=(
         "Removes the account and everything hanging off it. Consider "
         "deactivating instead — deletion loses the audit trail of who did what.\n\n"
-        "**Required scope:** `admin:users:write`"
+        "**Required scope:** `admin:users:write`" + OUTRANK_NOTE
     ),
     responses={
         404: {"model": ErrorResponse, "description": "No such user"},
         409: {"model": ErrorResponse, "description": "Would leave no administrator"},
+        403: {
+            "model": ErrorResponse,
+            "description": "This account holds authority the caller does not",
+        },
     },
-    dependencies=[WRITE],
 )
 async def delete_user(
-    user_id: UUID, session: DBSessionDep, redis: RedisDep
+    user_id: UUID, session: DBSessionDep, redis: RedisDep, token: WriteToken
 ) -> Response:
-    await service.delete_user(session, redis, user_id)
+    await service.delete_user(session, redis, user_id, caller_scopes=token.scopes)
     return Response(status_code=204)
 
 

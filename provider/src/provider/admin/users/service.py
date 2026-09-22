@@ -5,9 +5,10 @@ from redis.asyncio import Redis
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from provider.admin import lockout
+from provider.admin import delegation, lockout
 from provider.admin.users.errors import (
     EmailTaken,
+    UnknownGroups,
     UnknownRoles,
     UnknownScopes,
     UsernameTaken,
@@ -22,6 +23,7 @@ from provider.shared.models import (
     RefreshToken,
     Role,
     Scope,
+    TotpCredential,
     User,
     user_groups,
     user_roles,
@@ -96,13 +98,34 @@ async def get_user(session: AsyncSession, user_id: UUID) -> User:
     return user
 
 
+async def get_user_to_modify(
+    session: AsyncSession, user_id: UUID, caller_scopes: set[str]
+) -> User:
+    """The person a write is about, once the caller is allowed to act on them.
+
+    Every mutation goes through here rather than `get_user`. Managing a person
+    includes resetting their password and clearing their authenticator, and
+    those two together are an account takeover — so without this,
+    `admin:users:write` would be a route to every permission by way of whoever
+    already holds it, and splitting `admin:grants:write` out of it would have
+    bought nothing.
+    """
+    user = await get_user(session, user_id)
+    delegation.refuse_if_outranked(caller_scopes, user)
+    return user
+
+
 async def create_user(
-    session: AsyncSession, data: UserCreate
+    session: AsyncSession, data: UserCreate, *, caller_scopes: set[str]
 ) -> tuple[User, str | None]:
     """Returns the user and, when one was generated, the cleartext password.
 
     Generated once and never stored — the caller must show it to the operator
     immediately or it is gone.
+
+    A new account can be born holding roles, so this is one of the places
+    permissions are conferred — and the most tempting one, because the password
+    comes back in the response and the account can be signed into immediately.
     """
     if await session.scalar(select(User).where(User.email == data.email)):
         raise EmailTaken
@@ -119,7 +142,12 @@ async def create_user(
         password_hash=hash_secret(password),
     )
     user.roles = await _resolve(session, Role, data.role_ids, UnknownRoles)
-    user.groups = await _resolve(session, Group, data.group_ids, UnknownRoles)
+    user.groups = await _resolve(session, Group, data.group_ids, UnknownGroups)
+    delegation.refuse_undelegatable(
+        caller_scopes,
+        delegation.scopes_of_roles(user.roles)
+        + delegation.scopes_of_groups(user.groups),
+    )
 
     session.add(user)
     await session.commit()
@@ -130,9 +158,14 @@ async def create_user(
 
 
 async def update_user(
-    session: AsyncSession, redis: Redis, user_id: UUID, data: UserUpdate
+    session: AsyncSession,
+    redis: Redis,
+    user_id: UUID,
+    data: UserUpdate,
+    *,
+    caller_scopes: set[str],
 ) -> User:
-    user = await get_user(session, user_id)
+    user = await get_user_to_modify(session, user_id, caller_scopes)
 
     if data.email is not None and data.email != user.email:
         if await session.scalar(select(User).where(User.email == data.email)):
@@ -159,22 +192,63 @@ async def update_user(
     return user
 
 
-async def set_roles(session: AsyncSession, user_id: UUID, role_ids: list[UUID]) -> User:
-    user = await get_user(session, user_id)
+async def set_roles(
+    session: AsyncSession,
+    user_id: UUID,
+    role_ids: list[UUID],
+    *,
+    caller_scopes: set[str],
+) -> User:
+    user = await get_user_to_modify(session, user_id, caller_scopes)
     user.roles = await _resolve(session, Role, role_ids, UnknownRoles)
+    delegation.refuse_undelegatable(
+        caller_scopes, delegation.scopes_of_roles(user.roles)
+    )
     await lockout.refuse_if_last(session)
     await session.commit()
     return user
 
 
 async def set_direct_scopes(
-    session: AsyncSession, user_id: UUID, scope_ids: list[UUID]
+    session: AsyncSession,
+    user_id: UUID,
+    scope_ids: list[UUID],
+    *,
+    caller_scopes: set[str],
 ) -> User:
-    user = await get_user(session, user_id)
+    user = await get_user_to_modify(session, user_id, caller_scopes)
     user.scopes = await _resolve(session, Scope, scope_ids, UnknownScopes)
+    delegation.refuse_undelegatable(caller_scopes, user.scopes)
     await lockout.refuse_if_last(session)
     await session.commit()
     return user
+
+
+async def clear_totp(
+    session: AsyncSession, user_id: UUID, *, caller_scopes: set[str]
+) -> bool:
+    """Remove this person's authenticator. Returns whether there was one.
+
+    The way back from a lost phone. Without it an enrolled authenticator is a
+    one-way door: a confirmed credential is owed at every sign-in, removing it
+    needs a recent sign-in the person can no longer complete, and a password
+    reset leaves it in place — so losing the device locked the account
+    permanently, with a hand-edited database as the only way out.
+
+    Deliberately not a downgrade anyone can hide: this drops the account to a
+    single factor until they enrol again, and the audit log records who did it.
+    """
+    await get_user_to_modify(session, user_id, caller_scopes)
+
+    credential = await session.scalar(
+        select(TotpCredential).where(TotpCredential.user_id == user_id)
+    )
+    if credential is None:
+        return False
+
+    await session.delete(credential)
+    await session.commit()
+    return True
 
 
 async def revoke_everything(session: AsyncSession, redis: Redis, user_id: UUID) -> None:
@@ -188,9 +262,14 @@ async def revoke_everything(session: AsyncSession, redis: Redis, user_id: UUID) 
 
 
 async def reset_password(
-    session: AsyncSession, redis: Redis, user_id: UUID, password: str | None
+    session: AsyncSession,
+    redis: Redis,
+    user_id: UUID,
+    password: str | None,
+    *,
+    caller_scopes: set[str],
 ) -> str | None:
-    user = await get_user(session, user_id)
+    user = await get_user_to_modify(session, user_id, caller_scopes)
 
     new_password = password or secrets.token_urlsafe(18)
     generated = None if password else new_password
@@ -201,8 +280,10 @@ async def reset_password(
     return generated
 
 
-async def delete_user(session: AsyncSession, redis: Redis, user_id: UUID) -> None:
-    user = await get_user(session, user_id)
+async def delete_user(
+    session: AsyncSession, redis: Redis, user_id: UUID, *, caller_scopes: set[str]
+) -> None:
+    user = await get_user_to_modify(session, user_id, caller_scopes)
     await revoke_everything(session, redis, user_id)
     await session.delete(user)
     await lockout.refuse_if_last(session)

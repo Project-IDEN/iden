@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Response
@@ -12,7 +13,7 @@ from provider.admin.groups.schemas import (
     MemberSummary,
     RoleSummary,
 )
-from provider.core.auth import require_scope
+from provider.core.auth import AccessToken, require_scope
 from provider.core.db import DBSessionDep
 from provider.core.schemas import ErrorResponse, Page, PageMeta, PaginationDep
 
@@ -20,6 +21,16 @@ router = APIRouter(prefix="/admin/groups", tags=["admin: groups"])
 
 READ = Depends(require_scope("admin:groups:read"))
 WRITE = Depends(require_scope("admin:groups:write"))
+
+# Taken as a parameter where the handler confers scopes: a group's roles reach
+# every member, so assigning them is granting — see `admin.delegation`.
+WriteToken = Annotated[AccessToken, Depends(require_scope("admin:groups:write"))]
+
+DELEGATION_NOTE = (
+    "\\n\\n**You cannot grant what you do not hold.** Any `admin:` or `biometric:` "
+    "scope in what this would confer must already be in the caller's own token, "
+    "or the request is refused with `403 cannot_delegate`."
+)
 
 
 def to_response(group, members: int) -> GroupResponse:
@@ -115,8 +126,8 @@ async def update_group(
         "**Replaces the entire set.** Every member inherits these roles, which is "
         "how one change reaches a whole department.\n\n"
         "Refused with `409` when the group is the last source of "
-        "`admin:users:write` for an active user.\n\n"
-        "**Required scope:** `admin:groups:write`"
+        "`admin:grants:write` for an active user.\n\n"
+        "**Required scope:** `admin:groups:write`" + DELEGATION_NOTE
     ),
     responses={
         404: {
@@ -124,13 +135,18 @@ async def update_group(
             "description": "No such group, or unknown role ids",
         },
         409: {"model": ErrorResponse, "description": "Would leave no administrator"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Would confer a scope the caller does not hold",
+        },
     },
-    dependencies=[WRITE],
 )
 async def set_group_roles(
-    group_id: UUID, body: GroupRoleAssignment, session: DBSessionDep
+    group_id: UUID, body: GroupRoleAssignment, session: DBSessionDep, token: WriteToken
 ) -> GroupResponse:
-    group = await service.set_group_roles(session, group_id, body.role_ids)
+    group = await service.set_group_roles(
+        session, group_id, body.role_ids, caller_scopes=token.scopes
+    )
     return to_response(group, await service.member_count(session, group_id))
 
 
@@ -168,14 +184,19 @@ async def list_members(
         404: {
             "model": ErrorResponse,
             "description": "No such group, or unknown user ids",
-        }
+        },
+        403: {
+            "model": ErrorResponse,
+            "description": "Would confer a scope the caller does not hold",
+        },
     },
-    dependencies=[WRITE],
 )
 async def add_members(
-    group_id: UUID, body: MemberAssignment, session: DBSessionDep
+    group_id: UUID, body: MemberAssignment, session: DBSessionDep, token: WriteToken
 ) -> Response:
-    await service.add_members(session, group_id, body.user_ids)
+    await service.add_members(
+        session, group_id, body.user_ids, caller_scopes=token.scopes
+    )
     return Response(status_code=204)
 
 

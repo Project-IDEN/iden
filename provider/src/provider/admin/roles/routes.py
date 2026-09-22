@@ -1,3 +1,4 @@
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Response
@@ -10,7 +11,7 @@ from provider.admin.roles.schemas import (
     RoleUpdate,
     ScopeSummary,
 )
-from provider.core.auth import require_scope
+from provider.core.auth import AccessToken, require_scope
 from provider.core.db import DBSessionDep
 from provider.core.schemas import ErrorResponse, Page, PageMeta, PaginationDep
 
@@ -18,6 +19,16 @@ router = APIRouter(prefix="/admin/roles", tags=["admin: roles"])
 
 READ = Depends(require_scope("admin:roles:read"))
 WRITE = Depends(require_scope("admin:roles:write"))
+
+# Taken as a parameter where the handler confers scopes: what may be granted
+# is bounded by the caller's own token — see `admin.delegation`.
+WriteToken = Annotated[AccessToken, Depends(require_scope("admin:roles:write"))]
+
+DELEGATION_NOTE = (
+    "\\n\\n**You cannot grant what you do not hold.** Any `admin:` or `biometric:` "
+    "scope in what this would confer must already be in the caller's own token, "
+    "or the request is refused with `403 cannot_delegate`."
+)
 
 
 def to_response(role) -> RoleResponse:
@@ -76,11 +87,18 @@ async def list_roles(session: DBSessionDep, page: PaginationDep) -> Page[RoleRes
             "description": "One or more scope ids do not exist",
         },
         409: {"model": ErrorResponse, "description": "Name already taken"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Would confer a scope the caller does not hold",
+        },
     },
-    dependencies=[WRITE],
 )
-async def create_role(body: RoleCreate, session: DBSessionDep) -> RoleResponse:
-    return to_response(await service.create_role(session, body))
+async def create_role(
+    body: RoleCreate, session: DBSessionDep, token: WriteToken
+) -> RoleResponse:
+    return to_response(
+        await service.create_role(session, body, caller_scopes=token.scopes)
+    )
 
 
 @router.get(
@@ -129,7 +147,7 @@ async def update_role(
         "without diffing first.\n\n"
         "Takes effect at the next token issuance, not immediately — outstanding "
         "access tokens live until they expire.\n\n"
-        "**Required scope:** `admin:roles:write`"
+        "**Required scope:** `admin:roles:write`" + DELEGATION_NOTE
     ),
     responses={
         404: {
@@ -140,13 +158,20 @@ async def update_role(
             "model": ErrorResponse,
             "description": "System role, or would leave no administrator",
         },
+        403: {
+            "model": ErrorResponse,
+            "description": "Would confer a scope the caller does not hold",
+        },
     },
-    dependencies=[WRITE],
 )
 async def set_role_scopes(
-    role_id: UUID, body: RoleScopeAssignment, session: DBSessionDep
+    role_id: UUID, body: RoleScopeAssignment, session: DBSessionDep, token: WriteToken
 ) -> RoleResponse:
-    return to_response(await service.set_role_scopes(session, role_id, body.scope_ids))
+    return to_response(
+        await service.set_role_scopes(
+            session, role_id, body.scope_ids, caller_scopes=token.scopes
+        )
+    )
 
 
 @router.delete(

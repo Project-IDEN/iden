@@ -386,3 +386,98 @@ class TestEffectiveScopes:
             )
         ).json()
         assert body["scopes"] == []
+
+
+class TestClearingAnAuthenticator:
+    """The way back from a lost phone.
+
+    A confirmed authenticator is owed at every sign-in, removing it through
+    `/entity/totp` needs a recent sign-in the person can no longer complete, and
+    a password reset leaves it in place. Without this endpoint, losing the
+    device locked the account permanently.
+    """
+
+    async def test_it_clears_an_enrolment(self, client, admin_headers, db, member):
+        from sqlalchemy import select
+
+        from provider.shared.models import TotpCredential
+        from tests.test_auth_code_flow import enrol
+
+        await enrol(db, member)
+
+        response = await client.delete(
+            f"/admin/users/{member.id}/totp", headers=admin_headers
+        )
+
+        assert response.status_code == 204
+        assert await db.scalar(select(TotpCredential)) is None
+
+    async def test_the_person_can_sign_in_again_afterwards(
+        self, client, admin_headers, db, member
+    ):
+        """The whole point. Before, this login was unreachable: the password was
+        accepted and then a code was owed that nobody could produce."""
+        from tests.conftest import REDIRECT_URI
+        from tests.flows import pkce_pair, query_of, sign_in, start
+        from tests.test_auth_code_flow import enrol
+
+        await enrol(db, member)
+
+        _, challenge = pkce_pair()
+        challenge_id = query_of(await start(client, challenge))["challenge"]
+        locked_out = await sign_in(
+            client,
+            challenge_id,
+            email=member.email,
+            password="correct-horse-battery-staple",
+        )
+        assert locked_out.json()["status"] == "method_required"
+        assert locked_out.json()["methods"] == ["otp"]
+
+        await client.delete(f"/admin/users/{member.id}/totp", headers=admin_headers)
+
+        # The browser still holds the password-only session from above. What
+        # changed is that it no longer owes anything, so the same authorization
+        # request now completes instead of being sent back to the form.
+        _, challenge = pkce_pair()
+        resumed = await start(client, challenge)
+
+        assert resumed.headers["location"].startswith(REDIRECT_URI)
+        assert query_of(resumed)["code"]
+
+    async def test_clearing_nothing_succeeds(self, client, admin_headers, member):
+        """`204` either way: a `404` would say whether a given person uses one."""
+        response = await client.delete(
+            f"/admin/users/{member.id}/totp", headers=admin_headers
+        )
+
+        assert response.status_code == 204
+
+    async def test_an_unknown_user_is_404(self, client, admin_headers):
+        response = await client.delete(
+            "/admin/users/00000000-0000-4000-8000-000000000000/totp",
+            headers=admin_headers,
+        )
+
+        assert response.status_code == 404
+
+    async def test_it_needs_the_scope(self, client, token_for, member):
+        headers = await token_for("admin:users:read")
+
+        response = await client.delete(
+            f"/admin/users/{member.id}/totp", headers=headers
+        )
+
+        assert response.status_code == 403
+
+    async def test_it_is_audited(self, client, admin_headers, db, member):
+        from sqlalchemy import select
+
+        from provider.shared.models import AuditEvent
+
+        await client.delete(f"/admin/users/{member.id}/totp", headers=admin_headers)
+
+        event = await db.scalar(select(AuditEvent))
+        assert event is not None
+        assert event.action == "DELETE /admin/users/{user_id}/totp"
+        assert event.target == str(member.id)

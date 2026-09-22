@@ -10,6 +10,7 @@
 export const ADMIN_SCOPES = [
   "admin:users:read",
   "admin:users:write",
+  "admin:grants:write",
   "admin:groups:read",
   "admin:groups:write",
   "admin:roles:read",

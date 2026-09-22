@@ -17,6 +17,7 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.core.errors import ConflictError
+from provider.core.logging import logger
 from provider.shared.models import (
     Scope,
     User,
@@ -30,7 +31,12 @@ from provider.shared.models import (
 # The scope that can restore every other one: whoever holds it can set anyone's
 # roles, including their own. It is therefore the only one whose last holder
 # matters — lose it and no sequence of API calls puts it back.
-RECOVERY_SCOPE = "admin:users:write"
+#
+# It used to be `admin:users:write`, which carried both halves of user
+# administration. Assigning permissions is now its own scope, and this follows
+# it: `admin:users:write` can no longer grant anything, so its last holder is
+# replaceable by anyone who can assign roles, while this one's is not.
+RECOVERY_SCOPE = "admin:grants:write"
 
 
 class WouldLockEveryoneOut(ConflictError):
@@ -52,8 +58,18 @@ async def administrators_remaining(session: AsyncSession) -> int:
         select(Scope.id).where(Scope.value == RECOVERY_SCOPE)
     )
     if scope_id is None:
-        # An unseeded database. There is no catalogue to protect yet, and
-        # refusing every write until there is would be its own lockout.
+        # No catalogue to protect, and refusing every write until there is one
+        # would be its own lockout. Two very different situations reach here
+        # though, and only the first is fine: a database nobody has seeded, and
+        # one seeded before this scope existed. In the second the guard is off
+        # while there are administrators to lose, so it says so rather than
+        # passing quietly — the fix is one `scripts.seed` away.
+        if await session.scalar(select(func.count(User.id))):
+            logger.warning(
+                "Lockout protection is inactive: the recovery scope is not in "
+                "the catalogue. Run `python -m scripts.seed`.",
+                scope=RECOVERY_SCOPE,
+            )
         return -1
 
     granting_roles = select(role_scopes.c.role_id).where(

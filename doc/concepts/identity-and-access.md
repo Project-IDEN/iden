@@ -112,8 +112,8 @@ Protecting the permission is only half of it. The permission can still exist whi
 deactivate the last administrator, or take the role off them, and the catalogue is intact and the
 deployment is just as locked.
 
-So IDEN counts. Any change that would leave **no active user holding `admin:users:write`** is refused
-with `409`, whichever door it came through:
+So IDEN counts. Any change that would leave **no active user holding `admin:grants:write`** is
+refused with `409`, whichever door it came through:
 
 - deactivating or deleting that user
 - replacing their roles, or their direct grants

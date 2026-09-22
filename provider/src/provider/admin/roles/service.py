@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from provider.admin import lockout
+from provider.admin import delegation, lockout
 from provider.admin.roles.errors import (
     RoleInUse,
     RoleNameTaken,
@@ -51,12 +51,15 @@ async def get_role(session: AsyncSession, role_id: UUID) -> Role:
     return role
 
 
-async def create_role(session: AsyncSession, data: RoleCreate) -> Role:
+async def create_role(
+    session: AsyncSession, data: RoleCreate, *, caller_scopes: set[str]
+) -> Role:
     if await session.scalar(select(Role).where(Role.name == data.name)):
         raise RoleNameTaken
 
     role = Role(name=data.name, description=data.description)
     role.scopes = await resolve_scopes(session, data.scope_ids)
+    delegation.refuse_undelegatable(caller_scopes, role.scopes)
     session.add(role)
     await session.commit()
     await session.refresh(role)
@@ -81,14 +84,25 @@ async def update_role(session: AsyncSession, role_id: UUID, data: RoleUpdate) ->
 
 
 async def set_role_scopes(
-    session: AsyncSession, role_id: UUID, scope_ids: list[UUID]
+    session: AsyncSession,
+    role_id: UUID,
+    scope_ids: list[UUID],
+    *,
+    caller_scopes: set[str],
 ) -> Role:
-    """Replace the scope set wholesale — a set operation, so it is idempotent."""
+    """Replace the scope set wholesale — a set operation, so it is idempotent.
+
+    Editing what a role means confers on everybody already holding it, which is
+    why the delegation rule applies here and not only where a role is assigned.
+    Without it, adding `admin:grants:write` to a role you are already in is a
+    one-request promotion.
+    """
     role = await get_role(session, role_id)
     if role.is_system:
         raise SystemRoleImmutable
 
     role.scopes = await resolve_scopes(session, scope_ids)
+    delegation.refuse_undelegatable(caller_scopes, role.scopes)
     await lockout.refuse_if_last(session)
     await session.commit()
     return role

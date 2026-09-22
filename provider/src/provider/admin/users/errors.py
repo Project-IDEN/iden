@@ -21,6 +21,11 @@ class UnknownRoles(NotFoundError):
     message = "One or more role ids do not exist."
 
 
+class UnknownGroups(NotFoundError):
+    code = "unknown_groups"
+    message = "One or more group ids do not exist."
+
+
 class UnknownScopes(NotFoundError):
     code = "unknown_scopes"
     message = "One or more scope ids do not exist."

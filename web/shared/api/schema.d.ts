@@ -625,7 +625,7 @@ export interface paths {
          *
          *     Takes effect at the next token issuance, not immediately — outstanding access tokens live until they expire.
          *
-         *     **Required scope:** `admin:roles:write`
+         *     **Required scope:** `admin:roles:write`\n\n**You cannot grant what you do not hold.** Any `admin:` or `biometric:` scope in what this would confer must already be in the caller's own token, or the request is refused with `403 cannot_delegate`.
          */
         put: operations["set_role_scopes_admin_roles__role_id__scopes_put"];
         post?: never;
@@ -703,9 +703,9 @@ export interface paths {
          * Set a group's roles
          * @description **Replaces the entire set.** Every member inherits these roles, which is how one change reaches a whole department.
          *
-         *     Refused with `409` when the group is the last source of `admin:users:write` for an active user.
+         *     Refused with `409` when the group is the last source of `admin:grants:write` for an active user.
          *
-         *     **Required scope:** `admin:groups:write`
+         *     **Required scope:** `admin:groups:write`\n\n**You cannot grant what you do not hold.** Any `admin:` or `biometric:` scope in what this would confer must already be in the caller's own token, or the request is refused with `403 cannot_delegate`.
          */
         put: operations["set_group_roles_admin_groups__group_id__roles_put"];
         post?: never;
@@ -785,6 +785,8 @@ export interface paths {
          *     Omit `password` and one is generated and returned **once** in `generatedPassword`. It is argon2-hashed on the way in and cannot be recovered afterwards.
          *
          *     **Required scope:** `admin:users:write`
+         *
+         *     **You cannot grant what you do not hold.** Any `admin:` or `biometric:` scope in what this would confer must already be in the caller's own token, or the request is refused with `403 cannot_delegate`. Scopes belonging to your organization's own APIs are unrestricted — granting those is what an administrator is for.
          */
         post: operations["create_user_admin_users_post"];
         delete?: never;
@@ -812,6 +814,8 @@ export interface paths {
          * @description Removes the account and everything hanging off it. Consider deactivating instead — deletion loses the audit trail of who did what.
          *
          *     **Required scope:** `admin:users:write`
+         *
+         *     **You cannot act on an account above your own.** If the target holds an `admin:` or `biometric:` scope the caller does not, the request is refused with `403 cannot_administer` — otherwise resetting a password and clearing an authenticator would together be a way to become somebody more privileged than you.
          */
         delete: operations["delete_user_admin_users__user_id__delete"];
         options?: never;
@@ -863,9 +867,11 @@ export interface paths {
          * Set a user's roles
          * @description **Replaces the entire set.** Roles inherited from groups are unaffected — those are managed on the group.
          *
-         *     Refused with `409` when it would leave no active user holding `admin:users:write`: nothing in the API can grant it back.
+         *     Refused with `409` when it would leave no active user holding `admin:grants:write`: nothing in the API can grant it back.
          *
-         *     **Required scope:** `admin:users:write`
+         *     **Required scope:** `admin:grants:write`
+         *
+         *     **You cannot grant what you do not hold.** Any `admin:` or `biometric:` scope in what this would confer must already be in the caller's own token, or the request is refused with `403 cannot_delegate`. Scopes belonging to your organization's own APIs are unrestricted — granting those is what an administrator is for.
          */
         put: operations["set_roles_admin_users__user_id__roles_put"];
         post?: never;
@@ -889,9 +895,11 @@ export interface paths {
          *
          *     Prefer roles: a direct grant is invisible in any role listing and is easy to forget when someone changes jobs.
          *
-         *     Refused with `409` when it would leave no active user holding `admin:users:write`.
+         *     Refused with `409` when it would leave no active user holding `admin:grants:write`.
          *
-         *     **Required scope:** `admin:users:write`
+         *     **Required scope:** `admin:grants:write`
+         *
+         *     **You cannot grant what you do not hold.** Any `admin:` or `biometric:` scope in what this would confer must already be in the caller's own token, or the request is refused with `403 cannot_delegate`. Scopes belonging to your organization's own APIs are unrestricted — granting those is what an administrator is for.
          */
         put: operations["set_scopes_admin_users__user_id__scopes_put"];
         post?: never;
@@ -917,9 +925,41 @@ export interface paths {
          *     Omit `password` to have one generated and returned once.
          *
          *     **Required scope:** `admin:users:write`
+         *
+         *     **You cannot act on an account above your own.** If the target holds an `admin:` or `biometric:` scope the caller does not, the request is refused with `403 cannot_administer` — otherwise resetting a password and clearing an authenticator would together be a way to become somebody more privileged than you.
          */
         post: operations["reset_password_admin_users__user_id__reset_password_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{user_id}/totp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Clear a user's authenticator
+         * @description The way back from a lost phone, and the only one there is.
+         *
+         *     An enrolled authenticator is otherwise a one-way door: once confirmed it is owed at **every** sign-in, whatever the application asked for; removing it through `/entity/totp` needs a recent sign-in the person can no longer complete; and a password reset leaves the credential in place. Losing the device therefore locked the account for good, with a hand-edited database as the way out.
+         *
+         *     **This lowers the account to a single factor** until they enrol again, so it is worth confirming who is asking by some means other than the request. It is recorded in the audit log with the administrator who did it.
+         *
+         *     Returns `204` whether or not an authenticator was enrolled — there is nothing to report about the difference, and a `404` would only say whether a particular person uses one.
+         *
+         *     **Required scope:** `admin:users:write`
+         *
+         *     **You cannot act on an account above your own.** If the target holds an `admin:` or `biometric:` scope the caller does not, the request is refused with `403 cannot_administer` — otherwise resetting a password and clearing an authenticator would together be a way to become somebody more privileged than you.
+         */
+        delete: operations["clear_totp_admin_users__user_id__totp_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -976,7 +1016,7 @@ export interface paths {
          *
          *     `grantableScopeIds` are what the client may request for a user; `grantedScopeIds` are what it holds itself for `client_credentials`. The two are independent.
          *
-         *     **Required scope:** `admin:clients:write`
+         *     **Required scope:** `admin:clients:write`\n\n**You cannot grant what you do not hold.** Any `admin:` or `biometric:` scope in what this would confer must already be in the caller's own token, or the request is refused with `403 cannot_delegate`.
          */
         post: operations["create_client_admin_clients_post"];
         delete?: never;
@@ -1004,6 +1044,8 @@ export interface paths {
          * @description Every token and consent grant belonging to the client goes with it.
          *
          *     **Required scope:** `admin:clients:write`
+         *
+         *     **You cannot act on an application above your own authority.** If it holds an `admin:` or `biometric:` scope in its own right that the caller lacks, the request is refused with `403 cannot_administer` — otherwise adding the `client_credentials` grant and rotating its secret would be a way to borrow it.
          */
         delete: operations["delete_client_admin_clients__client_id__delete"];
         options?: never;
@@ -1029,7 +1071,7 @@ export interface paths {
          * Set a client's scopes
          * @description **Replaces both sets.** A scope listed in neither is removed from the client entirely.
          *
-         *     **Required scope:** `admin:clients:write`
+         *     **Required scope:** `admin:clients:write`\n\n**You cannot grant what you do not hold.** Any `admin:` or `biometric:` scope in what this would confer must already be in the caller's own token, or the request is refused with `403 cannot_delegate`.
          */
         put: operations["set_client_scopes_admin_clients__client_id__scopes_put"];
         post?: never;
@@ -1053,6 +1095,8 @@ export interface paths {
          * @description Issues a new secret and returns it **once**. The previous secret stops working immediately, so deploy the new one before rotating.
          *
          *     **Required scope:** `admin:clients:write`
+         *
+         *     **You cannot act on an application above your own authority.** If it holds an `admin:` or `biometric:` scope in its own right that the caller lacks, the request is refused with `403 cannot_administer` — otherwise adding the `client_credentials` grant and rotating its secret would be a way to borrow it.
          */
         post: operations["rotate_secret_admin_clients__client_id__rotate_secret_post"];
         delete?: never;
@@ -1354,6 +1398,8 @@ export interface paths {
          * Start setting up an authenticator
          * @description Returns a secret and an `otpauth://` URI to render as a QR code. Nothing is active yet: `POST /entity/totp/confirm` with a generated code finishes it. Two steps on purpose — a mis-scanned QR code would otherwise lock someone out of their own account.
          *
+         *     **Needs a recent sign-in.** Enrolling is not a smaller act than removing. Once a confirmed authenticator exists it is owed at *every* subsequent sign-in, whatever the application asked for — so somebody holding a stolen access token could enrol one of their own and lock the account's owner out for good: the owner cannot produce the code, a password reset does not clear the credential, and removing it needs the recent sign-in they can no longer complete. The refusal is RFC 9470's `insufficient_user_authentication` with the `max_age` that would satisfy it.
+         *
          *     **Required scope:** `entity:totp:enroll`
          */
         post: operations["enroll_entity_totp_enroll_post"];
@@ -1375,6 +1421,8 @@ export interface paths {
         /**
          * Finish setting up an authenticator
          * @description Proves the app was scanned correctly and is keeping the right time.
+         *
+         *     **Needs a recent sign-in.** Enrolling is not a smaller act than removing. Once a confirmed authenticator exists it is owed at *every* subsequent sign-in, whatever the application asked for — so somebody holding a stolen access token could enrol one of their own and lock the account's owner out for good: the owner cannot produce the code, a password reset does not clear the credential, and removing it needs the recent sign-in they can no longer complete. The refusal is RFC 9470's `insufficient_user_authentication` with the `max_age` that would satisfy it.
          *
          *     **Required scope:** `entity:totp:enroll`
          */
@@ -2109,14 +2157,19 @@ export interface components {
             allowedGrants?: ("authorization_code" | "refresh_token" | "client_credentials")[];
             /**
              * Redirecturis
-             * @description Matched exactly at /authorize. No wildcards.
+             * @description Matched exactly at /authorize. `https://` anywhere; `http://` only on localhost or 127.0.0.1; or a reverse-DNS private-use scheme for a native app, e.g. `com.example.app:/callback` (RFC 8252). Printable ASCII only, and no wildcards, fragments, or credentials in the authority — the value is matched **exactly** at `/authorize`, so register the URI your app actually sends.
              */
             redirectUris?: string[];
-            /** Postlogoutredirecturis */
+            /**
+             * Postlogoutredirecturis
+             * @description Same rules as `redirectUris`.
+             */
             postLogoutRedirectUris?: string[];
             /**
              * Backchannellogouturi
              * @description Where IDEN POSTs a logout token when a session this client was part of ends. Leave null and the client is never told: it keeps serving its own session until something else fails.
+             *
+             *     Absolute `https://`, or `http://` on localhost for local development. No fragment, and no credentials in the authority.
              */
             backchannelLogoutUri?: string | null;
             /**
@@ -2238,17 +2291,29 @@ export interface components {
             /** Grantedscopeids */
             grantedScopeIds?: string[];
         };
-        /** ClientUpdate */
+        /**
+         * ClientUpdate
+         * @description Every field is optional; the ones left out are untouched.
+         *
+         *     The URIs are validated here exactly as on create. They were not, which made
+         *     the update body the way around every rule the create body enforced.
+         */
         ClientUpdate: {
             /** Name */
             name?: string | null;
             /** Allowedgrants */
-            allowedGrants?: string[] | null;
-            /** Redirecturis */
+            allowedGrants?: ("authorization_code" | "refresh_token" | "client_credentials")[] | null;
+            /**
+             * Redirecturis
+             * @description `https://` anywhere; `http://` only on localhost or 127.0.0.1; or a reverse-DNS private-use scheme for a native app, e.g. `com.example.app:/callback` (RFC 8252). Printable ASCII only, and no wildcards, fragments, or credentials in the authority — the value is matched **exactly** at `/authorize`, so register the URI your app actually sends.
+             */
             redirectUris?: string[] | null;
             /** Postlogoutredirecturis */
             postLogoutRedirectUris?: string[] | null;
-            /** Backchannellogouturi */
+            /**
+             * Backchannellogouturi
+             * @description Absolute `https://`, or `http://` on localhost for local development. No fragment, and no credentials in the authority.
+             */
             backchannelLogoutUri?: string | null;
             /** Backchannellogoutsessionrequired */
             backchannelLogoutSessionRequired?: boolean | null;
@@ -2872,7 +2937,7 @@ export interface components {
             unique: boolean;
             /**
              * Validators
-             * @description Any of `pattern`, `min`, `max`, `minLength`, `maxLength`.
+             * @description Optional rules, keyed by name: `pattern` (a regular expression), `min` and `max` (whole numbers, for an `integer` field), `min_length` and `max_length`. Unknown names are refused rather than ignored, so a typo cannot look like a rule that is being applied.
              */
             validators?: {
                 [key: string]: unknown;
@@ -2966,7 +3031,10 @@ export interface components {
             options?: string[] | null;
             /** Required */
             required?: boolean | null;
-            /** Validators */
+            /**
+             * Validators
+             * @description Optional rules, keyed by name: `pattern` (a regular expression), `min` and `max` (whole numbers, for an `integer` field), `min_length` and `max_length`. Unknown names are refused rather than ignored, so a typo cannot look like a rule that is being applied.
+             */
             validators?: {
                 [key: string]: unknown;
             } | null;
@@ -3619,6 +3687,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Too many requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
     token_oauth2_token_post: {
@@ -3801,6 +3878,15 @@ export interface operations {
                     "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
+            /** @description Too many attempts */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthErrorResponse"];
+                };
+            };
         };
     };
     introspect_oauth2_introspect_post: {
@@ -3841,6 +3927,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many attempts */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OAuthErrorResponse"];
                 };
             };
         };
@@ -4773,6 +4868,15 @@ export interface operations {
                     "application/json": components["schemas"]["RoleResponse"];
                 };
             };
+            /** @description Would confer a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description One or more scope ids do not exist */
             404: {
                 headers: {
@@ -4967,6 +5071,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RoleResponse"];
+                };
+            };
+            /** @description Would confer a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description No such role, or unknown scope ids */
@@ -5238,6 +5351,15 @@ export interface operations {
                     "application/json": components["schemas"]["GroupResponse"];
                 };
             };
+            /** @description Would confer a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description No such group, or unknown role ids */
             404: {
                 headers: {
@@ -5333,6 +5455,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Would confer a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description No such group, or unknown user ids */
             404: {
@@ -5463,6 +5594,15 @@ export interface operations {
                     "application/json": components["schemas"]["UserCreated"];
                 };
             };
+            /** @description A role or group would confer a scope the caller lacks */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unknown role or group ids */
             404: {
                 headers: {
@@ -5549,6 +5689,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description This account holds authority the caller does not */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description No such user */
             404: {
@@ -5696,6 +5845,15 @@ export interface operations {
                     "application/json": components["schemas"]["UserResponse"];
                 };
             };
+            /** @description A role would confer a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description No such user, or unknown role ids */
             404: {
                 headers: {
@@ -5749,6 +5907,15 @@ export interface operations {
                     "application/json": components["schemas"]["UserResponse"];
                 };
             };
+            /** @description One of the scopes is not one the caller holds */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description No such user, or unknown scope ids */
             404: {
                 headers: {
@@ -5800,6 +5967,62 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PasswordResetResult"];
+                };
+            };
+            /** @description This account holds authority the caller does not */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    clear_totp_admin_users__user_id__totp_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This account holds authority the caller does not */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description No such user */
@@ -5971,6 +6194,15 @@ export interface operations {
                     "application/json": components["schemas"]["ClientCreated"];
                 };
             };
+            /** @description Would confer a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Unknown scope ids */
             404: {
                 headers: {
@@ -6058,6 +6290,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description This application holds authority the caller does not */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description No such client */
             404: {
                 headers: {
@@ -6111,6 +6352,15 @@ export interface operations {
                     "application/json": components["schemas"]["ClientResponse"];
                 };
             };
+            /** @description This application holds authority the caller does not */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description No such client */
             404: {
                 headers: {
@@ -6155,6 +6405,15 @@ export interface operations {
                     "application/json": components["schemas"]["ClientResponse"];
                 };
             };
+            /** @description Would confer a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description No such client, or unknown scope ids */
             404: {
                 headers: {
@@ -6193,6 +6452,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SecretRotated"];
+                };
+            };
+            /** @description This application holds authority the caller does not */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description No such client */
@@ -6822,6 +7090,15 @@ export interface operations {
                     "application/json": components["schemas"]["TotpEnrollment"];
                 };
             };
+            /** @description Sign-in is not recent enough */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Already enrolled */
             409: {
                 headers: {
@@ -6853,6 +7130,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["TotpStatus"];
+                };
+            };
+            /** @description Sign-in is not recent enough */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Nothing pending to confirm */

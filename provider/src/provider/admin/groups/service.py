@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy import delete, func, insert, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from provider.admin import lockout
+from provider.admin import delegation, lockout
 from provider.admin.groups.errors import (
     GroupNameTaken,
     GroupNotFound,
@@ -101,10 +101,18 @@ async def update_group(
 
 
 async def set_group_roles(
-    session: AsyncSession, group_id: UUID, role_ids: list[UUID]
+    session: AsyncSession,
+    group_id: UUID,
+    role_ids: list[UUID],
+    *,
+    caller_scopes: set[str],
 ) -> Group:
+    """A group's roles reach every member, present and future."""
     group = await get_group(session, group_id)
     group.roles = await resolve_roles(session, role_ids)
+    delegation.refuse_undelegatable(
+        caller_scopes, delegation.scopes_of_roles(group.roles)
+    )
     await lockout.refuse_if_last(session)
     await session.commit()
     return group
@@ -130,9 +138,18 @@ async def list_members(
 
 
 async def add_members(
-    session: AsyncSession, group_id: UUID, user_ids: list[UUID]
+    session: AsyncSession,
+    group_id: UUID,
+    user_ids: list[UUID],
+    *,
+    caller_scopes: set[str],
 ) -> None:
-    await get_group(session, group_id)
+    """Membership confers whatever the group's roles carry — including on the
+    caller, if they add themselves. Same rule as assigning a role directly."""
+    group = await get_group(session, group_id)
+    delegation.refuse_undelegatable(
+        caller_scopes, delegation.scopes_of_roles(group.roles)
+    )
 
     found = set(await session.scalars(select(User.id).where(User.id.in_(user_ids))))
     if len(found) != len(set(user_ids)):

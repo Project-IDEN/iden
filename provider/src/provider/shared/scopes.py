@@ -37,7 +37,18 @@ class RoleSpec:
 ADMIN_SCOPES = (
     ScopeSpec("admin:users:read", "View users, their roles, and their direct grants."),
     ScopeSpec(
-        "admin:users:write", "Create, update, and delete users and their grants."
+        "admin:users:write",
+        "Create, update, and delete users, and reset their passwords.",
+    ),
+    # Split out of `admin:users:write`, which used to carry both. Assigning
+    # permissions is the one administrative act that can increase somebody's
+    # authority, including the caller's own — so it is the one worth being able
+    # to withhold. A help-desk account that creates people, renames them,
+    # deactivates them and resets their passwords now needs `admin:users:write`
+    # and not this.
+    ScopeSpec(
+        "admin:grants:write",
+        "Assign roles and individual scopes to a person.",
     ),
     ScopeSpec("admin:groups:read", "View groups, their members, and their roles."),
     ScopeSpec(
@@ -131,15 +142,43 @@ def system_apis() -> tuple[ApiSpec, ...]:
     return apis
 
 
+# The prefixes whose scopes confer authority over somebody *other than* their
+# holder, and which therefore cannot be handed out by an administrator who does
+# not hold them — see `admin.delegation`.
+#
+# `entity:` and `developer:` are deliberately absent. They are self-service:
+# holding `entity:profile:write` lets you edit your own profile and nobody
+# else's, so granting one to someone increases their authority over themselves
+# and the granter's over nothing. Restricting those would only stop an
+# administrator doing the job the role exists for.
+#
+# Everything outside this set — an organization's own APIs — is unrestricted for
+# the same reason, and a stronger one: an identity provider exists to let
+# administrators grant permissions they do not personally hold. Requiring the
+# registrar to hold `attendance:records:write` before granting it would mean
+# holding every permission in the organization.
+RESTRICTED_PREFIXES = frozenset({"admin", "biometric"})
+
+
 def system_roles() -> tuple[RoleSpec, ...]:
     admin = tuple(s.value for s in ADMIN_SCOPES)
     entity = tuple(s.value for s in ENTITY_SCOPES)
     developer = tuple(s.value for s in DEVELOPER_SCOPES)
+    # Held, not merely grantable. `RESTRICTED_PREFIXES` means a scope can only be
+    # handed out by someone who holds it, so an administrator who did not hold
+    # these could never assign them to the kiosk client that needs them — and
+    # nobody else could either, which is a deployment with a biometric module it
+    # cannot configure.
+    biometric = (
+        tuple(s.value for s in BIOMETRIC_SCOPES)
+        if settings.iden_biometric_enabled
+        else ()
+    )
     return (
         RoleSpec(
             name="administrator",
             description="Full control over the deployment.",
-            scopes=admin + entity + developer,
+            scopes=admin + entity + developer + biometric,
         ),
         RoleSpec(
             name="member",

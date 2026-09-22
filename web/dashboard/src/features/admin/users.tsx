@@ -16,6 +16,7 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "../../app/api";
+import { useHasScope } from "../../app/session";
 import { PageHeader } from "../../app/shell";
 import { useList, useRecord, useWrite, type EffectiveScopes, type UserRecord } from "./api";
 import { SetPicker } from "./picker";
@@ -131,6 +132,11 @@ export function UserDetailRoute() {
   const roleOptions = useRoleOptions();
   const scopeOptions = useScopeOptions();
 
+  // Assigning permissions is its own scope. Without it these two sections are
+  // read-only: the endpoints behind them refuse, and an editor that saves to a
+  // 403 is worse than one that is not offered.
+  const mayGrant = useHasScope("admin:grants:write");
+
   const [deleting, setDeleting] = useState(false);
   const [resetting, setResetting] = useState(false);
   const [issued, setIssued] = useState<string | null>(null);
@@ -190,7 +196,13 @@ export function UserDetailRoute() {
         <p className="mb-4 max-w-prose text-body-sm text-muted-foreground">
           Roles bundle permissions. Saving replaces the whole set.
         </p>
-        {roleOptions.data ? (
+        {!mayGrant ? (
+          <p className="text-body-sm text-body">
+            {record.roles.length > 0
+              ? record.roles.map((role) => role.name).join(", ")
+              : "No roles."}
+          </p>
+        ) : roleOptions.data ? (
           <RoleEditor
             key={record.roles.map((role) => role.id).join(",")}
             options={roleOptions.data}
@@ -209,7 +221,11 @@ export function UserDetailRoute() {
           One-off exceptions that bypass roles. Prefer a role when more than one person needs the
           same thing.
         </p>
-        {scopeOptions.data ? (
+        {!mayGrant ? (
+          <p className="text-body-sm text-body">
+            {record.directScopes.length > 0 ? record.directScopes.join(", ") : "None."}
+          </p>
+        ) : scopeOptions.data ? (
           <RoleEditor
             key={record.directScopes.join(",")}
             options={scopeOptions.data}
