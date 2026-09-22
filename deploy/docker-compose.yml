@@ -19,7 +19,11 @@ services:
     image: pgvector/pgvector:pg18
     environment:
       POSTGRES_USER: iden
-      POSTGRES_PASSWORD: iden
+      # Defaulted so `up` with no .env still works on a laptop, and named here so
+      # a deployment can set it. It was fixed at `iden` before, which meant the
+      # database of a deployment on the internet was protected by a password
+      # published in this file. See deploy/.env.example.
+      POSTGRES_PASSWORD: ${IDEN_POSTGRES_PASSWORD:-iden}
       POSTGRES_DB: iden
     ports:
       - "127.0.0.1:5432:5432"
@@ -33,12 +37,19 @@ services:
 
   redis:
     image: redis:8-alpine
+    # Redis holds every live session and every login challenge, and it had no
+    # password: anything that could reach the network could read them. The only
+    # other things on this network are nginx and cloudflared, which is to say a
+    # third-party image — so this is the difference between compromising that
+    # container and compromising every session in the deployment.
+    command:
+      ["redis-server", "--requirepass", "${IDEN_REDIS_PASSWORD:-iden}", "--save", "60", "1"]
     ports:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${IDEN_REDIS_PASSWORD:-iden}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
@@ -50,12 +61,19 @@ services:
   # runs as a single process.
   seaweedfs:
     image: chrislusf/seaweedfs:3.97
-    command: ["server", "-dir=/data", "-s3", "-s3.config=/etc/seaweedfs/s3.json"]
+    command: ["server", "-dir=/data", "-s3"]
+    # The credential comes from the environment rather than a mounted
+    # `s3.config` file, so it is one value set in deploy/.env instead of a secret
+    # committed to this repository and a copy of it beside the provider that
+    # could drift out of step. With no config file SeaweedFS takes these as its
+    # single admin identity and refuses anonymous access.
+    environment:
+      AWS_ACCESS_KEY_ID: ${IDEN_S3_ACCESS_KEY:-iden}
+      AWS_SECRET_ACCESS_KEY: ${IDEN_S3_SECRET_KEY:-idensecret}
     ports:
       - "127.0.0.1:8333:8333"
     volumes:
       - seaweedfs-data:/data
-      - ./seaweedfs/s3.json:/etc/seaweedfs/s3.json:ro
     healthcheck:
       # The S3 port, because that is the only one the provider talks to. By
       # address rather than by name: `localhost` resolves to ::1 in this image
@@ -105,16 +123,19 @@ services:
       #     python -m scripts.seed
       IDEN_BOOTSTRAP_ADMIN_EMAIL: ${IDEN_BOOTSTRAP_ADMIN_EMAIL:-admin@localhost}
 
-      IDEN_DATABASE_URL: postgresql+asyncpg://iden:iden@postgres:5432/iden
-      IDEN_REDIS_URL: redis://redis:6379/0
+      IDEN_DATABASE_URL: postgresql+asyncpg://iden:${IDEN_POSTGRES_PASSWORD:-iden}@postgres:5432/iden
+      IDEN_REDIS_URL: redis://:${IDEN_REDIS_PASSWORD:-iden}@redis:6379/0
       IDEN_SIGNING_KEY_DIR: /keys
       IDEN_S3_ENDPOINT_URL: http://seaweedfs:8333
-      IDEN_S3_ACCESS_KEY: iden
-      IDEN_S3_SECRET_KEY: idensecret
+      IDEN_S3_ACCESS_KEY: ${IDEN_S3_ACCESS_KEY:-iden}
+      IDEN_S3_SECRET_KEY: ${IDEN_S3_SECRET_KEY:-idensecret}
       IDEN_S3_BUCKET: iden
     volumes: &provider-volumes
       # Generated on the host with `uv run python -m scripts.gen_keys`, and
       # read-only inside: the provider signs with these and never writes them.
+      # The whole directory, not just the PEMs — `totp.key` lives here too, and
+      # it is what makes a stolen database dump inert rather than a working
+      # second factor for everyone enrolled.
       - ../provider/keys:/keys:ro
     depends_on:
       postgres:

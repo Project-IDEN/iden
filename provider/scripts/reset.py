@@ -17,6 +17,7 @@ from pathlib import Path
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import text
+from sqlalchemy.engine import make_url
 
 from provider.core.config import settings
 from provider.core.db import engine
@@ -52,8 +53,11 @@ def confirm() -> None:
 
     # Printed rather than assumed: the URLs come from the environment, and the
     # whole risk here is running this against a database you did not picture.
-    print(f"  database  {settings.iden_database_url}")
-    print(f"  redis     {settings.iden_redis_url}")
+    # Without the password, which these URLs now carry — this goes to a terminal
+    # and from there into scrollback and shell history, and the host and database
+    # name are the whole of what anyone needs to read here.
+    print(f"  database  {make_url(settings.iden_database_url)}")
+    print(f"  redis     {make_url(settings.iden_redis_url)}")
     try:
         answer = input("Everything above is deleted. Type 'reset' to continue: ")
     except EOFError:
