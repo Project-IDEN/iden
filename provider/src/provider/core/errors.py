@@ -33,6 +33,18 @@ class ImmutableError(ConflictError):
     message = "System-defined resources cannot be modified or deleted."
 
 
+class ForbiddenError(IdenError):
+    """The caller is authenticated, and still may not do this.
+
+    Distinct from the 403 a missing scope produces in `require_scope`: that one
+    is about which scopes the token carries, and this one is about what the
+    request is asking to do with them.
+    """
+
+    code = "forbidden"
+    message = "This is not something you may do."
+
+
 class ValidationError(IdenError):
     code = "validation_error"
     message = "The request is invalid."

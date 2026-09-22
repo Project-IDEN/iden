@@ -1,7 +1,6 @@
 import uuid
 from collections.abc import Callable
 from contextlib import asynccontextmanager
-from urllib.parse import urlencode
 
 import structlog
 import uvicorn
@@ -17,10 +16,12 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from provider.authz.oauth.errors import OAuthError, RedirectableError
 from provider.core import redis as redis_module
 from provider.core.audit import AuditMiddleware
+from provider.core.bodylimit import BodyLimitMiddleware
 from provider.core.config import settings
 from provider.core.db import engine
 from provider.core.errors import (
     ConflictError,
+    ForbiddenError,
     IdenError,
     ImmutableError,
     NotFoundError,
@@ -33,6 +34,7 @@ from provider.core.logging import configure_logging, logger
 from provider.core.router import router
 from provider.core.schemas import ErrorResponse
 from provider.core.storage import ensure_ready
+from provider.shared.client_uris import redirect_with
 
 configure_logging()
 
@@ -42,6 +44,7 @@ configure_logging()
 # Most specific first: ImmutableError is a ConflictError.
 ERROR_STATUS = (
     (RateLimitedError, 429),
+    (ForbiddenError, 403),
     (NotFoundError, 404),
     (ImmutableError, 409),
     (ConflictError, 409),
@@ -264,7 +267,7 @@ async def handle_redirectable_error(
     }
     if exc.state:
         params["state"] = exc.state
-    return RedirectResponse(f"{exc.redirect_uri}?{urlencode(params)}", status_code=303)
+    return RedirectResponse(redirect_with(exc.redirect_uri, params), status_code=303)
 
 
 @app.exception_handler(OAuthError)
@@ -320,6 +323,11 @@ app.add_middleware(
 # Outermost, so the headers reach responses the inner middleware produces on
 # its own — a CORS preflight, an audit failure — not only the ones routes return.
 app.add_middleware(SecurityHeadersMiddleware)
+
+# Outside everything, because a body too large to accept should not be copied by
+# the audit middleware or routed at all. `deploy/nginx` refuses these earlier and
+# more cheaply; this is the limit that survives the proxy being absent.
+app.add_middleware(BodyLimitMiddleware)
 
 app.include_router(router, prefix=settings.iden_api_prefix)
 

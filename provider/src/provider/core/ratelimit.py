@@ -114,8 +114,25 @@ async def clear(redis, bucket: str, identity: str) -> None:
 # is one address to us.
 LOGIN_PER_IP = limit_by_ip("login-ip", limit=30, window=300)
 TOTP_PER_IP = limit_by_ip("totp-ip", limit=20, window=300)
-TOKEN_PER_IP = limit_by_ip("token-ip", limit=120, window=60)
 RESET_PER_IP = limit_by_ip("reset-ip", limit=10, window=3600)
+
+# The three endpoints that verify a **client secret**, which is argon2 and
+# therefore costs the server 64 MiB and real CPU per attempt — before the caller
+# has proved anything. Without a limit here, a few hundred requests a second
+# naming any confidential client and any wrong secret is enough to exhaust a
+# small machine, and the caller needs no credential to send them. Each gets its
+# own bucket so spending one endpoint's allowance does not close the others.
+TOKEN_PER_IP = limit_by_ip("token-ip", limit=120, window=60)
+REVOKE_PER_IP = limit_by_ip("revoke-ip", limit=120, window=60)
+INTROSPECT_PER_IP = limit_by_ip("introspect-ip", limit=120, window=60)
+
+# `/authorize` writes a challenge into Redis for anyone who asks, and the entry
+# lives `IDEN_CHALLENGE_TTL` whether or not the interaction it stands for ever
+# happens. Unlimited, a flood fills Redis with them — which evicts the sessions
+# stored beside them. The same number as the token endpoint deliberately: every
+# authorization is followed by a token exchange, so this cannot be the limit a
+# busy deployment meets first.
+AUTHORIZE_PER_IP = limit_by_ip("authorize-ip", limit=120, window=60)
 
 # Failures against one account, from anywhere. This is the limit that actually
 # stops credential stuffing, because that attack rotates addresses and does not

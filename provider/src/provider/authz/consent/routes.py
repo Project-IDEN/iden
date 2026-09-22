@@ -1,5 +1,3 @@
-from urllib.parse import urlencode
-
 from fastapi import APIRouter, HTTPException, Request
 from sqlalchemy import select
 
@@ -14,6 +12,7 @@ from provider.core.config import settings
 from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse
+from provider.shared.client_uris import redirect_with
 from provider.shared.models import Client, User
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
@@ -60,7 +59,7 @@ async def consent(
         if state := challenge.params.get("state"):
             params["state"] = state
         return ConsentResponse(
-            redirect_url=f"{challenge.params['redirect_uri']}?{urlencode(params)}"
+            redirect_url=redirect_with(challenge.params["redirect_uri"], params)
         )
 
     user = await session.get(User, login_session.user_id)

@@ -49,8 +49,10 @@ from provider.core.config import settings
 from provider.core.crypto import ACCESS_TOKEN_TYP, verify_jwt
 from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
+from provider.core.schemas import ErrorResponse
 from provider.core.security import hash_token
 from provider.entity.profile import service as profile_service
+from provider.shared.client_uris import redirect_with
 from provider.shared.enums import (
     ClientType,
     CodeChallengeMethod,
@@ -193,7 +195,9 @@ def _auth_ui(path: str, challenge_id: str, **extra: str) -> RedirectResponse:
             "model": OAuthErrorResponse,
             "description": "Unknown client or unregistered redirect_uri",
         },
+        429: {"model": ErrorResponse, "description": "Too many requests"},
     },
+    dependencies=[Depends(ratelimit.AUTHORIZE_PER_IP)],
 )
 async def authorize(
     request: Request,
@@ -389,7 +393,7 @@ async def authorize(
     query = {"code": code, "iss": settings.iden_issuer}
     if state:
         query["state"] = state
-    return RedirectResponse(f"{redirect_uri}?{urlencode(query)}", status_code=303)
+    return RedirectResponse(redirect_with(redirect_uri, query), status_code=303)
 
 
 def _client_auth(request: Request, client_id: str | None, client_secret: str | None):
@@ -802,7 +806,11 @@ async def userinfo_post(
         "wrong hint costs a little time rather than the revocation.\n\n"
         "**Required scope:** none — client authentication only."
     ),
-    responses={401: {"model": OAuthErrorResponse, "description": "invalid_client"}},
+    responses={
+        401: {"model": OAuthErrorResponse, "description": "invalid_client"},
+        429: {"model": OAuthErrorResponse, "description": "Too many attempts"},
+    },
+    dependencies=[Depends(ratelimit.REVOKE_PER_IP)],
 )
 async def revoke(
     request: Request,
@@ -873,7 +881,11 @@ async def revoke(
         "orders the lookups.\n\n"
         "**Required scope:** none — client authentication only."
     ),
-    responses={401: {"model": OAuthErrorResponse, "description": "invalid_client"}},
+    responses={
+        401: {"model": OAuthErrorResponse, "description": "invalid_client"},
+        429: {"model": OAuthErrorResponse, "description": "Too many attempts"},
+    },
+    dependencies=[Depends(ratelimit.INTROSPECT_PER_IP)],
 )
 async def introspect(
     request: Request,
@@ -1030,8 +1042,11 @@ async def _logout(
     client = await get_client(session, client_id or _hinted_client(id_token_hint))
     target = None
     if client and post_logout_redirect_uri in client.post_logout_redirect_uris:
-        query = f"?{urlencode({'state': state})}" if state else ""
-        target = f"{post_logout_redirect_uri}{query}"
+        target = (
+            redirect_with(post_logout_redirect_uri, {"state": state})
+            if state
+            else post_logout_redirect_uri
+        )
 
     response = (
         RedirectResponse(target, status_code=303)
