@@ -44,10 +44,9 @@ class Session:
     def public_id(self) -> str:
         """The `sid` claim: a hash of the session id, never the id itself.
 
-        `id` is the cookie value — a bearer credential. Publishing it to every
-        client in every ID token would hand each of them, and anyone who read a
-        token in transit, the ability to set that cookie and become the user.
-        The hash names the session without being usable as one.
+        `id` is the cookie, a bearer credential. Publishing it in every ID token
+        would let each client — and anyone who read one in transit — set that
+        cookie and become the user. The hash names the session without being one.
         """
         return hash_token(self.id)
 
@@ -66,10 +65,9 @@ def _key(session_id: str) -> str:
 def _clients_key(session_id: str) -> str:
     """The clients a session has signed into.
 
-    Sign-out has to notify the applications this session reached, and there is
-    no other record of which those were: an authorization code is short-lived
-    and a refresh token may never have been issued. Keyed by the same hash as
-    the session, so it is unreadable from a Redis dump and expires with it.
+    The only record of which those were: a code is short-lived and a refresh
+    token may never have been issued. Keyed by the same hash as the session, so a
+    Redis dump yields nothing usable and it expires with the session.
     """
     return f"session_clients:{hash_token(session_id)}"
 
@@ -77,9 +75,8 @@ def _clients_key(session_id: str) -> str:
 def _user_key(user_id: UUID) -> str:
     """Index of a user's live sessions.
 
-    Sessions are keyed by a hash of an id nobody but the browser holds, so
-    without this index there is no way to answer "sign me out everywhere" or to
-    invalidate sessions when a password changes.
+    Sessions are keyed by a hash of an id only the browser holds, so without this
+    there is no way to answer "sign me out everywhere".
     """
     return f"user_sessions:{user_id}"
 
@@ -125,11 +122,9 @@ async def _save(redis: Redis, session: Session) -> None:
 def _parse(session_id: str, raw: str) -> Session:
     """A stored payload as a `Session`.
 
-    Every field added after the first release is read with a default: a
-    deployment upgrading in place has live sessions written in the older shape,
-    and raising on them would sign out everyone who was signed in at the moment
-    of the deploy. `last_seen_at` falls back to the sign-in time, which is the
-    truthful answer when nothing better was ever recorded.
+    Fields added later are read with a default, so sessions written in an older
+    shape survive a deploy rather than signing everyone out. `last_seen_at` falls
+    back to the sign-in time, which is truthful when nothing else was recorded.
     """
     data = json.loads(raw)
     authenticated_at = datetime.fromisoformat(data["authenticated_at"])
@@ -174,10 +169,9 @@ async def get(redis: Redis, session_id: str | None) -> Session | None:
 async def list_for_user(redis: Redis, user_id: UUID) -> list[Session]:
     """Every live session for this person, named by `public_id`.
 
-    The raw session id is never returned: it is the cookie, and an endpoint that
-    handed one back would let anyone with read access to a person's session list
-    assume any of them. The `id` on these is the public one, and the `Session`
-    returned here cannot be used to authenticate.
+    The raw id is never returned: it is the cookie, so handing one back would let
+    anyone who can read the session list assume any of them. The `id` here is the
+    public one and cannot be used to authenticate.
     """
     keys = [str(key) for key in await redis.smembers(_user_key(user_id))]
     sessions = []
@@ -242,12 +236,9 @@ async def reauthenticate(
     """A fresh authentication on an existing session — `prompt=login`, or a
     `max_age` the session no longer satisfies.
 
-    The session id is kept. Replacing it would strand the old one in Redis with
-    no cookie pointing at it, and would break sign-out for every application
-    that was told the old `sid`.
-
-    The address and agent are replaced rather than kept: the session continues,
-    but this is a new sign-in and the person may well be on a different machine.
+    The session id is kept: replacing it would strand the old one in Redis with
+    no cookie pointing at it, and break sign-out for every application told the
+    old `sid`. The address and agent are replaced, since this is a new sign-in.
     """
     now = datetime.now(UTC)
     session.amr = [method]

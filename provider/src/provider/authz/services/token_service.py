@@ -25,8 +25,8 @@ async def audiences_for(session: AsyncSession, values: set[str]) -> list[str]:
     granted scope, so a resource server can reject tokens minted for someone
     else (RFC 9068 Section 3).
 
-    Falls back to the issuer when only OIDC scopes were granted: the token
-    describes the user to IDEN itself and reaches no other API.
+    Falls back to the issuer when only OIDC scopes were granted, where the token
+    reaches no other API.
     """
     if not values:
         return [settings.iden_issuer]
@@ -181,15 +181,13 @@ def _replay_key(token: str) -> str:
 def rotation_lock(redis: Redis, token: str):
     """Serialise exchanges of one refresh token across every worker.
 
-    The replay window alone only helps a caller that arrives after the first
-    exchange finished. Two tabs firing at the same instant both find no replay
-    yet, both go on to rotate, and the loser is treated as theft — which is the
-    bug, not a narrower version of it.
+    The replay window alone only helps a caller arriving after the first exchange
+    finished; two tabs firing at the same instant both find no replay, both
+    rotate, and the loser is treated as theft. Held around the replay check *and*
+    the rotation, so the loser waits and finds the winner's answer.
 
-    Held around the replay check *and* the rotation, so the loser waits and
-    then finds the answer the winner produced. Keyed by the token rather than
-    the family: two different tokens of one family arriving together is the
-    case detection is for.
+    Keyed by the token rather than the family: two tokens of one family arriving
+    together is the case detection is for.
     """
     return redis.lock(
         f"refresh_lock:{hash_token(token)}",
@@ -206,15 +204,12 @@ async def remember_rotation(
 ) -> None:
     """Remember what a refresh token was exchanged for, briefly.
 
-    A refresh token is single use and rotation is what makes theft detectable.
-    But two browser tabs refreshing in the same instant, or one request that
-    timed out and got retried, present the same token twice for entirely honest
-    reasons — and look exactly like theft. Replaying the original answer serves
-    both callers without a second rotation.
+    Rotation is what makes theft detectable, but two tabs refreshing at once — or
+    a retried request — present the same token twice for honest reasons and look
+    exactly like theft. Replaying the original answer serves both.
 
-    Only the presenting client can collect the replay, and only for a few
-    seconds. Beyond that window the second use is treated as theft again, which
-    is the behaviour that matters.
+    Only the presenting client can collect it, and only for a few seconds; beyond
+    that the second use is theft again.
     """
     if settings.iden_refresh_grace_period <= 0:
         return
@@ -263,10 +258,9 @@ async def consume_refresh_token(
 ) -> RefreshToken | None:
     """Validate a refresh token for rotation.
 
-    Returns None when the token is unknown or expired. Raises RefreshTokenReuse
-    when a token that was already rotated or revoked is presented again, having
-    revoked the whole family first: with rotation, a second use means two
-    parties hold the same token, and only one of them is legitimate.
+    None when unknown or expired. `RefreshTokenReuse` when an already-rotated or
+    revoked token is presented again, having revoked the family first: a second
+    use means two parties hold it and only one is legitimate.
     """
     # Locked for the same reason as an authorization code: without it two
     # concurrent refreshes both see an unrotated token, both succeed, and reuse
@@ -305,8 +299,7 @@ async def denylist_access_token(redis: Redis, jti: str, expires_at: int) -> None
     """Revoke an access token before it expires.
 
     Access tokens are stateless, so revocation means remembering the few that
-    died early — and only until they would have expired anyway, which is what
-    keeps this set small.
+    died early, and only until they would have expired anyway.
     """
     ttl = expires_at - int(now().timestamp())
     if ttl > 0:

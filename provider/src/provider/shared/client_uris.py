@@ -1,14 +1,12 @@
 """Validation for the URIs a client registers.
 
-Shared because there are two ways to register a client — an administrator
-through `/admin/clients`, a developer through `/developer/clients` — and a rule
-that holds on one surface and not the other is not a rule. The admin surface had
-only `"://" in value`, and its update body had no check at all, so `javascript:`,
-a bare path, and a URI carrying credentials in its authority all went in.
+Shared because there are two ways to register one — an administrator through
+`/admin/clients`, a developer through `/developer/clients` — and a rule that holds
+on one surface and not the other is not a rule.
 
-Nothing here is a matter of taste. A `redirect_uri` is where an authorization
-code is delivered and a `backchannelLogoutUri` is a URL the provider itself
-fetches, so both are places where a sloppy value becomes someone else's problem.
+A `redirect_uri` is where an authorization code is delivered and a
+`backchannelLogoutUri` is a URL the provider itself fetches, so a sloppy value in
+either becomes somebody else's problem.
 """
 
 from urllib.parse import urlencode, urlsplit
@@ -35,17 +33,12 @@ def validate_redirect_uri(value: str) -> str:
     if not value or len(value) > MAX_URI_LENGTH:
         raise ValueError(f"redirect URI must be 1-{MAX_URI_LENGTH} characters")
 
-    # Every character must be printable US-ASCII, which is what a URI is made
-    # of (RFC 3986 Section 2) — anything else is percent-encoded. Three things
-    # ride on this one rule:
-    #
-    #   - `urlsplit` silently removes tab and newline (WHATWG URL), so a URI
-    #     containing them would be validated as one string and stored as another;
-    #   - a raw NUL is not valid UTF-8 to PostgreSQL, so it would leave
-    #     validation as a 500 rather than a 422;
-    #   - a non-ASCII host is sent by a client library in punycode, so it could
-    #     never match what was registered — while reading, to a human, like the
-    #     domain it imitates.
+    # Printable US-ASCII is what a URI is made of (RFC 3986 Section 2). Three
+    # things ride on it: `urlsplit` silently strips tab and newline, so such a URI
+    # would be validated as one string and stored as another; a raw NUL is not
+    # valid UTF-8 to PostgreSQL, giving a 500 instead of a 422; and a non-ASCII
+    # host arrives in punycode, so it could never match while reading to a human
+    # like the domain it imitates.
     if any(character < "!" or character > "~" for character in value):
         raise ValueError(
             f"redirect URI must be printable ASCII; percent-encode anything "
@@ -60,8 +53,8 @@ def validate_redirect_uri(value: str) -> str:
     if not parsed.scheme:
         raise ValueError(f"redirect URI must be absolute: {value}")
 
-    # RFC 6749 Section 3.1.2. The fragment is where an implicit-flow response
-    # goes; a registered one cannot be matched and only confuses the comparison.
+    # RFC 6749 Section 3.1.2: the fragment is where an implicit-flow response
+    # goes, and a registered one cannot be matched.
     if parsed.fragment or value.endswith("#"):
         raise ValueError(f"redirect URI must not contain a fragment: {value}")
 
@@ -79,9 +72,8 @@ def validate_redirect_uri(value: str) -> str:
                 f"http is allowed only on localhost or 127.0.0.1 — use https: {value}"
             )
     elif "." not in parsed.scheme:
-        # RFC 8252 Section 7.1: a native app's private-use scheme is a domain
-        # name the developer controls, reversed. Requiring the dot is also what
-        # keeps `javascript:` and `data:` out.
+        # RFC 8252 Section 7.1: a reversed domain the developer controls.
+        # Requiring the dot is also what keeps `javascript:` and `data:` out.
         raise ValueError(
             f"a custom scheme must be reverse-DNS, e.g. com.example.app: {value}"
         )
@@ -104,16 +96,13 @@ BACKCHANNEL_URI_RULES = (
 def validate_backchannel_uri(value: str | None) -> str | None:
     """A URL the provider itself will POST to when a session ends.
 
-    Held to a scheme IDEN can actually speak, which the column was not: a value
-    httpx cannot parse raised `InvalidURL` from inside logout delivery — and
-    `InvalidURL` is not an `httpx.HTTPError`, so it escaped the handler that
-    exists to keep one unreachable client from failing a sign-out, and every
-    logout touching this client answered 500 instead.
+    Held to a scheme IDEN can speak: a value httpx cannot parse raises
+    `InvalidURL`, which is not an `httpx.HTTPError` and so escapes the handler
+    that keeps one unreachable client from failing a sign-out.
 
     That it may name an address inside the deployment's own network is not
-    checked, and cannot usefully be: a back-channel URI is by definition a host
-    IDEN reaches, and most of them are internal. It is an administrator's
-    decision, made with `admin:clients:write`, and it is audited.
+    checked and cannot usefully be — a back-channel URI is by definition a host
+    IDEN reaches, and most are internal. It is an audited administrator's call.
     """
     if value is None or value == "":
         return None
@@ -151,12 +140,9 @@ def validate_backchannel_uri(value: str | None) -> str | None:
 def redirect_with(uri: str, params: dict[str, str]) -> str:
     """`uri` with `params` added to its query — RFC 6749 Section 4.1.2.
 
-    The separator follows what is already there. Every caller used to hard-code
-    `?`, and RFC 6749 Section 3.1.2 explicitly permits a registered redirect URI
-    to carry a query of its own: `https://app.example/cb?tenant=acme` then became
-    `...?tenant=acme?code=...`, which is one query parameter named `tenant` whose
-    value happens to contain the word "code". The client saw no `code`, no
-    `state` and no `iss` — so it could not complete the flow and could not
-    validate the response it did get.
+    The separator follows what is already there. RFC 6749 Section 3.1.2 permits a
+    registered redirect URI to carry a query of its own, and a hard-coded `?`
+    turns `...cb?tenant=acme` into `...?tenant=acme?code=...` — one parameter
+    named `tenant`, with no `code`, `state` or `iss` the client can read.
     """
     return f"{uri}{'&' if urlsplit(uri).query else '?'}{urlencode(params)}"

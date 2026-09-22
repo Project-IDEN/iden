@@ -87,10 +87,9 @@ async def _resumed(
 ) -> challenge_store.Challenge | None:
     """The challenge this request is returning from, if it is one.
 
-    Only an exact match counts. A challenge vouches for the interactions done
-    for *one* request; if any parameter differs this is a different request —
-    another client, other scopes — and a consent given to the first must not
-    carry over to it.
+    Only an exact match counts. A challenge vouches for the interactions done for
+    *one* request; if any parameter differs it is a different request, and a
+    consent given to the first must not carry over.
     """
     if not challenge_id:
         return None
@@ -111,11 +110,10 @@ def _signed_in_for(
 def _id_token_claims(hint: str) -> dict | None:
     """The claims of an `id_token_hint`, or None if it is not one of ours.
 
-    Expiry is allowed: ID tokens live ten minutes, so a hint about a past login
-    is expected to be stale. A **logout token** is refused outright — it is
-    signed by IDEN and carries `sub`, so without this check a client could
-    replay the token that told it to sign out as evidence that someone is
-    signed in. The `events` claim is exactly what distinguishes the two.
+    Expiry is allowed, since a hint about a past login is expected to be stale.
+    A logout token is refused outright: it is also signed by IDEN and carries
+    `sub`, so a client could otherwise replay the token that told it to sign out
+    as evidence that somebody is signed in. `events` distinguishes the two.
     """
     try:
         claims = verify_jwt(hint, allow_expired=True)
@@ -129,9 +127,8 @@ def _hint_mismatch(
 ) -> bool:
     """Whether an `id_token_hint` names someone other than the session's owner.
 
-    An unverifiable hint counts as a mismatch rather than as no hint at all: a
-    client that asked about a specific person should not silently receive a
-    code for a different one.
+    An unverifiable hint counts as a mismatch rather than as no hint: a client
+    that asked about a specific person should not receive a code for another.
     """
     if not id_token_hint:
         return False
@@ -142,8 +139,8 @@ def _hint_mismatch(
 def _hinted_client(id_token_hint: str | None) -> str | None:
     """The client an `id_token_hint` was issued to, from its `aud`.
 
-    Only used to decide whether `post_logout_redirect_uri` is registered, so a
-    hint IDEN did not sign is worth nothing and is discarded.
+    Only used to check `post_logout_redirect_uri`, so a hint IDEN did not sign is
+    worth nothing.
     """
     if not id_token_hint:
         return None
@@ -280,13 +277,12 @@ async def authorize(
     ):
         """Hand the request to the Auth UI — unless the client forbade it.
 
-        Under `prompt=none` this raises instead, and raises *before* creating a
-        challenge: a challenge is the pending half of an interaction, and one
+        Under `prompt=none` this raises, and *before* creating a challenge: one
         left in Redis for an interaction that will never happen is both a leak
         and a lie about what took place.
 
-        `methods` makes it a step-up: the browser is signed in and owes only
-        one of those, so the page asks for that and not the password again.
+        `methods` makes it a step-up, so the page asks for that rather than the
+        password the session already has.
         """
         if silent:
             raise fail(SILENT_ERRORS[path], "This request needs interaction.")
@@ -335,10 +331,9 @@ async def authorize(
     if user is None or not user.is_active:
         return await interact("/auth/login")
 
-    # A level this person has no way to reach is refused here, before any form
-    # is shown: asking for a code that cannot be enough — or that they have no
-    # authenticator to produce — only leaves them stuck on the page. The error
-    # is OIDC's own for this, and the client decides what to do instead.
+    # A level this person cannot reach is refused before any form is shown;
+    # otherwise they are stuck on a page they can never get past. The client
+    # decides what to do with OIDC's own error for it.
     enrolled = await enrolled_methods(session, user.id)
     acr = auth_methods.derive_acr(login_session.amr)
     reachable = auth_methods.derive_acr(list(enrolled))
@@ -350,10 +345,9 @@ async def authorize(
             f"This account has no sign-in method that reaches {acr_values}.",
         )
 
-    # Enforced *here* rather than only in the login step machine because this
-    # is the endpoint that issues the code: a session that skipped the code form
-    # and came straight back to the resume URL would otherwise be handed one
-    # anyway, which is the whole attack.
+    # Enforced here as well as in the login steps because this is the endpoint
+    # that issues the code: a session that skipped the form and came straight to
+    # the resume URL would otherwise be handed one anyway.
     if methods := auth_methods.outstanding(login_session.amr, enrolled, acr_values):
         return await interact("/auth/login", user.id, methods=methods)
 
@@ -386,10 +380,9 @@ async def authorize(
     # session ever reached this client.
     await session_store.add_client(redis, login_session.id, client.client_id)
 
-    # `iss` on every authorization response — RFC 9207. A client talking to more
-    # than one provider cannot otherwise tell which one answered, which is the
-    # opening for a mix-up attack: an attacker's provider returns a code the
-    # client then redeems at the honest one.
+    # `iss` on every authorization response (RFC 9207). Without it a client
+    # talking to several providers cannot tell which answered, which is the
+    # opening for a mix-up attack.
     query = {"code": code, "iss": settings.iden_issuer}
     if state:
         query["state"] = state
@@ -407,11 +400,10 @@ def _client_auth(request: Request, client_id: str | None, client_secret: str | N
         except ValueError as exc:
             raise InvalidClient("Malformed Basic authorization header.") from exc
         name, _, secret = decoded.partition(":")
-        # RFC 6749 Section 2.3.1 encodes both halves with `application/x-www-form-
-        # urlencoded` *before* base64, so they have to be decoded after. IDEN's
-        # own secrets are URL-safe and unaffected; an imported one containing a
-        # reserved character failed as `invalid_client` with nothing to suggest
-        # why.
+        # RFC 6749 Section 2.3.1 form-encodes both halves *before* base64, so
+        # they are decoded after. IDEN's own secrets are URL-safe; an imported one
+        # with a reserved character failed as `invalid_client` for no visible
+        # reason.
         return unquote_plus(name), unquote_plus(secret)
 
     return client_id, client_secret
@@ -502,11 +494,10 @@ async def _authorization_code_grant(
         authenticated_at=record.authenticated_at,
     )
 
-    # Two conditions, and they say different things. `allowed_grants` is what
-    # this client is *configured* to do; `offline_access` is what was asked for
-    # and consented to on this request (OIDC Core Section 11). Issuing on the first
-    # alone meant a client that never asked for offline access got it anyway,
-    # and one that did ask was never told whether it had been granted.
+    # Two different things: `allowed_grants` is what this client is *configured*
+    # to do, `offline_access` is what was asked for and consented to on this
+    # request (OIDC Core Section 11). The first alone gave a refresh token to a
+    # client that never asked.
     refresh = None
     if GrantType.REFRESH_TOKEN in client.allowed_grants and OFFLINE_ACCESS in scopes:
         refresh, _ = await tokens.issue_refresh_token(
@@ -562,10 +553,9 @@ async def _rotate(
     refresh_token: str,
     requested_scope: str | None,
 ) -> TokenResponse:
-    # Asked before anything is spent: an entry exists only for a token that was
-    # already exchanged, and only for a few seconds afterwards. Two tabs
-    # refreshing at once, or one request retried after a timeout, both land
-    # here and get the answer the first exchange produced.
+    # Before anything is spent. An entry exists only for a token already
+    # exchanged, and only briefly, so two tabs refreshing at once both get the
+    # answer the first exchange produced.
     replay = await tokens.replayed_rotation(
         redis, refresh_token, client_id=client.client_id
     )
@@ -592,11 +582,9 @@ async def _rotate(
         await session.commit()
         raise InvalidGrant("The user is no longer active.")
 
-    # `record.scope` is the *original* grant and stays that way across every
-    # rotation. A `scope` parameter narrows this one response (RFC 6749 Section 6
-    # forbids widening, and an intersection cannot widen) without shrinking the
-    # grant itself — otherwise a client that once asked for less could never
-    # get the rest back.
+    # `record.scope` is the original grant and stays so across every rotation. A
+    # `scope` parameter narrows this one response without shrinking the grant,
+    # so a client that once asked for less can still get the rest back.
     granted_scope = parse_scope(record.scope)
     requested = (
         parse_scope(requested_scope) & granted_scope
@@ -687,14 +675,13 @@ async def _client_credentials_grant(
 async def _verify_access_token(raw: str | None, redis) -> dict:
     """Verify a bearer token for IDEN's own OIDC endpoints.
 
-    Audience is deliberately not checked here: an access token's `aud` names the
+    Audience is deliberately not checked: an access token's `aud` names the
     resource APIs its scopes belong to, while /userinfo is IDEN describing the
-    user to the client. Requiring `openid` is the real gate (OIDC Core Section 5.3).
+    user to the client. Requiring `openid` is the real gate (OIDC Core 5.3).
 
-    The **type** is checked, and that is what audience would otherwise have to
-    stand in for. An ID token is signed by IDEN, names the same person, and has
-    no `jti` — so before this it reached the `claims["jti"]` below and answered
-    500 where 401 belongs (RFC 9068 Section 2.1).
+    The *type* is checked instead. An ID token is signed by IDEN and names the
+    same person, but has no `jti`, so it would reach `claims["jti"]` below and
+    answer 500 where 401 belongs (RFC 9068 Section 2.1).
     """
     if not raw:
         raise OAuthError(

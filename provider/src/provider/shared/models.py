@@ -41,12 +41,8 @@ class TimestampMixin:
     )
 
 
-# --------------------------------------------------------------------------
-# Join tables
-#
-# Plain association tables: they carry no data of their own, so a mapped class
-# would add a layer without adding anything to say.
-# --------------------------------------------------------------------------
+# Join tables. Plain associations: they carry no data of their own, so a mapped
+# class would add a layer with nothing to say.
 
 user_groups = Table(
     "user_groups",
@@ -139,11 +135,9 @@ class TotpCredential(Base, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), unique=True
     )
-    # Encrypted, not hashed: verifying a code means recomputing it from the
-    # secret, so it has to be readable. Named for what it holds so that anyone
-    # reading a schema or a dump can see the column is not cleartext — see
-    # `core.security.encrypt_secret`, which binds each value to its `user_id` so
-    # that one cannot be moved onto another account.
+    # Encrypted, not hashed: verifying a code means recomputing it. Named for
+    # what it holds, so a schema or a dump shows it is not cleartext. See
+    # `core.security.encrypt_secret`, which binds each value to its `user_id`.
     secret_encrypted: Mapped[str] = mapped_column(String(255))
     # Enrollment is two-step: the credential only counts once a generated code
     # has been confirmed, so a mis-scanned QR code cannot lock a user out.
@@ -230,15 +224,12 @@ class Client(Base, TimestampMixin):
     )
     skip_consent: Mapped[bool] = mapped_column(Boolean, default=False)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
-    # Who registered it through developer self-service. Null means the
-    # organization owns it — the bootstrap clients, and anything an
-    # administrator registered. `/developer/clients` only ever sees rows
-    # carrying the caller's own id, which is what keeps one registrant out of
-    # another's application.
+    # Who registered it through developer self-service; null means the
+    # organization owns it. `/developer/clients` only ever sees rows carrying the
+    # caller's own id, which keeps one registrant out of another's application.
     #
-    # SET NULL rather than CASCADE: deleting a person should not silently break
-    # every application they registered. It becomes organization-owned and an
-    # administrator decides what happens to it.
+    # SET NULL rather than CASCADE: deleting a person should not break every
+    # application they registered, only hand it back to the organization.
     owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), index=True
     )
@@ -298,10 +289,9 @@ class AuthorizationCode(Base, TimestampMixin):
     # claim so a relying party can be told which session to end, and so
     # sign-out can find the tokens the session produced.
     sid: Mapped[str] = mapped_column(String(64))
-    # When the *person* authenticated, which is not when the code was issued:
-    # on the second application of an SSO session those differ by however long
-    # the session has been alive, and `auth_time` is what a client's `max_age`
-    # is measured against.
+    # When the *person* authenticated, not when the code was issued: on the
+    # second application of an SSO session those differ, and `auth_time` is what
+    # a client's `max_age` is measured against.
     authenticated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

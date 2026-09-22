@@ -1,13 +1,12 @@
 """Every credential IDEN holds, and how it is held.
 
-Three kinds, and the difference is what IDEN needs to do with them later:
+What IDEN must later do with one decides the treatment:
 
-- A password or a client secret is only ever *compared*, so it is hashed with
-  argon2id and never recoverable.
-- An authorization code, a refresh token or a session id has to be *looked up* by
-  value, so it gets a SHA-256 digest — a lookup key, not a password.
-- A TOTP secret has to be *read back* to verify a code, so neither works. It is
-  encrypted instead, under a key that lives outside the database.
+- *compared* only (password, client secret) — argon2id, never recoverable
+- *looked up by value* (authorization code, refresh token, session id) — SHA-256,
+  a lookup key rather than a password
+- *read back* (TOTP secret, to recompute a code) — encrypted under a key held
+  outside the database
 """
 
 import base64
@@ -67,22 +66,16 @@ def hash_token(token: str) -> str:
 # --------------------------------------------------------------------------
 # Secrets that have to be recoverable
 #
-# A TOTP secret cannot be hashed: verifying a code means recomputing it, which
-# means reading the secret back. Stored in the clear, one `SELECT` on
-# `totp_credentials` yields a working second factor for every enrolled account —
-# undetectably, and for as long as nobody re-enrols. That is a lower bar than it
-# sounds: it needs a backup, a replica or a restored snapshot, not a compromised
-# host. And it is exactly the case MFA was bought for, because the passwords in
-# the same dump are argon2 and only give slow guesses.
-#
-# So: AES-256-GCM under a key held outside the database, in the same mounted,
-# read-only directory as the signing keys. A dump on its own is then inert.
+# Stored in the clear, one SELECT on totp_credentials is a working second factor
+# for every enrolled account — and the realistic route to that is a backup or a
+# replica, not a compromised host. The passwords in the same dump are argon2, so
+# this was the weakest thing in it. AES-256-GCM under a key beside the signing
+# keys makes a dump inert.
 # --------------------------------------------------------------------------
 
-# The stored form is `v1:<base64(nonce || ciphertext || tag)>`. Versioned so the
-# format is self-describing: a later key rotation or algorithm change can tell
-# what it is looking at instead of guessing, and a value that is not encrypted at
-# all is refused rather than read as cleartext.
+# `v1:<base64(nonce || ciphertext || tag)>`. Versioned so the format is
+# self-describing, and so a value that is not encrypted at all is refused rather
+# than read as cleartext.
 _SECRET_VERSION = "v1"
 _NONCE_BYTES = 12
 
@@ -100,10 +93,8 @@ def generate_encryption_key() -> bytes:
 def _cipher() -> AESGCM:
     """The key, read once.
 
-    Cached like the signing keys, and failing the same way: a deployment that
-    never generated one finds out at the first enrolment, with a message naming
-    the command that fixes it, rather than by storing something it cannot read
-    back.
+    Cached and failing like the signing keys: a deployment that never generated
+    one finds out at the first enrolment, with the fixing command named.
     """
     path: Path = settings.totp_key_path
     try:
@@ -125,10 +116,8 @@ def _cipher() -> AESGCM:
 def encrypt_secret(plaintext: str, *, context: str) -> str:
     """Encrypt a secret that must later be read back.
 
-    `context` is authenticated but not encrypted, and it is the id of whoever the
-    secret belongs to — so a ciphertext lifted from one row and pasted into
-    another no longer decrypts. Without it, anyone who could write to the table
-    could move a second factor they control onto somebody else's account.
+    `context` is authenticated but not encrypted: the id of whoever the secret
+    belongs to, so a ciphertext cannot be moved onto another account.
     """
     nonce = secrets.token_bytes(_NONCE_BYTES)
     sealed = _cipher().encrypt(nonce, plaintext.encode(), context.encode())
@@ -138,10 +127,9 @@ def encrypt_secret(plaintext: str, *, context: str) -> str:
 def decrypt_secret(stored: str, *, context: str) -> str:
     """The plaintext behind `encrypt_secret`.
 
-    Raises `EncryptionKeyError` rather than returning anything on failure. The
-    caller is about to verify a second factor, and the only two safe outcomes
-    there are the real secret or a loud refusal — never a value that might
-    happen to compare equal.
+    Raises rather than returning anything on failure: the caller is about to
+    verify a second factor, where the only safe outcomes are the real secret or a
+    loud refusal.
     """
     version, _, encoded = stored.partition(":")
     if version != _SECRET_VERSION or not encoded:

@@ -1,16 +1,12 @@
 """The guard against a one-way door.
 
-Every other mistake an administrator can make is reversible by another
-administrator. Removing the last one is not: `is_system` protects the scope
-catalogue, but nothing protected the *assignment*, so deactivating the wrong
-account or editing the wrong role left no way back in through the API at all.
-Recovery meant editing the database by hand.
+Every other administrative mistake is reversible by another administrator.
+Removing the last one is not: `is_system` protects the scope catalogue, but not
+the *assignment*, so deactivating the wrong account left no way back in short of
+editing the database by hand.
 
-This is checked as a post-condition rather than by reasoning about each
-operation. Every mutation asks the same question afterwards — *can anyone still
-administer this?* — which is one rule to get right instead of nine, and it is
-answered against the world the commit is about to create rather than a
-prediction of it.
+Checked as a post-condition rather than per operation — one rule to get right
+instead of nine, answered against the world the commit is about to create.
 """
 
 from sqlalchemy import func, or_, select
@@ -29,13 +25,8 @@ from provider.shared.models import (
 )
 
 # The scope that can restore every other one: whoever holds it can set anyone's
-# roles, including their own. It is therefore the only one whose last holder
-# matters — lose it and no sequence of API calls puts it back.
-#
-# It used to be `admin:users:write`, which carried both halves of user
-# administration. Assigning permissions is now its own scope, and this follows
-# it: `admin:users:write` can no longer grant anything, so its last holder is
-# replaceable by anyone who can assign roles, while this one's is not.
+# roles, including their own. The only one whose last holder matters — lose it and
+# no sequence of API calls puts it back.
 RECOVERY_SCOPE = "admin:grants:write"
 
 
@@ -50,20 +41,18 @@ class WouldLockEveryoneOut(ConflictError):
 async def administrators_remaining(session: AsyncSession) -> int:
     """Active users who hold the recovery scope, however they came by it.
 
-    Counted in SQL rather than by loading users and reusing
-    `scope_resolver.effective_user_scopes`: this runs on every administrative
-    write, and the resolver would need every active user in memory to answer it.
+    In SQL rather than through `scope_resolver.effective_user_scopes`: this runs
+    on every administrative write, and the resolver would need every active user
+    in memory.
     """
     scope_id = await session.scalar(
         select(Scope.id).where(Scope.value == RECOVERY_SCOPE)
     )
     if scope_id is None:
         # No catalogue to protect, and refusing every write until there is one
-        # would be its own lockout. Two very different situations reach here
-        # though, and only the first is fine: a database nobody has seeded, and
-        # one seeded before this scope existed. In the second the guard is off
-        # while there are administrators to lose, so it says so rather than
-        # passing quietly — the fix is one `scripts.seed` away.
+        # would be its own lockout. But a database seeded before this scope
+        # existed reaches here too, with the guard off and administrators to
+        # lose, so that case says so rather than passing quietly.
         if await session.scalar(select(func.count(User.id))):
             logger.warning(
                 "Lockout protection is inactive: the recovery scope is not in "

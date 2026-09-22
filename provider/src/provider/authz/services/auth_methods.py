@@ -1,14 +1,8 @@
 """The authentication method registry and the acr derivation it feeds.
 
-This is the seam the biometric module adds `face` through in Phase 4. Calling
-`register()` is enough for acr derivation and for discovery, which lists the
-method in `amr_values_supported` and any level it newly reaches in
-`acr_values_supported`.
-
-Two things are not automatic, and a new method needs both: a check in
-`login.service.enrolled_methods` for whether a person has it set up, and a form
-in the Auth UI for when a step names it in `methods`. The contract between the
-two — `method_required` plus the methods owed — does not change.
+The seam the biometric module adds `face` through. `register()` covers acr
+derivation and discovery; a new method also needs a check in
+`login.service.enrolled_methods` and a form in the Auth UI.
 """
 
 from dataclasses import dataclass
@@ -93,17 +87,15 @@ def outstanding(amr: list[str], enrolled: set[str], required: str | None) -> lis
     """The methods still to be used before this sign-in is enough — none when
     it already is.
 
-    Two reasons to ask for more, and they answer to different people.
+    Two reasons to ask for more, answering to different people.
 
-    The client can demand a level through `acr_values`. That is worth asking
-    for only when this person's methods can reach it; a level they cannot reach
-    is for /authorize to refuse, never a form nobody could get past.
+    The *client* demands a level through `acr_values`, worth asking for only when
+    this person's methods can reach it — a level they cannot reach is for
+    /authorize to refuse, not a form nobody could get past.
 
-    The *person* demands a second factor by having set one up at all. Once they
-    have, a password alone stops being enough to sign in as them, whatever the
-    client asked for. A second factor that applied only when an application
-    requested it would protect nobody — whoever holds the password would use an
-    application that does not ask.
+    The *person* demands a second factor by having set one up. A factor that
+    applied only when an application asked would protect nobody, since whoever
+    holds the password would use an application that does not ask.
     """
     unused = sorted(enrolled - set(amr))
     owes_second_factor = AmrMethod.OTP in unused

@@ -1,13 +1,11 @@
 """Append-only record of every state-changing request.
 
-Written from a session of its own after the response has been produced: the
-request's own transaction has already committed by then, so the audit row and
-the change it describes cannot be atomic. A failed write is logged loudly
-rather than swallowed — see KI-17 in PLAN.md.
+Written from its own session after the response: the request's transaction has
+already committed, so the row and the change cannot be atomic. A failed write is
+logged loudly rather than swallowed — see KI-17 in PLAN.md.
 
-Pure ASGI rather than a `@app.middleware("http")` function: the request body is
-part of what makes an entry worth reading, and reading it from inside a
-BaseHTTPMiddleware consumes the stream the endpoint is about to read.
+Pure ASGI rather than `@app.middleware("http")`, because reading the request body
+from a BaseHTTPMiddleware consumes the stream the endpoint is about to read.
 """
 
 import json
@@ -59,13 +57,11 @@ SECRET_KEYS = frozenset(
 
 MAX_BODY_BYTES = 4096
 
-# The widths of the columns in `AuditEvent`. Every value written below is
-# clamped to its own, because the alternative is not a truncated row but *no
-# row*: a value one character over the column's width fails the insert, the
-# failure is caught so a completed request is not turned into an error, and the
-# entry is simply gone. A `User-Agent` header is chosen by the caller, and so is
-# the last segment of a path — which made "send a long header" a way to act
-# without being recorded. A clipped field still names who did what.
+# Column widths. Every value below is clipped to its own, because the
+# alternative is not a truncated row but *no row*: one character over fails the
+# insert, the failure is caught, and the entry is gone. The `User-Agent` and the
+# last path segment are both caller-chosen, which made "send a long header" a way
+# to act without being recorded.
 ACTION_LIMIT = 160
 TARGET_LIMIT = 255
 ACTOR_LABEL_LIMIT = 255
@@ -92,10 +88,10 @@ class Actor:
 def set_actor(
     request: Request, *, user_id: uuid.UUID | None = None, client_id: str | None = None
 ) -> None:
-    """Record who the caller is, for the audit entry written after the response.
+    """Record who the caller is, for the entry written after the response.
 
-    Called from `require_scope` for token-authenticated routes and from the
-    login steps, which authenticate a person before any token exists.
+    From `require_scope`, and from the login steps, which authenticate somebody
+    before any token exists.
     """
     request.state.audit_actor = Actor(user_id=user_id, client_id=client_id)
 
@@ -152,14 +148,11 @@ async def record(
     actor_user_id: uuid.UUID | None = None,
     detail: dict | None = None,
 ) -> None:
-    """Write an audit entry for something that is not an inbound request.
+    """Write an entry for something that is not an inbound request.
 
-    The middleware covers everything that arrives at IDEN. This covers what
-    IDEN does on its own initiative — delivering a logout token, so far — which
-    is equally part of the record and has no request to hang off.
-
-    Added to the caller's session rather than a fresh one: this describes work
-    inside a transaction, and it should live or die with it.
+    What IDEN does on its own initiative — delivering a logout token, so far.
+    Added to the caller's session rather than a fresh one, so it lives or dies
+    with the transaction it describes.
     """
     session.add(
         AuditEvent(
@@ -186,9 +179,8 @@ class AuditMiddleware:
 
         async def receive_copying_body() -> Message:
             message = await receive()
-            # Stop copying once there is more than the detail extractor will
-            # look at. Without the cap, uploading a photo buys a second copy of
-            # the whole file in memory to derive nothing from.
+            # Capped: without it, a photo upload buys a second copy of the whole
+            # file in memory to derive nothing from.
             if message["type"] == "http.request" and len(body) <= MAX_BODY_BYTES:
                 body.extend(message.get("body", b""))
             return message
@@ -249,9 +241,8 @@ async def _write(scope: Scope, body: bytes, status_code: int) -> None:
             )
             await session.commit()
     except Exception:
-        # An audit write must never turn a completed request into a failure —
-        # the change has already been committed. Loud, because a silent gap in
-        # an audit log is worse than no audit log.
+        # Never turn a completed request into a failure; the change is already
+        # committed. Loud, because a silent gap is worse than no log.
         logger.exception(
             "Audit write failed", action=f"{scope['method']} {scope['path']}"
         )

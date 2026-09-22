@@ -1,9 +1,8 @@
 """Single sign-out: telling the applications a session reached that it is over.
 
-OIDC Back-Channel Logout 1.0. Ending IDEN's own session is the easy half — it
-is one Redis delete. The half that makes "sign out" mean anything is this one,
-because every relying party keeps its own session and will happily go on
-serving the user until something tells it not to.
+OIDC Back-Channel Logout 1.0. Ending IDEN's own session is one Redis delete;
+this is the half that makes "sign out" mean anything, because every relying party
+keeps its own session and serves the user until told not to.
 """
 
 import asyncio
@@ -32,10 +31,9 @@ DELIVERY_TIMEOUT = 5.0
 def mint_logout_token(client: Client, *, subject: uuid.UUID, sid: str) -> str:
     """A logout token — OIDC Back-Channel Logout 1.0 Section 2.4.
 
-    Three rules keep it from being mistaken for an ID token, and none is
-    stylistic: the `logout+jwt` header says what it is, `events` marks what it
-    is for, and the **absence of `nonce`** stops it being replayed as proof
-    that someone just authenticated.
+    Three things keep it from being mistaken for an ID token: the `logout+jwt`
+    header, the `events` claim, and the absence of `nonce` — without which it
+    could be replayed as proof that somebody just authenticated.
     """
     issued_at = datetime.now(UTC)
     return sign_jwt(
@@ -56,12 +54,9 @@ def mint_logout_token(client: Client, *, subject: uuid.UUID, sid: str) -> str:
 async def _deliver(http: httpx.AsyncClient, client: Client, token: str) -> int:
     """POST one logout token. Returns the status, or 0 if it never arrived.
 
-    `InvalidURL` is caught alongside `HTTPError` and is not a subclass of it: a
-    stored URI httpx cannot parse raised from here, escaped this handler, and
-    failed the whole sign-out — for every session that had touched the client,
-    not just this delivery. Registration now rejects such a value, and this is
-    the second half of that: delivery is best effort by design, and "best
-    effort" has to hold for a bad URI as much as for an unreachable host.
+    `InvalidURL` is not a subclass of `HTTPError`, so an unparseable stored URI
+    would escape this handler and fail the whole sign-out rather than one
+    delivery. Best effort has to hold for a bad URI as much as a dead host.
     """
     try:
         response = await http.post(
@@ -88,11 +83,10 @@ async def notify(
 ) -> None:
     """Tell every client that registered a back-channel URI that `sid` is over.
 
-    Best effort, concurrently, and never retried into a queue: a relying party
-    that was unreachable re-validates at its next token exchange, and a durable
-    job queue is a dependency this project does not otherwise need. What is not
-    optional is the record — every attempt is audited with its outcome, so a
-    sign-out that did not reach somewhere is visible afterwards.
+    Best effort, concurrently, never retried into a queue: an unreachable party
+    re-validates at its next token exchange, and a durable queue is a dependency
+    this project does not otherwise need. The record is not optional though —
+    every attempt is audited with its outcome.
     """
     if not client_ids:
         return
@@ -136,8 +130,8 @@ async def end_session(
     applications it reached, then delete it.
 
     In that order because the record of which applications it reached lives with
-    the session and goes when it does. Deleting alone ends nothing that matters —
-    every application keeps its own session, and its refresh token keeps working.
+    the session. Deleting alone ends nothing: each application keeps its own
+    session, and its refresh token keeps working.
     """
     sid = login_session.public_id
     client_ids = await session_store.clients_for(redis, login_session.id)
@@ -154,10 +148,8 @@ async def end_all_sessions(
     """End every browser session this person has, except `keep` — the cookie
     of the one making the change, when there is one. Returns how many ended.
 
-    Each is ended as `end_session` ends one, applications told and all, bar the
-    refresh tokens: those are the caller's to revoke, by user rather than by
-    session, because a refresh token outlives the session that issued it and
-    those have to stop working too.
+    Each ends as `end_session` ends one, bar the refresh tokens: those are the
+    caller's to revoke by user, since one outlives the session that issued it.
     """
     kept = session_store.public_id_of(keep) if keep else None
     ended = 0
@@ -176,10 +168,9 @@ async def end_all_sessions(
 async def revoke_session_tokens(session: AsyncSession, sid: str) -> None:
     """Revoke every refresh token the session produced.
 
-    Without this "signed out" would leave each client able to mint fresh access
-    tokens indefinitely from a refresh token it already holds, which is not
-    what anyone means by signing out. Access tokens already issued still run to
-    their expiry — that is the trade the short TTL exists to make.
+    Otherwise each client could mint fresh access tokens indefinitely from a
+    refresh token it already holds. Access tokens already issued run to their
+    expiry, which is the trade the short TTL exists to make.
     """
     await session.execute(
         update(RefreshToken)

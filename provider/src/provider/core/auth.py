@@ -39,15 +39,12 @@ SYSTEM_SCOPE_PREFIXES = frozenset({"admin", "entity", "developer", "biometric"})
 def _audience_for(scope: str) -> str:
     """The audience a scope's API was registered under.
 
-    IDEN's own APIs are named after the scope prefix (`admin:users:read` →
-    the `admin` API), so the audience is derivable rather than repeated on
-    every route. Externally registered APIs are validated by their own
-    resource servers, never here.
+    IDEN's own APIs are named after the scope prefix (`admin:users:read` → the
+    `admin` API), so it is derivable rather than repeated on every route.
 
-    Refuses to guess for anything else: a route guarded by a scope outside the
-    convention must pass `audience=` explicitly. Raising at import time — when
-    the router is built — turns what used to be a silent 401 on every request
-    into a startup failure naming the scope.
+    Refuses to guess otherwise: a route guarded by a scope outside the convention
+    must pass `audience=`. Raising at import time turns a silent 401 on every
+    request into a startup failure naming the scope.
     """
     prefix = scope.split(":")[0]
     if prefix not in SYSTEM_SCOPE_PREFIXES:
@@ -82,13 +79,11 @@ def _bearer(request: Request) -> str:
 def require_scope(*required: str, audience: str | None = None):
     """Verify the access token and enforce scopes.
 
-    401 means *authenticate again* — no token, bad signature, expired, revoked.
-    403 means *authentication will not help* — the token is valid but lacks the
-    scope. Collapsing the two would tell a client to retry a login that cannot
-    fix anything.
+    401 means *authenticate again*; 403 means *authentication will not help*.
+    Collapsing them would tell a client to retry a login that cannot fix
+    anything.
 
-    `audience` overrides the one derived from the first scope's prefix, which is
-    what a route guarded by a scope outside IDEN's own APIs must supply.
+    `audience` overrides the one derived from the first scope's prefix.
     """
     if audience is None and required:
         audience = _audience_for(required[0])
@@ -164,15 +159,13 @@ CurrentTokenDep = Annotated[AccessToken, Depends(require_scope())]
 def require_fresh_auth(max_age: int = 300):
     """Demand a *recent* authentication, not merely a valid token.
 
-    A valid access token is not enough to change a password, an email address,
-    or an authenticator: someone holding a stolen one could take the account
-    over outright. Requiring a login within `max_age` seconds sends them back
-    through the one step they cannot complete.
+    A valid token is not enough to change a password, an address or an
+    authenticator: somebody holding a stolen one could take the account over.
+    Requiring a login within `max_age` sends them back through the one step they
+    cannot complete.
 
-    The refusal follows RFC 9470 — `insufficient_user_authentication` with the
-    `max_age` that would satisfy it, so a client knows to send the user through
-    a re-authentication rather than giving up. `/authorize` accepts the same
-    `max_age`, which is what makes the round trip work.
+    Refused as RFC 9470's `insufficient_user_authentication` with the `max_age`
+    that would satisfy it; `/authorize` accepts the same, which closes the loop.
     """
 
     async def dependency(request: Request, token: CurrentTokenDep) -> AccessToken:
@@ -202,9 +195,9 @@ FreshTokenDep = Annotated[AccessToken, Depends(require_fresh_auth())]
 async def get_current_user(token: CurrentTokenDep, session: DBSessionDep) -> User:
     """The person a route acts for, taken from the token's `sub`.
 
-    No self-service route accepts a user id in a path or a body, which removes
-    an entire class of IDOR bugs by construction rather than by remembering to
-    check. Lives in core because both `/entity/*` and `/developer/*` start here.
+    No self-service route accepts a user id in a path or body, which removes a
+    class of IDOR bugs by construction. In core because `/entity/*` and
+    `/developer/*` both start here.
     """
     user = await session.get(User, uuid.UUID(token.subject))
     if user is None or not user.is_active:

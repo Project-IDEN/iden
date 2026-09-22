@@ -48,16 +48,13 @@ RESERVED_CLAIMS = frozenset(
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+$")
 PHONE_PATTERN = re.compile(r"^\+?[0-9 ()\-]{6,20}$")
 
-# A ceiling on one stored answer. Values live in a `Text` column, so without this
-# a single writable field is somewhere to put as much data as the request body
-# allows — and `pattern` below is then run over all of it.
+# A ceiling on one stored answer: values live in a `Text` column, and `pattern`
+# below is run over whatever is in it.
 MAX_VALUE_LENGTH = 4096
 
-# The rules a field may carry, and the type each one has to be. An administrator
-# writes this dict, and everything in it is applied to values other people
-# submit, so it is checked when the *field* is defined rather than when someone
-# fills it in: a rule that cannot be applied is the administrator's mistake to
-# see, not a 500 for whoever happens to save their profile next.
+# The rules a field may carry, and the type of each. Checked when the *field* is
+# defined rather than when somebody fills it in: an unapplicable rule is the
+# administrator's mistake to see, not a 500 for the next person to save.
 VALIDATOR_TYPES: dict[str, type] = {
     "pattern": str,
     "min": int,
@@ -66,11 +63,9 @@ VALIDATOR_TYPES: dict[str, type] = {
     "max_length": int,
 }
 
-# `pattern` is a regular expression IDEN runs against caller-supplied text, and
-# Python's engine backtracks: `(a+)+$` over a few thousand characters does not
-# finish. Neither a length cap nor `MAX_VALUE_LENGTH` makes that impossible, but
-# together they bound it to something a worker survives. A field's format rule
-# does not need more than this.
+# `pattern` runs against caller-supplied text, and Python's engine backtracks:
+# `(a+)+$` over a few thousand characters does not finish. This cap and
+# `MAX_VALUE_LENGTH` together bound it to something a worker survives.
 MAX_PATTERN_LENGTH = 256
 
 

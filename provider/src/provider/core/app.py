@@ -38,9 +38,8 @@ from provider.shared.client_uris import redirect_with
 
 configure_logging()
 
-# Domain errors carry no HTTP knowledge, so the mapping lives here — the one
-# place that knows both vocabularies. Matched by class rather than by code, so a
-# package can raise `ApiNotFound` with its own message and still land on 404.
+# Domain errors carry no HTTP knowledge, so the mapping lives here. By class
+# rather than code, so a package can raise `ApiNotFound` and still land on 404.
 # Most specific first: ImmutableError is a ConflictError.
 ERROR_STATUS = (
     (RateLimitedError, 429),
@@ -62,11 +61,9 @@ async def lifespan(app: FastAPI):
     await redis_module.client.aclose()
 
 
-# The interactive docs are a development tool, and a deployment is reachable by
-# anyone the moment it is behind a proxy. `/openapi.json` is the complete shape
-# of the admin API -- every route, every field -- which is a map worth not
-# handing out. `app.openapi()` still builds the schema in process, so
-# `web/scripts/gen-api.sh` keeps working either way.
+# `/openapi.json` is the complete shape of the admin API, which is a map worth
+# not handing out once a deployment is reachable. `app.openapi()` still builds
+# the schema in process, so `web/scripts/gen-api.sh` keeps working.
 _DOCS_ENABLED = settings.iden_env != "prod"
 
 app = FastAPI(
@@ -100,9 +97,8 @@ async def add_request_id(request: Request, call_next: Callable) -> Response | No
 async def handle_iden_error(request: Request, exc: IdenError) -> JSONResponse:
     """Translate a domain exception into the documented JSON error shape.
 
-    Central rather than per-route: the mapping is uniform across every
-    resource, and thirty routes each repeating the same try/except would add
-    noise without adding meaning. Routes still declare their failures in
+    Central rather than per-route: the mapping is uniform, and thirty repeated
+    try/excepts would add noise. Routes still declare their failures in
     `responses={...}` so `/docs` stays accurate.
     """
     status_code = next(
@@ -151,17 +147,13 @@ async def handle_http_exception(
 ) -> JSONResponse:
     """Give `raise HTTPException(...)` the same body shape as everything else.
 
-    Without this the provider speaks two dialects: `/admin/*` answers with
-    `code`/`message` from the domain-error handler, while every dependency that
-    raises HTTPException — `require_scope`, the entity user lookup, login —
-    answers with Starlette's `{"detail": ...}`. Handled centrally rather than by
-    replacing HTTPException everywhere, because the raising code is right; it is
-    only the serialization that was inconsistent.
+    Otherwise the provider speaks two dialects: `code`/`message` from the
+    domain-error handler, and Starlette's `{"detail": ...}` from every dependency
+    that raises HTTPException.
 
     A route that raises with a domain error as the detail keeps that error's
-    code: the status is the route's to choose, but `totp_not_enrolled` and
-    `invalid_totp_code` are both a 400 and a caller has to be able to tell them
-    apart.
+    code: `totp_not_enrolled` and `invalid_totp_code` are both 400 and a caller
+    has to tell them apart.
     """
     body = ErrorResponse(
         code=exc.detail.code
@@ -224,10 +216,9 @@ UNAVAILABLE = (
 async def handle_unavailable(request: Request, exc: Exception) -> JSONResponse:
     """A store the provider depends on is unreachable.
 
-    Without this the exception escapes to the ASGI server, which answers with a
-    bare `Internal Server Error` — a third body shape, arriving at exactly the
-    moment an operator is trying to work out what broke. 503 also tells a proxy
-    it may retry, which 500 does not.
+    Otherwise it escapes to the ASGI server, which answers a bare `Internal
+    Server Error` — a third body shape, arriving while an operator is working out
+    what broke. 503 also tells a proxy it may retry.
     """
     logger.error(
         "Dependency unavailable",
@@ -313,10 +304,9 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
-    # Neither of these is CORS-safelisted, so without naming them here a browser
-    # hands the application a 403 or a 429 stripped of the one part that says
-    # what to do about it — the step-up challenge of RFC 9470, and how long to
-    # wait. `allow_headers` does not cover this; it governs the request.
+    # Neither is CORS-safelisted, so without naming them a browser hands the app
+    # a 403 or 429 stripped of the part that says what to do about it: RFC 9470's
+    # step-up challenge, and how long to wait. `allow_headers` governs requests.
     expose_headers=["WWW-Authenticate", "Retry-After"],
 )
 
@@ -342,10 +332,9 @@ def main():
         port=8000,
         log_config=None,
         reload=settings.iden_env == "dev",
-        # Uvicorn rewrites `scope["client"]` from `X-Forwarded-For` when the peer
-        # is trusted, which is why neither the rate limiter nor the audit log has
-        # to know a proxy exists. An empty list trusts nobody — uvicorn's own
-        # default trusts loopback, and that is a decision worth making out loud
-        # rather than inheriting.
+        # Uvicorn rewrites `scope["client"]` from `X-Forwarded-For` for trusted
+        # peers, so neither the rate limiter nor the audit log needs to know a
+        # proxy exists. An empty list trusts nobody; uvicorn's default trusts
+        # loopback, which is worth stating rather than inheriting.
         forwarded_allow_ips=settings.iden_forwarded_allow_ips or [],
     )

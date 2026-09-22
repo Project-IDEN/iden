@@ -24,12 +24,9 @@ from provider.developer.clients.schemas import ApplicationCreate, ApplicationUpd
 from provider.shared.enums import ClientType, GrantType
 from provider.shared.models import Client, User
 
-# What a self-registered application may do, for everyone, always.
-#
-# `client_credentials` is the omission that matters: it is the grant that lets a
-# client act with no user present, so a self-service registrant who could ask
-# for it could mint a token for themselves alone. Whether a refresh token is
-# actually issued still depends on the `offline_access` scope at /authorize.
+# What a self-registered application may do, always. `client_credentials` is the
+# omission that matters: it lets a client act with no user present, so a
+# registrant who could ask for it could mint a token for themselves alone.
 SELF_SERVICE_GRANTS = [GrantType.AUTHORIZATION_CODE, GrantType.REFRESH_TOKEN]
 
 
@@ -96,11 +93,9 @@ async def get_application(
 async def create_application(
     session: AsyncSession, owner: User, data: ApplicationCreate
 ) -> tuple[Client, str | None]:
-    # The owner's row is locked for the rest of the transaction, for the same
-    # reason an authorization code is: counting and inserting are two
-    # statements, and without the lock two simultaneous registrations both
-    # count the same four applications, both conclude there is room, and both
-    # insert. It serializes one person's own registrations and nobody else's.
+    # Counting and inserting are two statements, so without this lock two
+    # simultaneous registrations both see room and both insert. It serializes one
+    # person's own registrations and nobody else's.
     await session.execute(select(User.id).where(User.id == owner.id).with_for_update())
 
     if await count_applications(session, owner) >= settings.iden_developer_max_clients:
