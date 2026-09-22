@@ -18,6 +18,9 @@ RUN pnpm --filter @iden/dashboard build
 FROM nginx:alpine
 COPY --from=build /app/dashboard/dist /usr/share/nginx/html/console
 COPY dashboard/nginx.conf /etc/nginx/conf.d/default.conf
+# The entrypoint rewrites this with the issuer filled in; shipping a copy
+# means nginx still starts if it did not run.
+COPY shared/nginx/security-headers.inc /etc/nginx/conf.d/security-headers.inc
 COPY dashboard/entrypoint.sh /docker-entrypoint.d/40-iden-config.sh
 RUN chmod +x /docker-entrypoint.d/40-iden-config.sh
 EXPOSE 3000

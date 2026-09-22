@@ -18,6 +18,9 @@ RUN pnpm --filter @iden/auth-ui build
 FROM nginx:alpine
 COPY --from=build /app/auth-ui/dist /usr/share/nginx/html/auth
 COPY auth-ui/nginx.conf /etc/nginx/conf.d/default.conf
+# The entrypoint rewrites this with the issuer filled in; shipping a copy
+# means nginx still starts if it did not run.
+COPY shared/nginx/security-headers.inc /etc/nginx/conf.d/security-headers.inc
 COPY auth-ui/entrypoint.sh /docker-entrypoint.d/40-iden-config.sh
 RUN chmod +x /docker-entrypoint.d/40-iden-config.sh
 EXPOSE 4000
