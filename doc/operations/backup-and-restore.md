@@ -12,6 +12,7 @@ Every command here has been run end to end: dump, destroy the volumes, restore, 
 |---|---|---|
 | **PostgreSQL** | **Yes.** This is the deployment. | People, permissions, clients, roles, and the audit log are gone. Unrecoverable. |
 | **Signing keys** (`provider/keys/*.pem`) | **Yes**, separately, with different access. | Every token in circulation becomes unverifiable. Recoverable — generate a new key and everyone signs in again — but noisy. |
+| **Secret key** (`provider/keys/totp.key`) | **Yes**, with the signing keys. | Every enrolled authenticator stops verifying, and those people cannot sign in: they owe a second factor nobody can check. Recovering means an administrator clearing each enrolment so they can set one up again. |
 | **Object store** (profile photos) | Optional. | Photos 404 and people re-upload them. `pictureUrl` still points at the missing object, so the row is stale rather than broken. |
 | **Redis** | **No.** | Everyone signs in again. Nothing permanent is lost — it holds sessions, pending sign-ins, the denylist and rate-limit counters. |
 
@@ -45,6 +46,10 @@ fails here, which is where you want to find out.
 ```bash
 tar czf iden-keys-$(date +%F).tar.gz -C provider keys
 ```
+
+That takes the whole directory, which is deliberate: it holds the signing keys *and* `totp.key`,
+and the second one is the easier to forget and the more painful to lose. A missing signing key
+signs everyone out; a missing `totp.key` leaves everyone with MFA unable to sign in at all.
 
 Then put it somewhere you would be comfortable keeping a password — not beside the database dump.
 

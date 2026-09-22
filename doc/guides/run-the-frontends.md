@@ -35,7 +35,7 @@ The frontends have nothing to show without it. From `provider/`:
 ```bash
 docker compose -f ../deploy/docker-compose.yml up -d postgres redis seaweedfs
 
-uv run python -m scripts.gen_keys    # once — the provider will not start without a key
+uv run python -m scripts.gen_keys    # once — the provider will not start without its keys
 uv run alembic upgrade head
 uv run python -m scripts.seed        # prints the bootstrap password, once
 uv run provider                      # http://localhost:8000

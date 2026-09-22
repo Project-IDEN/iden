@@ -11,7 +11,7 @@ from provider.authz.login.errors import (
     InvalidTotpCode,
     TotpNotEnrolled,
 )
-from provider.core.security import hash_secret, verify_secret
+from provider.core.security import decrypt_secret, hash_secret, verify_secret
 from provider.shared.enums import AmrMethod
 from provider.shared.models import TotpCredential, User
 
@@ -49,9 +49,14 @@ async def verify_totp(session: AsyncSession, user: User, code: str) -> None:
     if credential is None:
         raise TotpNotEnrolled
 
+    # A failure to decrypt raises rather than returning: the only safe outcomes
+    # when the key is wrong are the real secret or a loud refusal, never a value
+    # that might compare equal.
+    secret = decrypt_secret(credential.secret_encrypted, context=str(user.id))
+
     # valid_window=1 accepts the adjacent 30s step, covering ordinary clock drift
     # between the phone and the server (RFC 6238 Section 6).
-    if not pyotp.TOTP(credential.secret).verify(code, valid_window=1):
+    if not pyotp.TOTP(secret).verify(code, valid_window=1):
         raise InvalidTotpCode
 
 

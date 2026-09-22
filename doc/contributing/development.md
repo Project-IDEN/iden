@@ -9,7 +9,7 @@ Four, all run from `provider/` as `uv run python -m scripts.<name>`.
 
 | Script | Does |
 |---|---|
-| `gen_keys` | Writes a date-stamped RSA signing key into `IDEN_SIGNING_KEY_DIR`. Refuses to overwrite an existing one for today. |
+| `gen_keys` | Writes a date-stamped RSA signing key and, beside it, `totp.key` — which encrypts TOTP secrets at rest. Refuses to overwrite either. |
 | `seed` | Upserts the system catalogue and the bootstrap clients and administrator. Idempotent, and refuses to run against an unmigrated database. |
 | `reset` | Drops the schema, flushes Redis, migrates, and seeds. Asks first; `--yes` skips the prompt. Refuses when `IDEN_ENV=prod`. |
 | `cleanup` | Deletes expired authorization codes and refresh tokens. `--dry-run` counts instead. Meant for a schedule — see [Deployment](../operations/deployment.md#housekeeping). |

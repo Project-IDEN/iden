@@ -52,6 +52,18 @@ class Settings(BaseSettings):
     # Crypto
     iden_signing_key_dir: Path = Path("keys")
     iden_signing_algorithm: str = "RS256"
+    # The key that encrypts secrets IDEN has to read back rather than compare —
+    # TOTP secrets, so far. Defaults to `totp.key` beside the signing keys,
+    # because that directory is already mounted read-only, already excluded from
+    # the image, and already something the deployment checklist says to back up.
+    # A file rather than an environment variable for the same reason the
+    # bootstrap password is not one: the environment of a running container is
+    # readable with `docker inspect` for as long as the container lives.
+    #
+    # Losing it is not recoverable. Every enrolled authenticator becomes
+    # unverifiable, and those people cannot sign in until an administrator clears
+    # their enrolment — so it is backed up with the signing keys or not at all.
+    iden_totp_key_file: Path | None = None
 
     # Lifetimes (seconds)
     # This one is quoted to the user: revoking a session cannot reach an access
@@ -93,6 +105,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )
+
+    @property
+    def totp_key_path(self) -> Path:
+        return self.iden_totp_key_file or self.iden_signing_key_dir / "totp.key"
 
     @property
     def blob_storage_configured(self) -> bool:

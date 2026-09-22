@@ -139,7 +139,12 @@ class TotpCredential(Base, TimestampMixin):
     user_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), unique=True
     )
-    secret: Mapped[str] = mapped_column(String(255))
+    # Encrypted, not hashed: verifying a code means recomputing it from the
+    # secret, so it has to be readable. Named for what it holds so that anyone
+    # reading a schema or a dump can see the column is not cleartext — see
+    # `core.security.encrypt_secret`, which binds each value to its `user_id` so
+    # that one cannot be moved onto another account.
+    secret_encrypted: Mapped[str] = mapped_column(String(255))
     # Enrollment is two-step: the credential only counts once a generated code
     # has been confirmed, so a mis-scanned QR code cannot lock a user out.
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

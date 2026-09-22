@@ -38,7 +38,7 @@ cd provider
 uv sync                              # install dependencies
 cp .env.example .env                 # then read it — every setting is commented
 
-uv run python -m scripts.gen_keys    # a signing key; the provider will not start without one
+uv run python -m scripts.gen_keys    # signing key + totp.key; the provider will not start without them
 uv run alembic upgrade head          # create the schema
 uv run python -m scripts.seed        # permissions, bootstrap admin, two clients
 
@@ -47,9 +47,10 @@ uv run provider                      # http://localhost:8000
 
 Two of those deserve a note.
 
-**`gen_keys`** writes one date-stamped PEM into `provider/keys/`. IDEN refuses to start without a
-signing key and will not invent one silently, because a key nobody can account for is not a key you
-want signing tokens.
+**`gen_keys`** writes one date-stamped PEM into `provider/keys/`, plus `totp.key` beside it. IDEN
+refuses to start without a signing key and will not invent one silently, because a key nobody can
+account for is not a key you want signing tokens. `totp.key` encrypts TOTP secrets at rest — the one
+credential IDEN cannot hash, since verifying a code means recomputing it. Back both up together.
 
 **`seed`** prints two credentials, **once**:
 

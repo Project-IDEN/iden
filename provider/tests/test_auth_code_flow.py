@@ -5,6 +5,7 @@ import pyotp
 import pytest
 from sqlalchemy import delete
 
+from provider.core.security import encrypt_secret
 from provider.shared.models import TotpCredential
 from tests.conftest import ADMIN_EMAIL, REDIRECT_URI
 from tests.flows import (
@@ -24,19 +25,29 @@ def decode(token: str) -> dict:
     return jwt.decode(token, options={"verify_signature": False})
 
 
-@pytest.fixture
-async def enrolled(db, admin_user):
-    """Give the administrator a confirmed authenticator."""
+async def enrol(db, user, *, confirmed: bool = True) -> str:
+    """Give `user` an authenticator and return its cleartext secret.
+
+    The stored secret is encrypted and bound to the owner, so a test cannot just
+    write a base32 string into the column — which is why this is a helper rather
+    than a `TotpCredential(...)` in each test.
+    """
     secret = pyotp.random_base32()
     db.add(
         TotpCredential(
-            user_id=admin_user.id,
-            secret=secret,
-            confirmed_at=datetime.now(UTC),
+            user_id=user.id,
+            secret_encrypted=encrypt_secret(secret, context=str(user.id)),
+            confirmed_at=datetime.now(UTC) if confirmed else None,
         )
     )
     await db.commit()
     return secret
+
+
+@pytest.fixture
+async def enrolled(db, admin_user):
+    """Give the administrator a confirmed authenticator."""
+    return await enrol(db, admin_user)
 
 
 async def enter_code(client, challenge_id: str, secret: str):
@@ -184,14 +195,7 @@ class TestStepUp:
         _, challenge = pkce_pair()
         challenge_id = query_of(await start(client, challenge))["challenge"]
         await sign_in(client, challenge_id)
-        db.add(
-            TotpCredential(
-                user_id=admin_user.id,
-                secret=pyotp.random_base32(),
-                confirmed_at=datetime.now(UTC),
-            )
-        )
-        await db.commit()
+        await enrol(db, admin_user)
 
         response = await start(client, challenge, acr_values="iden:loa:2")
 
@@ -215,13 +219,7 @@ class TestStepUp:
         step-up would be a second proof of the same factor, which raises
         nothing."""
         tokens = await get_tokens(client)
-        secret = pyotp.random_base32()
-        db.add(
-            TotpCredential(
-                user_id=admin_user.id, secret=secret, confirmed_at=datetime.now(UTC)
-            )
-        )
-        await db.commit()
+        secret = await enrol(db, admin_user)
 
         verifier, challenge = pkce_pair()
         response = await start(client, challenge, acr_values="iden:loa:2")
@@ -277,6 +275,34 @@ class TestCodeIssuance:
 
         assert resumed.headers["location"].startswith(REDIRECT_URI)
         assert query["code"] and query["state"] == "xyz"
+
+    async def test_a_redirect_uri_with_its_own_query_still_gets_the_code(
+        self, client, db, dashboard
+    ):
+        """RFC 6749 Section 3.1.2 permits a query on the registered URI.
+
+        Appending with `?` regardless produced `...?tenant=acme?code=...`, which
+        is a single parameter named `tenant` whose value contains the word
+        "code" — so the client received no `code`, no `state` and no `iss`.
+        """
+        registered = "https://app.example.org/cb?tenant=acme"
+        dashboard.redirect_uris = [*dashboard.redirect_uris, registered]
+        db.add(dashboard)
+        await db.commit()
+
+        _, challenge = pkce_pair()
+        challenge_id = query_of(
+            await start(client, challenge, redirect_uri=registered)
+        )["challenge"]
+        login = await sign_in(client, challenge_id)
+
+        resumed = await client.get(login.json()["resumeUrl"])
+        query = query_of(resumed)
+
+        assert query["tenant"] == "acme"
+        assert query["code"]
+        assert query["state"] == "xyz"
+        assert query["iss"]
 
     async def test_code_is_not_stored_in_the_clear(self, client, db):
         from sqlalchemy import select
@@ -523,8 +549,7 @@ class TestEnrolledTotpIsMandatory:
     ):
         """A credential exists from the moment the QR code is opened. Treating
         that as a factor would lock out anyone who walked away from the screen."""
-        db.add(TotpCredential(user_id=admin_user.id, secret=pyotp.random_base32()))
-        await db.commit()
+        await enrol(db, admin_user, confirmed=False)
 
         _, challenge = pkce_pair()
         start_response = await start(client, challenge)

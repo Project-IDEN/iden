@@ -7,6 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.core.config import settings
+from provider.core.security import decrypt_secret, encrypt_secret
 from provider.entity.totp.errors import AlreadyEnrolled, NotEnrolling, WrongCode
 from provider.shared.models import TotpCredential, User
 
@@ -50,7 +51,7 @@ async def begin(session: AsyncSession, user: User) -> tuple[str, str]:
         credential = TotpCredential(user_id=user.id)
         session.add(credential)
     # An abandoned enrollment is simply overwritten: it never counted.
-    credential.secret = secret
+    credential.secret_encrypted = encrypt_secret(secret, context=str(user.id))
     await session.commit()
 
     uri = pyotp.TOTP(secret).provisioning_uri(
@@ -64,7 +65,8 @@ async def confirm(session: AsyncSession, user: User, code: str) -> TotpCredentia
     if credential is None or credential.confirmed_at:
         raise NotEnrolling
 
-    if not pyotp.TOTP(credential.secret).verify(code, valid_window=1):
+    secret = decrypt_secret(credential.secret_encrypted, context=str(user.id))
+    if not pyotp.TOTP(secret).verify(code, valid_window=1):
         raise WrongCode
 
     credential.confirmed_at = datetime.now(UTC)
