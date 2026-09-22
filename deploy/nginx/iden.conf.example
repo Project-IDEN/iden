@@ -11,8 +11,8 @@
 #
 # One origin, three applications, and the split is not arbitrary:
 #
-#   /oauth2/*  /.well-known/*  /admin/*  /entity/*  /api/v1/auth/*  /media/*
-#                                                            -> provider
+#   /oauth2/*  /.well-known/*  /admin/*  /entity/*  /developer/*
+#   /api/v1/auth/*  /media/*                                 -> provider
 #   /auth/*                                                  -> auth-ui
 #   /console/*                                               -> dashboard
 #
@@ -69,16 +69,36 @@ server {
 
   # --- provider: OIDC protocol and both resource servers ---
 
-  # Exact match, so it takes precedence over the /oauth2/ prefix below. Token
-  # exchange verifies a client secret with argon2, which is expensive for the
-  # server in the same way the password endpoints are.
+  # Exact matches, so they take precedence over the /oauth2/ prefix below. All
+  # three verify a client secret with argon2, which is expensive for the server
+  # in the same way the password endpoints are — and none of them needs a
+  # credential to reach, so the cost is spent before the caller has proved
+  # anything. IDEN limits these per address as well; this one refuses the flood
+  # before Python is involved at all.
   location = /oauth2/token {
     limit_req zone=iden_credentials burst=20 nodelay;
     proxy_pass http://iden_provider;
     include /etc/nginx/conf.d/proxy.inc;
   }
 
+  location = /oauth2/revoke {
+    limit_req zone=iden_credentials burst=20 nodelay;
+    proxy_pass http://iden_provider;
+    include /etc/nginx/conf.d/proxy.inc;
+  }
+
+  location = /oauth2/introspect {
+    limit_req zone=iden_credentials burst=20 nodelay;
+    proxy_pass http://iden_provider;
+    include /etc/nginx/conf.d/proxy.inc;
+  }
+
+  # Everything else under /oauth2, `/authorize` above all: it writes a challenge
+  # into Redis for anyone who asks, and those entries live beside the sessions.
+  # Generous, because a single sign-on hop passes through here for every
+  # application someone opens.
   location ^~ /oauth2/ {
+    limit_req zone=iden_credentials burst=40 nodelay;
     proxy_pass http://iden_provider;
     include /etc/nginx/conf.d/proxy.inc;
   }
@@ -111,6 +131,14 @@ server {
   }
 
   location ^~ /entity/ {
+    proxy_pass http://iden_provider;
+    include /etc/nginx/conf.d/proxy.inc;
+  }
+
+  # Self-service application registration. Absent here, the catch-all 404 below
+  # answers it instead — the API is up, the dashboard's Applications screen is
+  # not, and nothing says why.
+  location ^~ /developer/ {
     proxy_pass http://iden_provider;
     include /etc/nginx/conf.d/proxy.inc;
   }
