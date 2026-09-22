@@ -96,6 +96,7 @@ nav:
       - Run the frontends: guides/run-the-frontends.md
       - Integrating an application:
           - Register your application: guides/register-a-client.md
+          - Let people register their own: guides/self-service-registration.md
           - Using a standard OIDC library: guides/oidc-libraries.md
           - Add a web application: guides/web-application.md
           - Add a machine client: guides/machine-client.md

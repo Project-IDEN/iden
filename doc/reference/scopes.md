@@ -46,6 +46,20 @@ What a person may do to their own account. The `member` role carries all of them
 | `entity:connections:read` | See which applications have access. |
 | `entity:connections:revoke` | Withdraw an application's access. |
 
+## Developer self-service
+
+Registering your own application against someone else's IDEN. The `developer` role carries these
+plus every self-service scope; no account has them by default. See
+[Let people register their own applications](../guides/self-service-registration.md).
+
+| Scope | Grants |
+|---|---|
+| `developer:clients:read` | View the applications you registered. |
+| `developer:clients:write` | Register your own applications and rotate their secrets. |
+
+These are their own API rather than `entity:` scopes on purpose: `member` carries every `entity:`
+scope, so putting them there would make every account a developer.
+
 ## Biometrics
 
 Seeded only when `IDEN_BIOMETRIC_ENABLED=true`. The module itself is not built yet.

@@ -4,14 +4,16 @@ Every application that talks to IDEN needs a **client** — an identity of its o
 people who use it. This is the first step for any integration, and the choices here are hard to
 change later.
 
-!!! info "There is no self-service registration"
-    IDEN has no dynamic client registration endpoint. An administrator registers your application
-    through `POST /admin/clients`, or through the dashboard. That is deliberate: in a
-    single-organization deployment, every application is one the organization runs, and letting
-    anything register itself would be a way to obtain tokens without anyone deciding you should.
+!!! info "Who registers it"
+    This page is the administrator's route — `POST /admin/clients`, or the dashboard. It is the only
+    way to register a machine-to-machine client, to attach a scope beyond OpenID Connect's own, or
+    to skip the consent screen.
 
-    If you are integrating, what you need from an administrator is a `client_id` — and a
-    `client_secret` if your application is confidential.
+    IDEN has no dynamic client registration endpoint, and never registers a client because something
+    asked. There is a second, narrower route: an account holding the `developer` role registers its
+    own applications through `POST /developer/clients`, which offers the authorization code flow and
+    nothing else. See
+    [Let people register their own applications](self-service-registration.md).
 
 ## Which kind of client are you
 
