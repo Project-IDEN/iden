@@ -185,3 +185,38 @@ class TestTokenLifecycle:
         await client.get("/oauth2/logout", follow_redirects=False)
 
         assert "GET /oauth2/logout" in {event.action for event in await events(db)}
+
+
+class TestOversizedValues:
+    """A caller must not be able to act without being recorded.
+
+    Every column in `audit_events` has a width, and a value over it fails the
+    insert rather than truncating. The failure is caught — the request has
+    already committed — so the entry would simply be missing. Both values below
+    are chosen by the caller.
+    """
+
+    async def test_a_long_user_agent_still_leaves_a_record(
+        self, client, admin_headers, db
+    ):
+        response = await client.post(
+            "/admin/groups",
+            json={"name": "engineering"},
+            headers={**admin_headers, "user-agent": "A" * 4000},
+        )
+        assert response.status_code == 201
+
+        (event,) = await events(db)
+        assert event.action == "POST /admin/groups"
+        assert event.user_agent is not None
+        assert len(event.user_agent) <= 512
+
+    async def test_a_long_path_parameter_still_leaves_a_record(
+        self, client, admin_headers, db
+    ):
+        await client.delete("/entity/sessions/" + "b" * 2000, headers=admin_headers)
+
+        (event,) = await events(db)
+        assert event.action == "DELETE /entity/sessions/{session_id}"
+        assert event.target is not None
+        assert len(event.target) <= 255

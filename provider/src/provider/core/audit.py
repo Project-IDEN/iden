@@ -59,6 +59,27 @@ SECRET_KEYS = frozenset(
 
 MAX_BODY_BYTES = 4096
 
+# The widths of the columns in `AuditEvent`. Every value written below is
+# clamped to its own, because the alternative is not a truncated row but *no
+# row*: a value one character over the column's width fails the insert, the
+# failure is caught so a completed request is not turned into an error, and the
+# entry is simply gone. A `User-Agent` header is chosen by the caller, and so is
+# the last segment of a path — which made "send a long header" a way to act
+# without being recorded. A clipped field still names who did what.
+ACTION_LIMIT = 160
+TARGET_LIMIT = 255
+ACTOR_LABEL_LIMIT = 255
+IP_LIMIT = 45
+USER_AGENT_LIMIT = 512
+
+
+def _clip(value: str, limit: int) -> str:
+    return value if len(value) <= limit else value[: limit - 1] + "\u2026"
+
+
+def _clip_optional(value: str | None, limit: int) -> str | None:
+    return None if value is None else _clip(value, limit)
+
 
 @dataclass
 class Actor:
@@ -207,16 +228,22 @@ async def _write(scope: Scope, body: bytes, status_code: int) -> None:
 
             session.add(
                 AuditEvent(
-                    action=f"{scope['method']} {route.path}",
+                    action=_clip(f"{scope['method']} {route.path}", ACTION_LIMIT),
                     status_code=status_code,
                     # The last path parameter is the object being acted on:
                     # `/admin/apis/{api_id}/scopes/{scope_id}` is about the scope.
-                    target=str(list(params.values())[-1]) if params else None,
+                    target=_clip_optional(
+                        str(list(params.values())[-1]) if params else None, TARGET_LIMIT
+                    ),
                     actor_user_id=actor.user_id,
-                    actor_label=label,
+                    actor_label=_clip_optional(label, ACTOR_LABEL_LIMIT),
                     actor_client=actor.client_id,
-                    ip=scope["client"][0] if scope.get("client") else None,
-                    user_agent=_header(scope, b"user-agent"),
+                    ip=_clip_optional(
+                        scope["client"][0] if scope.get("client") else None, IP_LIMIT
+                    ),
+                    user_agent=_clip_optional(
+                        _header(scope, b"user-agent"), USER_AGENT_LIMIT
+                    ),
                     detail=detail,
                 )
             )

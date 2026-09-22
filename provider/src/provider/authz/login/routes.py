@@ -32,6 +32,7 @@ from provider.core.config import settings
 from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse
+from provider.shared import user_agent
 from provider.shared.enums import AmrMethod
 from provider.shared.models import Client, Scope, User
 
@@ -190,7 +191,7 @@ async def login(
     # here would let anyone write any address into their own security page.
     origin = {
         "ip": ratelimit.client_ip(request),
-        "user_agent": request.headers.get("user-agent"),
+        "user_agent": user_agent.capture(request.headers.get("user-agent")),
     }
 
     if login_session is not None and login_session.user_id == user.id:
