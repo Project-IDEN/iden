@@ -23,4 +23,15 @@ def set_session(response: Response, session_id: str) -> None:
 
 
 def clear_session(response: Response) -> None:
-    response.delete_cookie(NAME, path="/")
+    # The same attributes it was set with. A browser keys a cookie on name,
+    # domain and path, so the deletion lands either way — but a `Set-Cookie`
+    # that drops `Secure` on an otherwise HTTPS-only cookie is the kind of
+    # difference a proxy or a future browser rule can decide to treat as two
+    # cookies, and there is nothing to gain from the two lines disagreeing.
+    response.delete_cookie(
+        NAME,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=settings.iden_env == "prod",
+    )
