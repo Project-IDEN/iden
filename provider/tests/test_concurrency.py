@@ -1,14 +1,11 @@
 """Races that a sequential test cannot see.
 
-Driving these over HTTP does not work, and neither does `asyncio.gather` on two
-service calls: whether the two transactions interleave at the critical section
-is a matter of timing, so the test passes with or without the fix and proves
-nothing.
+Neither HTTP nor `asyncio.gather` works here: whether two transactions interleave
+at the critical section is a matter of timing, so such a test passes with or
+without the lock.
 
 Instead each test holds the first transaction open and asserts the second
-**blocks** — which is what the row lock is for. Without the lock the second call
-sails through, the assertion fails, and the race is demonstrated rather than
-hoped for.
+**blocks**, which is what the row lock is for.
 """
 
 import asyncio
@@ -127,14 +124,11 @@ async def test_two_simultaneous_registrations_cannot_exceed_the_cap(
     """The application quota is a count followed by an insert.
 
     Without the lock both registrations count the same applications, both find
-    room, and one person ends up over the cap. Nothing is escalated by that —
-    it is a row, not a privilege — but the cap may as well mean what it says.
+    room, and one person ends up over the cap.
 
-    Note which assertion does the work here. The second call blocks either way:
-    inserting a client takes a `FOR KEY SHARE` lock on the owner it references,
-    and that already conflicts with the open transaction. What the lock changes
-    is *where* it blocks — before the count rather than after it — so the
-    refusal at the end is the assertion that fails when it is removed.
+    Note which assertion does the work: the second call blocks either way, since
+    inserting a client takes `FOR KEY SHARE` on the owner it references. The lock
+    changes *where* it blocks, so the refusal at the end is what fails without it.
     """
     monkeypatch.setattr(settings, "iden_developer_max_clients", 1)
 

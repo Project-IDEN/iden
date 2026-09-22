@@ -50,9 +50,8 @@ async def test_a_payload_written_before_this_change_still_loads(redis):
     """The upgrade case.
 
     A deployment upgrading in place has live sessions whose payload predates
-    these fields. Raising on them would sign out everyone who was signed in at
-    the moment of the deploy — so the old shape is written here directly rather
-    than through `create`, which would produce the new one.
+    these fields, and raising on them would sign everyone out. Written directly
+    rather than through `create`, which would produce the current shape.
     """
     session_id = generate_token()
     signed_in = datetime.now(UTC)

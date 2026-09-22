@@ -172,13 +172,12 @@ class TestLogoutToken:
         assert "nonce" not in claims_of(deliveries[0][1])
 
     async def test_is_refused_as_an_id_token_hint(self, client, listening, deliveries):
-        """It is signed by IDEN and carries `sub`, so without the `events` check
-        a client could replay the token that told it to sign out as evidence
-        that someone is signed in.
+        """A logout token is signed by IDEN and carries `sub`, so without the
+        `events` check a client could replay it as evidence that somebody is
+        signed in.
 
-        Measured against a real ID token doing the same job: the hint is what
-        resolves the client, and only a resolved client's post-logout URI is
-        honoured. One redirects, the other cannot.
+        Measured against a real ID token doing the same job: the hint resolves
+        the client, and only a resolved client's post-logout URI is honoured.
         """
         real = await get_tokens(client)
         await client.get("/oauth2/logout", follow_redirects=False)

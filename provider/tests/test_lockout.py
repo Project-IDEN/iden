@@ -1,9 +1,8 @@
 """The last-administrator guard — KI-8.
 
 Every other administrative mistake is reversible by another administrator.
-Removing the last one is not: there is no API call that puts `admin:users:write`
-back once nobody holds it, only a hand-edited database. Each test here is one
-door that used to be one-way.
+Removing the last one is not: no API call puts `admin:grants:write` back once
+nobody holds it, only a hand-edited database. Each test here is one such door.
 """
 
 import pytest

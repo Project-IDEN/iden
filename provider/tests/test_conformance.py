@@ -26,9 +26,9 @@ def header_of(token: str) -> dict:
 class TestTokenType:
     """C-1 · RFC 9068 Section 2.1 — every token says what it is.
 
-    Before this, nothing distinguished an access token from an ID token by
-    *type*. Confusion was caught incidentally by `aud` at `/admin/*`, and not at
-    all at the two endpoints that do not check audience.
+    Without the `typ` header nothing distinguishes an access token from an ID
+    token by type, and the two endpoints that do not check audience would not
+    catch the confusion at all.
     """
 
     async def test_an_access_token_is_marked_as_one(self, client):

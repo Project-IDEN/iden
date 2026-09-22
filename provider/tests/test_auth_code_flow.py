@@ -281,9 +281,8 @@ class TestCodeIssuance:
     ):
         """RFC 6749 Section 3.1.2 permits a query on the registered URI.
 
-        Appending with `?` regardless produced `...?tenant=acme?code=...`, which
-        is a single parameter named `tenant` whose value contains the word
-        "code" — so the client received no `code`, no `state` and no `iss`.
+        Appending with `?` regardless gives `...?tenant=acme?code=...`: one
+        parameter named `tenant`, and no `code`, `state` or `iss` for the client.
         """
         registered = "https://app.example.org/cb?tenant=acme"
         dashboard.redirect_uris = [*dashboard.redirect_uris, registered]
@@ -416,9 +415,8 @@ class TestTokenExchange:
 class TestAnUnreachableLevel:
     """A level this person has no way to reach is refused, not shown as a form.
 
-    Both of these once left the person on a code form with no way off it: one
-    with no authenticator to take a code from, the other entering correct codes
-    that could never be enough.
+    Otherwise they are left on a code form with no way off it: no authenticator
+    to take a code from, or correct codes that can never be enough.
     """
 
     async def test_no_authenticator_means_no_code_form(self, client):

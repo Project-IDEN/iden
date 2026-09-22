@@ -1,11 +1,9 @@
 """TOTP secrets are encrypted at rest.
 
-A TOTP secret cannot be hashed — verifying a code means recomputing it from the
-secret — so the usual answer for a stored credential does not apply. Left in the
-clear, one `SELECT` on `totp_credentials` is a working second factor for every
-enrolled account, and the realistic way someone gets that is a backup or a
-replica rather than a compromised host. The passwords in the same dump are
-argon2, so this was the weakest thing in it.
+A TOTP secret cannot be hashed, because verifying a code means recomputing it.
+Left in the clear, one `SELECT` is a working second factor for every enrolled
+account — and the realistic route to that is a backup or a replica, where the
+passwords beside it are argon2.
 """
 
 import base64

@@ -1,16 +1,10 @@
-"""Nobody can hand out authority they do not hold.
+"""Nobody can hand out, or borrow, authority they do not hold.
 
-Two changes together. `admin:grants:write` decides *whether* an account may
-assign permissions at all, split out of `admin:users:write` so that managing
-people and empowering them stop being the same privilege. The delegation rule
-decides *which* — because the scope that lets you assign roles otherwise lets you
-assign the role that contains it, which makes the first change decorative.
-
-The interesting cases are the indirect ones. A scope reaches somebody by being
-named, by a role, by a group's roles, by joining such a group, by the meaning of
-a role changing underneath them, and by a client holding it in its own right.
-Each is a separate endpoint and each is tested here, because five closed doors
-and one open one is one open door.
+`admin:grants:write` decides whether an account may assign permissions;
+`admin.delegation` decides which. The indirect paths are the interesting ones —
+a role, a group's roles, joining such a group, a role's meaning changing, a
+client holding a scope outright — because five closed doors and one open one is
+one open door.
 """
 
 import pytest
@@ -362,14 +356,11 @@ class TestDelegationIsAllowed:
     async def test_a_client_that_already_holds_more_is_off_limits_entirely(
         self, client, admin_headers, limited_headers, scope_id, unheld_scope
     ):
-        """Not merely the scope that is beyond them — the whole client.
+        """The whole client, not merely the scope that is beyond them.
 
-        An earlier version of this rule checked only what an edit newly
-        conferred, on the reasoning that a scope already present is not being
-        granted again. That reasoning is wrong for a client: what it already
-        holds becomes usable the moment somebody adds the `client_credentials`
-        grant and rotates the secret, and neither of those is a scope
-        assignment. See `TestActingOnAClientAboveYou`.
+        What a client already holds becomes usable the moment somebody adds the
+        `client_credentials` grant and rotates the secret, and neither of those
+        is a scope assignment.
         """
         created = (
             await client.post(
@@ -412,12 +403,9 @@ class TestDelegationIsAllowed:
 class TestActingOnSomebodyAboveYou:
     """The other half of the rule, and the one that is easy to miss.
 
-    Delegation stops an administrator *granting* authority they lack. This stops
-    them *borrowing* it: managing a person includes resetting their password and
-    clearing their authenticator, and those two together are a way to become
-    them. Without it, `admin:users:write` would still reach every permission —
-    by way of whoever already holds it — and splitting `admin:grants:write` out
-    would have bought nothing at all.
+    Resetting a password and clearing an authenticator are together a way to
+    become somebody more privileged. Without this, `admin:users:write` would
+    still reach every permission by way of whoever already holds it.
     """
 
     @pytest.fixture
@@ -514,10 +502,9 @@ class TestActingOnSomebodyAboveYou:
 class TestActingOnAClientAboveYou:
     """A client is the other kind of principal, and the quieter one.
 
-    A scope a client holds in its own right goes into a `client_credentials`
-    token on request, with no person involved. Everything needed to use one is
-    `admin:clients:write` and none of it is a scope assignment — which is why
-    the gate is on touching the client at all.
+    A scope it holds outright goes into a `client_credentials` token on request,
+    with no person involved, and everything needed to use one is
+    `admin:clients:write` — so the gate is on touching the client at all.
     """
 
     @pytest.fixture
@@ -573,10 +560,9 @@ class TestActingOnAClientAboveYou:
     async def test_grantable_cannot_be_promoted_to_granted(
         self, client, admin_headers, limited_headers, scope_id
     ):
-        """The two are not the same privilege. `grantable` reaches a token only
-        through `/authorize`, where it is intersected with what the signed-in
-        person holds; `granted` has no such bound. Comparing only which scope
-        ids were attached treated the promotion as no change at all.
+        """Not the same privilege: `grantable` is intersected with what the
+        signed-in person holds at `/authorize`, `granted` is not. Comparing only
+        which scope ids were attached treated the promotion as no change.
         """
         sid = await scope_id(WITHHELD)
         made = (

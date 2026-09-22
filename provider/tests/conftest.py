@@ -1,13 +1,10 @@
 """Test fixtures.
 
-Tests run against a real PostgreSQL database (`iden_test`), created once per
-session and truncated between tests. Not SQLite: the models use PostgreSQL
-arrays and UUIDs, and a test that passes on a different engine than production
-proves less than it appears to.
+A real PostgreSQL database (`iden_test`), created once per session and truncated
+between tests. Not SQLite: the models use PostgreSQL arrays and UUIDs.
 
-The schema is built by running the migrations, not by `create_all`. Two ways of
-creating the same tables is one way too many — this is the path a deployment
-takes, so it is the path the tests take.
+The schema is built by running the migrations rather than `create_all`, because
+that is the path a deployment takes.
 """
 
 import asyncio
@@ -48,8 +45,8 @@ THIRD_PARTY_REDIRECT = "https://library.example.org/callback"
 def _upgrade_to_head(url: str) -> None:
     """Run the migrations against `url`.
 
-    Called in a worker thread: Alembic's env.py calls `asyncio.run`, which
-    cannot nest inside the loop pytest is already running.
+    In a worker thread: Alembic's env.py calls `asyncio.run`, which cannot nest
+    inside the loop pytest is already running.
     """
     config = Config(str(Path(__file__).resolve().parents[1] / "alembic.ini"))
     config.set_main_option("sqlalchemy.url", url)
@@ -175,9 +172,8 @@ async def kiosk(db, catalogue) -> tuple[Client, str]:
 class MemoryStorage:
     """The blob store, in a dict.
 
-    The suite already needs PostgreSQL and Redis; a third container to hold two
-    hundred bytes of test JPEG would be a poor trade. This is the reason
-    `core.storage.Storage` is a protocol rather than the S3 client itself.
+    A third container for two hundred bytes of test JPEG would be a poor trade,
+    which is why `core.storage.Storage` is a protocol rather than an S3 client.
     """
 
     def __init__(self) -> None:
@@ -238,8 +234,7 @@ def scope_of(catalogue):
 async def token_for(db, admin_user, dashboard):
     """Mint an access token carrying exactly the given scopes.
 
-    Lets a test assert on authorization directly, without running a login flow
-    it is not the subject of.
+    Lets a test assert on authorization without running a login flow.
     """
     from provider.authz.services import token_service
 
@@ -305,9 +300,8 @@ async def third_party(db, catalogue, unheld_scope) -> Client:
 def no_grace(monkeypatch):
     """Turn off the refresh replay window.
 
-    A test that re-presents a spent token straight away is, by default, a
-    retry — which is the point of KI-16's fix. Tests about *theft* need the
-    window closed, and waiting thirty seconds for it is not an option.
+    By default a token re-presented straight away is a retry, which is the point
+    of KI-16's fix. Tests about *theft* need the window closed.
     """
     monkeypatch.setattr(settings, "iden_refresh_grace_period", 0)
 
@@ -397,9 +391,8 @@ async def self_headers(token_for, catalogue):
 async def stale_headers(db, member, dashboard, catalogue):
     """A token for a sign-in that happened an hour ago.
 
-    The clock is moved in the token rather than in the process: `auth_time` is
-    what the freshness check reads, and minting it old is both closer to the
-    real case and free of global state.
+    The clock moves in the token rather than the process: `auth_time` is what the
+    freshness check reads, and no global state is involved.
     """
     from datetime import timedelta
 

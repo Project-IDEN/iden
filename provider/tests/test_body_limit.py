@@ -1,10 +1,8 @@
 """A ceiling on the request body, in the application rather than only the proxy.
 
 FastAPI reads a JSON body in full before Pydantic sees it, and a multipart upload
-is spooled to a temporary file while it is parsed. Neither had a limit, so an
-unauthenticated caller could make the provider hold as much memory — or write as
-much disk — as it was willing to send. `deploy/nginx` refuses these earlier; these
-tests are about the limit that is still there when it does not.
+is spooled to disk while it is parsed — both reachable without a credential.
+`deploy/nginx` refuses these earlier; this is the limit that survives it.
 """
 
 import pytest
