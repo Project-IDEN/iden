@@ -76,6 +76,12 @@ class Settings(BaseSettings):
     # to exhaust the machine's CPU, since argon2 is expensive for the server.
     iden_rate_limit_enabled: bool = True
 
+    # Developer self-service. How many applications one person may register
+    # before an administrator has to get involved — a cap, not a policy: a
+    # showcase with fifty participants should not let one of them fill the
+    # clients table.
+    iden_developer_max_clients: int = 5
+
     # Bootstrap
     iden_bootstrap_admin_email: str = "admin@localhost"
     iden_bootstrap_admin_password: str = ""
@@ -104,6 +110,10 @@ class Settings(BaseSettings):
     @property
     def entity_audience(self) -> str:
         return f"{self.iden_issuer}/entity"
+
+    @property
+    def developer_audience(self) -> str:
+        return f"{self.iden_issuer}/developer"
 
     @property
     def biometric_audience(self) -> str:

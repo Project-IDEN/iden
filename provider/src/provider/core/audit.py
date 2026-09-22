@@ -26,7 +26,13 @@ from provider.shared.models import AuditEvent, User
 # `/oauth2/token` is deliberately absent: a refresh happens every few minutes
 # per active session, and issuance is already implied by the login that
 # preceded it. Revocation is here because it destroys something.
-AUDITED_PREFIXES = ("/admin", "/entity", "/api/v1/auth", "/oauth2/revoke")
+AUDITED_PREFIXES = (
+    "/admin",
+    "/entity",
+    "/developer",
+    "/api/v1/auth",
+    "/oauth2/revoke",
+)
 
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 

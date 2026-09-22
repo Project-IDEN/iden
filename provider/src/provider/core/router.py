@@ -31,6 +31,9 @@ from provider.authz.discovery.routes import router as discovery_router  # noqa: 
 from provider.authz.login.routes import router as login_router  # noqa: E402
 from provider.authz.oauth.routes import router as oauth_router  # noqa: E402
 from provider.authz.recovery.routes import router as recovery_router  # noqa: E402
+from provider.developer.clients.routes import (  # noqa: E402
+    router as developer_clients_router,
+)
 from provider.entity.connections.routes import (  # noqa: E402
     router as entity_connections_router,
 )
@@ -68,6 +71,8 @@ router.include_router(entity_totp_router)
 router.include_router(entity_sessions_router)
 router.include_router(entity_connections_router)
 router.include_router(entity_permissions_router)
+
+router.include_router(developer_clients_router)
 
 router.include_router(media_router)
 

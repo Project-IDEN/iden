@@ -29,27 +29,43 @@ class TestAuthorization:
 
 class TestListing:
     async def test_lists_the_system_apis(self, client, admin_headers):
-        body = (await client.get("/admin/apis", headers=admin_headers)).json()
+        """Named against the catalogue: `system_apis()` is what the seed
+        registers, so a new one does not need this test edited twice."""
+        from provider.shared.scopes import system_apis
 
-        assert {api["name"] for api in body["items"]} == {"admin", "entity"}
-        assert body["meta"]["total"] == 2
+        body = (await client.get("/admin/apis", headers=admin_headers)).json()
+        expected = {spec.name for spec in system_apis()}
+
+        assert {api["name"] for api in body["items"]} == expected
+        assert body["meta"]["total"] == len(expected)
 
     async def test_reports_scope_counts(self, client, admin_headers):
         """Counted against the catalogue rather than a literal, so adding a
         scope does not require editing this test."""
-        from provider.shared.scopes import ADMIN_SCOPES, ENTITY_SCOPES
+        from provider.shared.scopes import (
+            ADMIN_SCOPES,
+            DEVELOPER_SCOPES,
+            ENTITY_SCOPES,
+        )
 
         body = (await client.get("/admin/apis", headers=admin_headers)).json()
         by_name = {api["name"]: api for api in body["items"]}
 
         assert by_name["admin"]["scopeCount"] == len(ADMIN_SCOPES)
         assert by_name["entity"]["scopeCount"] == len(ENTITY_SCOPES)
+        assert by_name["developer"]["scopeCount"] == len(DEVELOPER_SCOPES)
 
     async def test_pagination_limits_and_reports_total(self, client, admin_headers):
+        from provider.shared.scopes import system_apis
+
         body = (await client.get("/admin/apis?limit=1", headers=admin_headers)).json()
 
         assert len(body["items"]) == 1
-        assert body["meta"] == {"total": 2, "limit": 1, "offset": 0}
+        assert body["meta"] == {
+            "total": len(system_apis()),
+            "limit": 1,
+            "offset": 0,
+        }
 
 
 class TestCreation:

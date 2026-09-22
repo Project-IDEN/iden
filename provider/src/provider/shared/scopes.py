@@ -78,6 +78,18 @@ ENTITY_SCOPES = (
     ScopeSpec("entity:connections:revoke", "Withdraw an application's access."),
 )
 
+# Self-service application registration, for people outside the organization who
+# integrate with IDEN. Deliberately its own API rather than an `entity:` scope:
+# `ENTITY_SCOPES` is handed wholesale to the `member` role, so anything added
+# there makes every account a developer.
+DEVELOPER_SCOPES = (
+    ScopeSpec("developer:clients:read", "View the applications you registered."),
+    ScopeSpec(
+        "developer:clients:write",
+        "Register your own applications and rotate their secrets.",
+    ),
+)
+
 BIOMETRIC_SCOPES = (
     ScopeSpec("biometric:enroll", "Enrol a face template."),
     ScopeSpec("biometric:verify", "Verify a face against a claimed identity."),
@@ -100,6 +112,12 @@ def system_apis() -> tuple[ApiSpec, ...]:
             description="Self-service for the signed-in person.",
             scopes=ENTITY_SCOPES,
         ),
+        ApiSpec(
+            name="developer",
+            audience=settings.developer_audience,
+            description="Self-service application registration for developers.",
+            scopes=DEVELOPER_SCOPES,
+        ),
     )
     if settings.iden_biometric_enabled:
         apis += (
@@ -116,15 +134,24 @@ def system_apis() -> tuple[ApiSpec, ...]:
 def system_roles() -> tuple[RoleSpec, ...]:
     admin = tuple(s.value for s in ADMIN_SCOPES)
     entity = tuple(s.value for s in ENTITY_SCOPES)
+    developer = tuple(s.value for s in DEVELOPER_SCOPES)
     return (
         RoleSpec(
             name="administrator",
             description="Full control over the deployment.",
-            scopes=admin + entity,
+            scopes=admin + entity + developer,
         ),
         RoleSpec(
             name="member",
             description="An ordinary person with self-service access only.",
             scopes=entity,
+        ),
+        RoleSpec(
+            name="developer",
+            description=(
+                "Registers their own applications against IDEN. No authority "
+                "over anyone else's application, and none over the directory."
+            ),
+            scopes=entity + developer,
         ),
     )

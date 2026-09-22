@@ -332,6 +332,54 @@ async def member(db, catalogue) -> User:
 
 
 @pytest.fixture
+async def developer(db, catalogue) -> User:
+    """Someone who registers their own application against IDEN — the showcase
+    participant. Self-service only; no authority over the directory."""
+    user = User(
+        email="dev@test.local",
+        username="dev",
+        display_name="A Developer",
+        password_hash=hash_secret("correct-horse-battery-staple"),
+    )
+    user.roles = [catalogue["roles"]["developer"]]
+    db.add(user)
+    await db.commit()
+    await db.refresh(user, ["groups", "roles", "scopes"])
+    return user
+
+
+@pytest.fixture
+async def other_developer(db, catalogue) -> User:
+    """A second one, so 'only your own applications' is testable."""
+    user = User(
+        email="dev2@test.local",
+        username="dev2",
+        display_name="Another Developer",
+        password_hash=hash_secret("correct-horse-battery-staple"),
+    )
+    user.roles = [catalogue["roles"]["developer"]]
+    db.add(user)
+    await db.commit()
+    await db.refresh(user, ["groups", "roles", "scopes"])
+    return user
+
+
+@pytest.fixture
+async def developer_headers(token_for, developer, catalogue):
+    return await token_for(
+        *[v for v in catalogue["scopes"] if v.startswith("developer:")], user=developer
+    )
+
+
+@pytest.fixture
+async def other_developer_headers(token_for, other_developer, catalogue):
+    return await token_for(
+        *[v for v in catalogue["scopes"] if v.startswith("developer:")],
+        user=other_developer,
+    )
+
+
+@pytest.fixture
 async def entity_headers(token_for, member, catalogue):
     return await token_for(
         *[v for v in catalogue["scopes"] if v.startswith("entity:")], user=member

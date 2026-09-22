@@ -33,7 +33,7 @@ class AccessToken:
 # APIs itself under exactly these names. A scope outside this set has an
 # audience only its own registration knows, so guessing one would mint a
 # nonexistent expectation and 401 every request that satisfied it.
-SYSTEM_SCOPE_PREFIXES = frozenset({"admin", "entity", "biometric"})
+SYSTEM_SCOPE_PREFIXES = frozenset({"admin", "entity", "developer", "biometric"})
 
 
 def _audience_for(scope: str) -> str:

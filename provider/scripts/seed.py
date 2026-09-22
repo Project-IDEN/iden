@@ -192,7 +192,9 @@ async def main() -> None:
         scopes = await seed_catalogue(session)
         roles = await seed_roles(session, scopes)
 
-        admin_scopes = [v for v in scopes if v.startswith(("admin:", "entity:"))]
+        dashboard_scopes = [
+            v for v in scopes if v.startswith(("admin:", "entity:", "developer:"))
+        ]
         biometric_scopes = [v for v in scopes if v.startswith("biometric:")]
 
         await seed_client(
@@ -205,7 +207,7 @@ async def main() -> None:
             # First-party: consenting to your own organization's dashboard is noise.
             skip_consent=True,
             scopes=scopes,
-            grantable=admin_scopes,
+            grantable=dashboard_scopes,
             granted=[],
         )
         kiosk_secret = await seed_client(

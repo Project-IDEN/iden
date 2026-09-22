@@ -15,14 +15,19 @@ import asyncio
 from datetime import timedelta
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from provider.authz.oauth.errors import InvalidGrant
 from provider.authz.oauth.service import consume_code
 from provider.authz.services import token_service as tokens
 from provider.authz.services.pkce import create_challenge
+from provider.core.config import settings
 from provider.core.security import generate_token, hash_token
-from provider.shared.models import AuthorizationCode
+from provider.developer.clients import service as developer_service
+from provider.developer.clients.errors import ApplicationQuotaReached
+from provider.developer.clients.schemas import ApplicationCreate
+from provider.shared.models import AuthorizationCode, Client, User
 
 pytestmark = pytest.mark.usefixtures("catalogue")
 
@@ -112,5 +117,67 @@ async def test_a_second_refresh_blocks_until_the_first_commits(
         await first.commit()
 
         with pytest.raises(tokens.RefreshTokenReuse):
+            await asyncio.wait_for(pending, timeout=5)
+        await second.rollback()
+
+
+async def test_two_simultaneous_registrations_cannot_exceed_the_cap(
+    engine, db, developer, monkeypatch
+):
+    """The application quota is a count followed by an insert.
+
+    Without the lock both registrations count the same applications, both find
+    room, and one person ends up over the cap. Nothing is escalated by that —
+    it is a row, not a privilege — but the cap may as well mean what it says.
+
+    Note which assertion does the work here. The second call blocks either way:
+    inserting a client takes a `FOR KEY SHARE` lock on the owner it references,
+    and that already conflicts with the open transaction. What the lock changes
+    is *where* it blocks — before the count rather than after it — so the
+    refusal at the end is the assertion that fails when it is removed.
+    """
+    monkeypatch.setattr(settings, "iden_developer_max_clients", 1)
+
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    async with factory() as first, factory() as second:
+        # A registration already in flight: the owner's row locked and its
+        # client inserted, nothing committed. `create_application` cannot be
+        # held open from out here — it commits — so this stands in for it.
+        await first.execute(
+            select(User.id).where(User.id == developer.id).with_for_update()
+        )
+        first.add(
+            Client(
+                client_id="showcase-in-flight",
+                name="Showcase",
+                client_type="public",
+                allowed_grants=["authorization_code", "refresh_token"],
+                redirect_uris=["https://showcase.example.org/callback"],
+                owner_user_id=developer.id,
+            )
+        )
+        await first.flush()
+
+        pending = asyncio.create_task(
+            developer_service.create_application(
+                second,
+                developer,
+                ApplicationCreate(
+                    name="Showcase",
+                    client_type="public",
+                    redirect_uris=["https://showcase.example.org/callback"],
+                ),
+            )
+        )
+        await asyncio.sleep(SETTLE)
+
+        assert not pending.done(), "the second registration was not concurrent"
+
+        await first.commit()
+
+        # Counted after the wait, not before it, so the first one's row is
+        # there to be seen. This is the assertion the lock is for.
+        with pytest.raises(ApplicationQuotaReached):
             await asyncio.wait_for(pending, timeout=5)
         await second.rollback()
