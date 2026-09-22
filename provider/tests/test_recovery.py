@@ -135,3 +135,32 @@ class TestConfirming:
 
         assert not verify_secret(user.password_hash, ADMIN_PASSWORD)
         assert verify_secret(user.password_hash, NEW_PASSWORD)
+
+
+class TestNotifierDoesNotLogTheToken:
+    """The reset link is a credential for fifteen minutes.
+
+    In development the log is the only inbox there is, so it carries the link.
+    Anywhere else a log is aggregated and retained, and a link in it is an
+    account takeover waiting to be read.
+    """
+
+    async def test_the_body_is_withheld_outside_development(self, monkeypatch, caplog):
+        from provider.core import notifier
+
+        monkeypatch.setattr(notifier.settings, "iden_env", "prod")
+        await notifier.send(
+            to="someone@example.org", subject="Reset your password", body="token=SECRET"
+        )
+
+        assert "SECRET" not in caplog.text
+
+    async def test_the_body_is_logged_in_development(self, monkeypatch, caplog):
+        from provider.core import notifier
+
+        monkeypatch.setattr(notifier.settings, "iden_env", "dev")
+        await notifier.send(
+            to="someone@example.org", subject="Reset your password", body="token=SECRET"
+        )
+
+        assert "SECRET" in caplog.text
