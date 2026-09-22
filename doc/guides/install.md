@@ -259,7 +259,7 @@ docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed
 ```
 
 ```text
-Seeded 25 system scopes across 2 APIs.
+Seeded 28 system scopes across 3 APIs.
 
   Bootstrap administrator — shown once, change it after first login
     email:    admin@localhost

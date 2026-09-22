@@ -52,10 +52,11 @@ than redirecting somewhere it has not verified.
 |---|---|
 | `400` | Malformed, or an invalid grant. |
 | `401` | *Authenticate again* — missing, expired, revoked, or wrong-audience token. |
-| `403` | *Authenticating will not help* — a valid token without the permission. Also freshness refusals. |
+| `403` | *Authenticating will not help* — a valid token without the permission. Also freshness refusals, and the delegation refusals `cannot_delegate` and `cannot_administer`. |
 | `404` | No such thing. |
 | `409` | Conflicts with what exists — a name taken, or a system row that cannot be changed. |
 | `422` | The request was understood and is not acceptable. |
+| `413` | The request body is larger than the endpoint accepts — `payload_too_large`. |
 | `429` | Rate limited. `Retry-After` says how long. |
 | `503` | PostgreSQL or Redis is unreachable. `Retry-After` says when to try again; the request itself was fine. |
 

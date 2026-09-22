@@ -15,7 +15,7 @@ Managing the deployment. The `administrator` role carries all of them.
 |---|---|
 | `admin:users:read` | View users, their roles, and their direct grants. |
 | `admin:users:write` | Create, update, and delete users, reset their passwords, and clear a lost authenticator. |
-| `admin:grants:write` | Assign roles and individual scopes to a person. Split out of `admin:users:write`, because assigning permissions is the one administrative act that raises somebody's authority — see [Delegation](#delegation). |
+| `admin:grants:write` | Assign roles and individual scopes to a person. Separate from `admin:users:write`, because assigning permissions is the one administrative act that raises somebody's authority — see [Delegation](#delegation). |
 | `admin:groups:read` | View groups, their members, and their roles. |
 | `admin:groups:write` | Create, update, and delete groups and membership. |
 | `admin:roles:read` | View roles and the scopes they bundle. |

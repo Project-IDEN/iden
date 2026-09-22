@@ -93,12 +93,11 @@ mint a token for anyone. Mount it read-only, keep it off the image, and back it 
 would be comfortable keeping a password.
 
 **`IDEN_TOTP_KEY_FILE`** encrypts the one credential IDEN cannot hash. Verifying a time-based code
-means recomputing it, so the secret has to be readable — which is why a database dump used to be a
-working second factor for every enrolled account, while the passwords beside it were argon2. The
-key lives in the signing key directory by default, because that is already mounted read-only, kept
-out of the image, and backed up. It is not interchangeable with anything: replace it and every
-enrolled authenticator stops verifying, and those people cannot sign in until their enrolment is
-cleared.
+means recomputing it, so the secret has to be readable — and without this a database dump would be a
+working second factor for every enrolled account, while the passwords beside it are argon2. The key
+lives in the signing key directory by default, which is already mounted read-only, kept out of the
+image and backed up. Replace it and every enrolled authenticator stops verifying, and those people
+cannot sign in until an administrator clears their enrolment.
 
 **`IDEN_ENV=prod`** makes the session cookie `Secure`, so it is never sent over plain HTTP. It also
 withholds the interactive docs, which are the complete shape of the admin API.

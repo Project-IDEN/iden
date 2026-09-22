@@ -94,6 +94,7 @@ Every `/admin/*` and `/entity/*` route is gated by a permission named in its des
 | `POST` | `/admin/users/{user_id}/reset-password` | Reset a user's password |
 | `PUT` | `/admin/users/{user_id}/roles` | Set a user's roles |
 | `PUT` | `/admin/users/{user_id}/scopes` | Set a user's direct scope grants |
+| `DELETE` | `/admin/users/{user_id}/totp` | Clear a user's authenticator |
 
 ### Sign-in and recovery
 
