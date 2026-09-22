@@ -48,6 +48,75 @@ RESERVED_CLAIMS = frozenset(
 EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+$")
 PHONE_PATTERN = re.compile(r"^\+?[0-9 ()\-]{6,20}$")
 
+# A ceiling on one stored answer. Values live in a `Text` column, so without this
+# a single writable field is somewhere to put as much data as the request body
+# allows — and `pattern` below is then run over all of it.
+MAX_VALUE_LENGTH = 4096
+
+# The rules a field may carry, and the type each one has to be. An administrator
+# writes this dict, and everything in it is applied to values other people
+# submit, so it is checked when the *field* is defined rather than when someone
+# fills it in: a rule that cannot be applied is the administrator's mistake to
+# see, not a 500 for whoever happens to save their profile next.
+VALIDATOR_TYPES: dict[str, type] = {
+    "pattern": str,
+    "min": int,
+    "max": int,
+    "min_length": int,
+    "max_length": int,
+}
+
+# `pattern` is a regular expression IDEN runs against caller-supplied text, and
+# Python's engine backtracks: `(a+)+$` over a few thousand characters does not
+# finish. Neither a length cap nor `MAX_VALUE_LENGTH` makes that impossible, but
+# together they bound it to something a worker survives. A field's format rule
+# does not need more than this.
+MAX_PATTERN_LENGTH = 256
+
+
+class InvalidValidators(ValueError):
+    """The rules on a field definition cannot be applied."""
+
+
+def check_validators(rules: dict) -> dict:
+    """Validate a field's `validators`, or raise `InvalidValidators`.
+
+    Returns the rules unchanged: this says whether they are usable, it does not
+    reshape them.
+    """
+    if unknown := sorted(set(rules) - set(VALIDATOR_TYPES)):
+        allowed = ", ".join(sorted(VALIDATOR_TYPES))
+        raise InvalidValidators(
+            f"unknown validator: {', '.join(unknown)}. Allowed: {allowed}."
+        )
+
+    for name, value in rules.items():
+        expected = VALIDATOR_TYPES[name]
+        # `bool` is a subclass of `int`, and `min_length: true` is a mistake
+        # rather than a length of one.
+        if not isinstance(value, expected) or isinstance(value, bool):
+            raise InvalidValidators(f"{name} must be {expected.__name__}")
+
+    if (pattern := rules.get("pattern")) is not None:
+        if len(pattern) > MAX_PATTERN_LENGTH:
+            raise InvalidValidators(
+                f"pattern must be at most {MAX_PATTERN_LENGTH} characters"
+            )
+        try:
+            re.compile(pattern)
+        except re.error as exc:
+            raise InvalidValidators(
+                f"pattern is not a valid expression: {exc}"
+            ) from exc
+
+    for name in ("min_length", "max_length"):
+        if (
+            length := rules.get(name)
+        ) is not None and not 0 <= length <= MAX_VALUE_LENGTH:
+            raise InvalidValidators(f"{name} must be between 0 and {MAX_VALUE_LENGTH}")
+
+    return rules
+
 
 class InvalidValue(ValueError):
     """The value does not satisfy the field's definition."""
@@ -64,6 +133,10 @@ def coerce(field: ProfileField, raw: Any) -> str:
         return ""
 
     value = _check_type(field, raw)
+    if len(value) > MAX_VALUE_LENGTH:
+        raise InvalidValue(
+            f"{field.label} must be at most {MAX_VALUE_LENGTH} characters."
+        )
     _check_validators(field, value)
     return value
 

@@ -2,9 +2,22 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_validator, model_validator
 
 from provider.core.schemas import CamelCaseBaseModel
+from provider.shared.profile import check_validators
+
+# Named as they are stored and as `shared.profile` reads them — snake_case, not
+# this API's usual camelCase, because the dict is written to a JSONB column
+# verbatim rather than through a model. The documentation here said `minLength`
+# and `maxLength`, which nothing ever read: a field defined with those names
+# silently enforced no length at all.
+VALIDATORS_DESCRIPTION = (
+    "Optional rules, keyed by name: `pattern` (a regular expression), `min` and "
+    "`max` (whole numbers, for an `integer` field), `min_length` and "
+    "`max_length`. Unknown names are refused rather than ignored, so a typo "
+    "cannot look like a rule that is being applied."
+)
 
 DataType = Literal[
     "string", "integer", "boolean", "date", "enum", "email", "phone", "url"
@@ -31,10 +44,7 @@ class ProfileFieldCreate(CamelCaseBaseModel):
             "sharing a student number under load."
         ),
     )
-    validators: dict = Field(
-        default_factory=dict,
-        description="Any of `pattern`, `min`, `max`, `minLength`, `maxLength`.",
-    )
+    validators: dict = Field(default_factory=dict, description=VALIDATORS_DESCRIPTION)
     user_readable: bool = True
     user_writable: bool = Field(
         default=False,
@@ -57,6 +67,11 @@ class ProfileFieldCreate(CamelCaseBaseModel):
     )
     display_order: int = 0
 
+    @field_validator("validators")
+    @classmethod
+    def check_rules(cls, rules: dict) -> dict:
+        return check_validators(rules)
+
     @model_validator(mode="after")
     def claims_come_in_pairs(self):
         if bool(self.claim_name) != bool(self.claim_scope):
@@ -72,12 +87,17 @@ class ProfileFieldUpdate(CamelCaseBaseModel):
     description: str | None = None
     options: list[str] | None = None
     required: bool | None = None
-    validators: dict | None = None
+    validators: dict | None = Field(default=None, description=VALIDATORS_DESCRIPTION)
     user_readable: bool | None = None
     user_writable: bool | None = None
     claim_name: str | None = None
     claim_scope: str | None = None
     display_order: int | None = None
+
+    @field_validator("validators")
+    @classmethod
+    def check_rules(cls, rules: dict | None) -> dict | None:
+        return None if rules is None else check_validators(rules)
 
 
 class ProfileFieldResponse(CamelCaseBaseModel):

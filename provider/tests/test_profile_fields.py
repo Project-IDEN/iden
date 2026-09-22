@@ -397,3 +397,57 @@ class TestPresets:
         headers = await token_for("admin:users:read")
         response = await client.get("/admin/profile-fields/presets", headers=headers)
         assert response.status_code == 403
+
+
+class TestValidatorRules:
+    """`validators` is applied to text other people submit, so it is checked
+    when the field is defined — not when someone saves their profile."""
+
+    async def attempt(self, client, admin_headers, rules):
+        return await client.post(
+            "/admin/profile-fields",
+            json={**STUDENT_ID, "validators": rules},
+            headers=admin_headers,
+        )
+
+    async def test_an_uncompilable_pattern_is_refused(self, client, admin_headers):
+        response = await self.attempt(client, admin_headers, {"pattern": "^[0-9"})
+        assert response.status_code == 422
+
+    async def test_an_enormous_pattern_is_refused(self, client, admin_headers):
+        """A backtracking expression over a long value does not finish. Capping
+        both the pattern and the value bounds what one worker can be made to do."""
+        response = await self.attempt(client, admin_headers, {"pattern": "(a+)+" * 200})
+        assert response.status_code == 422
+
+    async def test_an_unknown_rule_is_refused_rather_than_ignored(
+        self, client, admin_headers
+    ):
+        """`minLength` is what the documentation used to claim. Nothing read it,
+        so a field defined with it enforced no length at all."""
+        response = await self.attempt(client, admin_headers, {"minLength": 3})
+        assert response.status_code == 422
+
+    async def test_a_rule_of_the_wrong_type_is_refused(self, client, admin_headers):
+        """Applied as written, this raised a TypeError deep inside somebody
+        else's profile save."""
+        response = await self.attempt(client, admin_headers, {"max_length": "long"})
+        assert response.status_code == 422
+
+    async def test_an_update_is_held_to_the_same_rules(self, client, admin_headers):
+        created = await define(client, admin_headers, STUDENT_ID)
+
+        response = await client.patch(
+            f"/admin/profile-fields/{created['id']}",
+            json={"validators": {"pattern": "^[0-9"}},
+            headers=admin_headers,
+        )
+        assert response.status_code == 422
+
+    async def test_every_shipped_preset_is_valid(self):
+        """The presets are meant to be posted straight back to this API."""
+        from provider.shared.profile import check_validators
+        from provider.shared.profile_presets import PRESETS
+
+        for preset in PRESETS:
+            check_validators(preset.validators)
