@@ -225,6 +225,18 @@ class Client(Base, TimestampMixin):
     )
     skip_consent: Mapped[bool] = mapped_column(Boolean, default=False)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Who registered it through developer self-service. Null means the
+    # organization owns it — the bootstrap clients, and anything an
+    # administrator registered. `/developer/clients` only ever sees rows
+    # carrying the caller's own id, which is what keeps one registrant out of
+    # another's application.
+    #
+    # SET NULL rather than CASCADE: deleting a person should not silently break
+    # every application they registered. It becomes organization-owned and an
+    # administrator decides what happens to it.
+    owner_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), index=True
+    )
 
     scopes: Mapped[list[ClientScope]] = relationship(
         back_populates="client", cascade="all, delete-orphan", lazy="selectin"

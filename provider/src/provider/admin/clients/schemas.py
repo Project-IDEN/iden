@@ -102,6 +102,13 @@ class ClientResponse(CamelCaseBaseModel):
     backchannel_logout_session_required: bool
     skip_consent: bool
     is_system: bool
+    owner_user_id: UUID | None = Field(
+        description=(
+            "Who registered it through `/developer/clients`. Null means the "
+            "organization owns it — a bootstrap client, or one an administrator "
+            "registered here."
+        )
+    )
     grantable_scopes: list[ScopeSummary]
     granted_scopes: list[ScopeSummary]
     created_at: datetime

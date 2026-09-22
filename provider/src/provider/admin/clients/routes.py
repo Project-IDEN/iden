@@ -35,6 +35,7 @@ def to_response(client) -> ClientResponse:
         backchannel_logout_session_required=client.backchannel_logout_session_required,
         skip_consent=client.skip_consent,
         is_system=client.is_system,
+        owner_user_id=client.owner_user_id,
         grantable_scopes=[
             ScopeSummary(id=link.scope.id, value=link.scope.value)
             for link in sorted(client.scopes, key=lambda link: link.scope.value)
