@@ -1509,6 +1509,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/developer/clients": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the applications you registered
+         * @description Self-service registration. An application registered here always uses the authorization code flow with PKCE, always shows the consent screen, and can request the OpenID Connect scopes — `openid`, `profile`, `email`, `offline_access` — which is everything **Continue with IDEN** needs. Any scope beyond those, and the `client_credentials` grant, are an administrator's decision.
+         *
+         *     Only your own applications. Anything registered by an administrator, or by anyone else, is not visible here.
+         *
+         *     **Required scope:** `developer:clients:read`
+         */
+        get: operations["list_applications_developer_clients_get"];
+        put?: never;
+        /**
+         * Register an application
+         * @description Self-service registration. An application registered here always uses the authorization code flow with PKCE, always shows the consent screen, and can request the OpenID Connect scopes — `openid`, `profile`, `email`, `offline_access` — which is everything **Continue with IDEN** needs. Any scope beyond those, and the `client_credentials` grant, are an administrator's decision.
+         *
+         *     The `clientId` is generated — you do not choose it. A confidential application's secret is returned **once**, in this response, and is argon2-hashed on the way in; it cannot be recovered, only rotated.
+         *
+         *     **Required scope:** `developer:clients:write`
+         */
+        post: operations["create_application_developer_clients_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/developer/clients/{application_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read one of your applications
+         * @description **Required scope:** `developer:clients:read`
+         */
+        get: operations["read_application_developer_clients__application_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete one of your applications
+         * @description Every token and consent grant belonging to the application goes with it, and everyone signed in through it is signed out.
+         *
+         *     **Required scope:** `developer:clients:write`
+         */
+        delete: operations["delete_application_developer_clients__application_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update one of your applications
+         * @description `clientId` and `clientType` are immutable — both are baked into issued tokens and into however the application is already deployed. Register a new one to change either.
+         *
+         *     **Required scope:** `developer:clients:write`
+         */
+        patch: operations["update_application_developer_clients__application_id__patch"];
+        trace?: never;
+    };
+    "/developer/clients/{application_id}/rotate-secret": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate an application's secret
+         * @description Issues a new secret and returns it **once**. The previous secret stops working immediately, so deploy the new one before rotating.
+         *
+         *     **Required scope:** `developer:clients:write`
+         */
+        post: operations["rotate_secret_developer_clients__application_id__rotate_secret_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/media/avatars/{name}": {
         parameters: {
             query?: never;
@@ -1665,6 +1751,149 @@ export interface components {
             name?: string | null;
             /** Description */
             description?: string | null;
+        };
+        /** ApplicationCreate */
+        ApplicationCreate: {
+            /**
+             * Name
+             * @description Shown to people on the consent screen. Name it after the app.
+             */
+            name: string;
+            /**
+             * Clienttype
+             * @description `public` — a browser or mobile app that cannot keep a secret; PKCE proves it. `confidential` — a server-side app; gets a secret.
+             * @enum {string}
+             */
+            clientType: "public" | "confidential";
+            /**
+             * Redirecturis
+             * @description Where `/authorize` may send the browser back. `https://` anywhere; `http://` only on localhost or 127.0.0.1; or a reverse-DNS private-use scheme for a native app, e.g. `com.example.app:/callback` (RFC 8252). Printable ASCII only, and no wildcards, fragments, or credentials in the authority — the value is matched **exactly** at `/authorize`, so register the URI your app actually sends.
+             */
+            redirectUris: string[];
+            /**
+             * Postlogoutredirecturis
+             * @description Where `/oauth2/logout` may return to. Same rules as `redirectUris`.
+             */
+            postLogoutRedirectUris?: string[];
+        };
+        /** ApplicationCreated */
+        ApplicationCreated: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Clientid
+             * @description Generated by IDEN. This is what your app sends at `/authorize`.
+             */
+            clientId: string;
+            /** Name */
+            name: string;
+            /**
+             * Clienttype
+             * @enum {string}
+             */
+            clientType: "public" | "confidential";
+            /**
+             * Allowedgrants
+             * @description Fixed: the authorization code flow, with refresh.
+             */
+            allowedGrants: string[];
+            /** Redirecturis */
+            redirectUris: string[];
+            /** Postlogoutredirecturis */
+            postLogoutRedirectUris: string[];
+            /**
+             * Grantablescopes
+             * @description Everything this application may put in its `scope` parameter. The OpenID Connect scopes are always there; anything beyond them was attached by an administrator.
+             */
+            grantableScopes: string[];
+            /**
+             * Hassecret
+             * @description Whether a client secret exists. Its value is never readable.
+             */
+            hasSecret: boolean;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            /**
+             * Clientsecret
+             * @description Shown **once**, here. It is argon2-hashed on the way in and cannot be recovered — only rotated. Null for a public application.
+             */
+            clientSecret?: string | null;
+        };
+        /** ApplicationList */
+        ApplicationList: {
+            /** Applications */
+            applications: components["schemas"]["ApplicationResponse"][];
+            /**
+             * Remaining
+             * @description How many more applications this account may register.
+             */
+            remaining: number;
+        };
+        /** ApplicationResponse */
+        ApplicationResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Clientid
+             * @description Generated by IDEN. This is what your app sends at `/authorize`.
+             */
+            clientId: string;
+            /** Name */
+            name: string;
+            /**
+             * Clienttype
+             * @enum {string}
+             */
+            clientType: "public" | "confidential";
+            /**
+             * Allowedgrants
+             * @description Fixed: the authorization code flow, with refresh.
+             */
+            allowedGrants: string[];
+            /** Redirecturis */
+            redirectUris: string[];
+            /** Postlogoutredirecturis */
+            postLogoutRedirectUris: string[];
+            /**
+             * Grantablescopes
+             * @description Everything this application may put in its `scope` parameter. The OpenID Connect scopes are always there; anything beyond them was attached by an administrator.
+             */
+            grantableScopes: string[];
+            /**
+             * Hassecret
+             * @description Whether a client secret exists. Its value is never readable.
+             */
+            hasSecret: boolean;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /**
+         * ApplicationUpdate
+         * @description Every field is optional; the ones left out are untouched.
+         *
+         *     `clientType` is absent on purpose — it decides whether a secret exists at
+         *     all, and flipping it would either orphan a live secret or silently leave an
+         *     app that believes it has one.
+         */
+        ApplicationUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Redirecturis */
+            redirectUris?: string[] | null;
+            /** Postlogoutredirecturis */
+            postLogoutRedirectUris?: string[] | null;
         };
         /** AuditEventResponse */
         AuditEventResponse: {
@@ -1940,6 +2169,11 @@ export interface components {
             skipConsent: boolean;
             /** Issystem */
             isSystem: boolean;
+            /**
+             * Owneruserid
+             * @description Who registered it through `/developer/clients`. Null means the organization owns it — a bootstrap client, or one an administrator registered here.
+             */
+            ownerUserId: string | null;
             /** Grantablescopes */
             grantableScopes: components["schemas"]["provider__admin__clients__schemas__ScopeSummary"][];
             /** Grantedscopes */
@@ -1982,6 +2216,11 @@ export interface components {
             skipConsent: boolean;
             /** Issystem */
             isSystem: boolean;
+            /**
+             * Owneruserid
+             * @description Who registered it through `/developer/clients`. Null means the organization owns it — a bootstrap client, or one an administrator registered here.
+             */
+            ownerUserId: string | null;
             /** Grantablescopes */
             grantableScopes: components["schemas"]["provider__admin__clients__schemas__ScopeSummary"][];
             /** Grantedscopes */
@@ -6759,6 +6998,230 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PermissionsResponse"];
+                };
+            };
+        };
+    };
+    list_applications_developer_clients_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationList"];
+                };
+            };
+        };
+    };
+    create_application_developer_clients_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplicationCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationCreated"];
+                };
+            };
+            /** @description This account has registered its maximum number of applications */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A redirect URI is not allowed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    read_application_developer_clients__application_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description No such application of yours */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_application_developer_clients__application_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such application of yours */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_application_developer_clients__application_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApplicationUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description No such application of yours */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A redirect URI is not allowed */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    rotate_secret_developer_clients__application_id__rotate_secret_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretRotated"];
+                };
+            };
+            /** @description No such application of yours */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Public applications have no secret */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };

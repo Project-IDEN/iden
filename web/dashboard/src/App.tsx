@@ -25,6 +25,8 @@ import { ProfileFieldsRoute } from "./features/admin/profile-fields";
 import { ProfileFieldCreateRoute } from "./features/admin/profile-fields-new";
 import { ProfileFieldEditRoute } from "./features/admin/profile-fields-edit";
 import { AuditRoute } from "./features/admin/audit";
+import { ApplicationsRoute, ApplicationDetailRoute } from "./features/developer/apps";
+import { ApplicationCreateRoute } from "./features/developer/apps-new";
 
 /** Every admin route is gated on the read scope its endpoints require. */
 function guarded(scope: string, element: React.ReactNode) {
@@ -97,6 +99,19 @@ const router = createBrowserRouter(
           element: guarded("admin:profile-fields:write", <ProfileFieldEditRoute />),
         },
         { path: "admin/audit", element: guarded("admin:audit:read", <AuditRoute />) },
+
+        {
+          path: "developer/applications",
+          element: guarded("developer:clients:read", <ApplicationsRoute />),
+        },
+        {
+          path: "developer/applications/new",
+          element: guarded("developer:clients:write", <ApplicationCreateRoute />),
+        },
+        {
+          path: "developer/applications/:applicationId",
+          element: guarded("developer:clients:read", <ApplicationDetailRoute />),
+        },
         { path: "*", element: <Navigate to="/account/profile" replace /> },
       ],
     },

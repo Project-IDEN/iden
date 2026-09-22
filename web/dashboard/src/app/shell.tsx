@@ -13,6 +13,7 @@ import {
 } from "@iden/shared";
 import {
   AppWindow,
+  Blocks,
   Boxes,
   KeyRound,
   ListChecks,
@@ -81,8 +82,18 @@ const ADMIN: NavItem[] = [
   { to: "/admin/audit", label: "Audit log", icon: ScrollText, scope: "admin:audit:read" },
 ];
 
+const DEVELOPER: NavItem[] = [
+  {
+    to: "/developer/applications",
+    label: "Applications",
+    icon: Blocks,
+    scope: "developer:clients:read",
+  },
+];
+
 const SECTIONS: { title: string; items: NavItem[] }[] = [
   { title: "Your account", items: ACCOUNT },
+  { title: "Developer", items: DEVELOPER },
   { title: "Administration", items: ADMIN },
 ];
 

@@ -39,6 +39,13 @@ export const ENTITY_SCOPES = [
 ] as const;
 
 /**
+ * Self-service application registration. Its own API rather than an `entity:`
+ * scope, so holding it is a deliberate grant rather than something every member
+ * gets — see the note in `provider/shared/scopes.py`.
+ */
+export const DEVELOPER_SCOPES = ["developer:clients:read", "developer:clients:write"] as const;
+
+/**
  * Not in the DB and never carry an audience — see `scope_resolver.OIDC_SCOPES`.
  *
  * `offline_access` is what asks for a refresh token (OIDC Core Section 11). The
@@ -50,10 +57,16 @@ export const OIDC_SCOPES = ["openid", "profile", "email", "offline_access"] as c
 
 export type AdminScope = (typeof ADMIN_SCOPES)[number];
 export type EntityScope = (typeof ENTITY_SCOPES)[number];
-export type Scope = AdminScope | EntityScope;
+export type DeveloperScope = (typeof DEVELOPER_SCOPES)[number];
+export type Scope = AdminScope | EntityScope | DeveloperScope;
 
 /** What the dashboard requests at `/authorize`, as the space-delimited string. */
-export const DASHBOARD_SCOPE = [...OIDC_SCOPES, ...ADMIN_SCOPES, ...ENTITY_SCOPES].join(" ");
+export const DASHBOARD_SCOPE = [
+  ...OIDC_SCOPES,
+  ...ADMIN_SCOPES,
+  ...ENTITY_SCOPES,
+  ...DEVELOPER_SCOPES,
+].join(" ");
 
 /** Parses the `scope` claim, which is space-delimited per RFC 6749. */
 export function parseScopes(claim: string | undefined): Set<string> {

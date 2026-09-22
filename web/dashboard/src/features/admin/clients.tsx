@@ -1,4 +1,5 @@
 import {
+  Badge,
   Button,
   ConfirmDialog,
   DataTable,
@@ -27,6 +28,7 @@ const columns: Column<ClientRecord>[] = [
       <span className="inline-flex items-center gap-2">
         {client.name}
         {client.isSystem ? <SystemTag /> : null}
+        {client.ownerUserId ? <Badge variant="outline">self-registered</Badge> : null}
       </span>
     ),
   },
@@ -158,6 +160,18 @@ export function ClientDetailRoute() {
           <dt className="text-caption-upper uppercase text-muted-foreground">Consent</dt>
           <dd className="mt-1 text-body-sm text-body">
             {record.skipConsent ? "Skipped (first-party)" : "Asked every first time"}
+          </dd>
+        </div>
+        <div>
+          <dt className="text-caption-upper uppercase text-muted-foreground">Registered by</dt>
+          <dd className="mt-1 text-body-sm text-body">
+            {record.ownerUserId ? (
+              <Link to={`/admin/users/${record.ownerUserId}`} className="underline">
+                A developer
+              </Link>
+            ) : (
+              "The organization"
+            )}
           </dd>
         </div>
       </dl>
