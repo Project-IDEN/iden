@@ -32,12 +32,32 @@ from provider.shared.models import (
 from provider.shared.scopes import system_apis, system_roles
 
 # The dashboard is served from /console -- the origin root's /admin/* is this
-# API's, and the app's own admin screens have the same names. Both ports because
-# `pnpm dev` serves on 5173 and the container on 3000.
-DASHBOARD_REDIRECT_URIS = [
-    "http://localhost:5173/console/callback",
-    "http://localhost:3000/console/callback",
+# API's, and the app's own admin screens have the same names.
+DASHBOARD_CALLBACK_PATH = "/console/callback"
+
+# Where `pnpm dev` and the standalone container serve it, for a deployment that
+# is somebody's laptop. Added only in dev: on a deployment anyone else can reach,
+# a first-party client that skips consent and may request every admin scope
+# should not also keep two callbacks pointing at the operator's own machine.
+DEV_DASHBOARD_REDIRECT_URIS = [
+    f"http://localhost:5173{DASHBOARD_CALLBACK_PATH}",
+    f"http://localhost:3000{DASHBOARD_CALLBACK_PATH}",
 ]
+
+
+def dashboard_redirect_uris() -> list[str]:
+    """Where the dashboard's own callback actually is.
+
+    Derived from the issuer, because that is what the dashboard sends: it builds
+    its redirect URI from `window.location.origin`, and in the single-origin
+    layout that origin is the issuer. Hard-coding localhost meant a deployment on
+    a real hostname seeded a client whose only registered callback was one no
+    browser would ever arrive from — a sign-in loop with nothing to read.
+    """
+    uris = [f"{settings.iden_issuer.rstrip('/')}{DASHBOARD_CALLBACK_PATH}"]
+    if settings.iden_env == "dev":
+        uris += [uri for uri in DEV_DASHBOARD_REDIRECT_URIS if uri not in uris]
+    return uris
 
 
 async def seed_catalogue(session: AsyncSession) -> dict[str, Scope]:
@@ -113,6 +133,7 @@ async def seed_client(
     """Upsert a bootstrap client. Returns a cleartext secret only when one was generated."""
     client = await session.scalar(select(Client).where(Client.client_id == client_id))
     secret = None
+    created = client is None
 
     if client is None:
         client = Client(client_id=client_id)
@@ -124,7 +145,12 @@ async def seed_client(
     client.name = name
     client.client_type = client_type
     client.allowed_grants = grants
-    client.redirect_uris = redirect_uris
+    # Only on creation. Everything else here is catalogue the seed owns and
+    # should refresh, but a redirect URI is a deployment's own: an administrator
+    # who registers the callback their dashboard is actually served from would
+    # otherwise find it silently removed the next time anyone re-ran the seed.
+    if created:
+        client.redirect_uris = redirect_uris
     client.skip_consent = skip_consent
     client.is_system = True
     await session.flush()
@@ -203,7 +229,7 @@ async def main() -> None:
             name="IDEN Dashboard",
             client_type=ClientType.PUBLIC,
             grants=[GrantType.AUTHORIZATION_CODE, GrantType.REFRESH_TOKEN],
-            redirect_uris=DASHBOARD_REDIRECT_URIS,
+            redirect_uris=dashboard_redirect_uris(),
             # First-party: consenting to your own organization's dashboard is noise.
             skip_consent=True,
             scopes=scopes,
