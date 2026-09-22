@@ -3,36 +3,33 @@
 #
 #   browser --HTTPS--> Cloudflare --tunnel--> cloudflared --HTTP--> nginx --> apps
 #
-# No TLS here on purpose. Cloudflare terminates it at the edge and cloudflared
-# always speaks plain HTTP to the origin, so a `listen 443 ssl` block would
-# never be reached and an http->https redirect would loop forever: cloudflared
-# would follow it back out to Cloudflare and in again. See
+# No TLS here on purpose: Cloudflare terminates it at the edge and cloudflared
+# speaks plain HTTP to the origin, so a `listen 443 ssl` block would never be
+# reached and an http->https redirect would loop forever. See
 # doc/operations/cloudflare-tunnel.md.
 #
-# One origin, three applications, and the split is not arbitrary:
+# One origin, three applications:
 #
 #   /oauth2/*  /.well-known/*  /admin/*  /entity/*  /developer/*
 #   /api/v1/auth/*  /media/*                                 -> provider
 #   /auth/*                                                  -> auth-ui
 #   /console/*                                               -> dashboard
 #
-# The dashboard is on /console rather than the root because the provider's API
-# already owns /admin/*, and the dashboard's own admin screens have the same
-# names. Both frontends are built with a matching Vite `base`, so their assets
-# are served from /auth/assets and /console/assets and cannot collide.
+# The dashboard is on /console because the provider's API owns /admin/* and the
+# dashboard's own admin screens have the same names. Both frontends have a
+# matching Vite `base`, so their assets cannot collide.
 #
-# IDEN_ISSUER, IDEN_AUTH_UI_BASE_URL and the dashboard client's redirect URI
-# must all name this origin. The issuer is compared character for character,
-# and a mismatch fails as a sign-in loop rather than an error.
+# IDEN_ISSUER, IDEN_AUTH_UI_BASE_URL and the dashboard client's redirect URI must
+# all name this origin; the issuer is compared character for character, and a
+# mismatch fails as a sign-in loop rather than an error.
 
 upstream iden_provider  { server provider:8000; keepalive 32; }
 upstream iden_auth_ui   { server auth-ui:4000;  keepalive 16; }
 upstream iden_dashboard { server dashboard:3000; keepalive 16; }
 
-# The network cloudflared connects from. docker-compose.tunnel.yml pins the
-# project's network to this subnet precisely so that this value can be written
-# down rather than looked up after every `up`. Change one and change the other,
-# and keep IDEN_FORWARDED_ALLOW_IPS in deploy/.env in step with both.
+# The network cloudflared connects from; docker-compose.tunnel.yml pins it so
+# this value can be written down rather than looked up after every `up`. Keep
+# IDEN_FORWARDED_ALLOW_IPS in step with both.
 #
 # Everything on this range is trusted to state the caller's address, so keep it
 # as narrow as the deployment allows.
@@ -44,11 +41,10 @@ set_real_ip_from 172.31.250.0/24;
 # the only way in; publish a port to the origin and it stops being.
 real_ip_header CF-Connecting-IP;
 
-# The coarse limit. IDEN's own limits are per account and per address and sit
-# behind Python; this one refuses a flood before Python is involved at all.
-# Keyed on $binary_remote_addr, which real_ip has already corrected — without
-# that this would rate-limit the tunnel as a single client, which is to say the
-# entire internet as one bucket.
+# The coarse limit: IDEN's own are per account and per address and sit behind
+# Python, while this refuses a flood before Python is involved. Keyed on
+# $binary_remote_addr, which real_ip has already corrected — otherwise it would
+# limit the tunnel as one client, which is the entire internet in one bucket.
 limit_req_zone $binary_remote_addr zone=iden_credentials:10m rate=10r/s;
 # Default is 503, which reads as an outage and carries no Retry-After. RFC 6585
 # says 429, and that is what client libraries back off on.
@@ -69,12 +65,9 @@ server {
 
   # --- provider: OIDC protocol and both resource servers ---
 
-  # Exact matches, so they take precedence over the /oauth2/ prefix below. All
-  # three verify a client secret with argon2, which is expensive for the server
-  # in the same way the password endpoints are — and none of them needs a
-  # credential to reach, so the cost is spent before the caller has proved
-  # anything. IDEN limits these per address as well; this one refuses the flood
-  # before Python is involved at all.
+  # Exact matches, taking precedence over the /oauth2/ prefix below. All three
+  # verify a client secret with argon2, and none needs a credential to reach, so
+  # the cost is spent before the caller has proved anything.
   location = /oauth2/token {
     limit_req zone=iden_credentials burst=20 nodelay;
     proxy_pass http://iden_provider;
