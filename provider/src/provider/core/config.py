@@ -1,6 +1,7 @@
 from pathlib import Path
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -84,6 +85,19 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )
+
+    @field_validator("iden_totp_key_file", mode="before")
+    @classmethod
+    def blank_means_unset(cls, value: object) -> object:
+        """An empty value is no value.
+
+        Every other setting here is a `str` with an `""` default, so writing
+        `IDEN_TOTP_KEY_FILE=` in a `.env` — which is what the example file
+        suggests — looks like leaving it alone. Without this it parses to
+        `Path(".")`, which is truthy, so `totp_key_path` resolves to a directory
+        and enrolment fails on a message about a missing key.
+        """
+        return value or None
 
     @property
     def totp_key_path(self) -> Path:
