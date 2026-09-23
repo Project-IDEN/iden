@@ -49,10 +49,11 @@ export interface Step<T extends FieldValues> {
 /**
  * The rail of numbered steps.
  *
- * Completed steps become a check rather than staying numbered — the number is
- * only useful while it tells you how far there is to go. Steps behind the
- * current one are clickable, because going back to change an answer is a normal
- * thing to want and re-walking the flow to do it is not.
+ * Steps behind the current one become a check rather than staying numbered — the
+ * number is only useful while it tells you how far there is to go. `furthest`
+ * decides only what is clickable: going back to change an answer is a normal
+ * thing to want, and a step ahead of you is still ahead of you however far you
+ * walked before turning back.
  */
 function Stepper({
   steps,
@@ -68,7 +69,7 @@ function Stepper({
   return (
     <ol className="mb-8 flex list-none flex-wrap items-center gap-y-3 p-0">
       {steps.map((step, index) => {
-        const done = index < furthest;
+        const done = index < current;
         const active = index === current;
         const reachable = index <= furthest;
 
@@ -102,10 +103,7 @@ function Stepper({
             {index < steps.length - 1 ? (
               <span
                 aria-hidden="true"
-                className={cn(
-                  "mx-1 h-px w-6 sm:w-10",
-                  index < furthest ? "bg-primary/40" : "bg-border",
-                )}
+                className={cn("mx-1 h-px w-6 sm:w-10", done ? "bg-primary/40" : "bg-border")}
               />
             ) : null}
           </li>
