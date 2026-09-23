@@ -2,7 +2,6 @@ import {
   Field,
   Input,
   Label,
-  SecretRevealOnce,
   Select,
   SelectContent,
   SelectItem,
@@ -11,7 +10,6 @@ import {
   Spinner,
   Switch,
   Textarea,
-  Button,
   ScopeChip,
 } from "@iden/shared";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -20,57 +18,13 @@ import { Controller, useForm, useWatch } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { z } from "zod";
 import { useApi } from "../../app/api";
+import { APP_TYPES, type AppType } from "../../app/app-types";
+import { isAbsoluteUri, lines } from "../../app/forms";
+import { SecretHandover } from "../../app/handover";
 import { NotSet, ReviewItem, ReviewList, Wizard, type Step } from "../../app/wizard";
 import { useWrite, type ClientCreated } from "./api";
 import { useScopeOptions } from "./options";
 import { SetPicker } from "./picker";
-
-const lines = (value: string) =>
-  value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-/**
- * The four shapes an OIDC client comes in.
- *
- * One question rather than three. "Can it keep a secret?" and "which grant?"
- * are not independent decisions an administrator makes — they follow from what
- * kind of application this is, and every other OIDC console asks it this way for
- * that reason. The consequences are derived here, once.
- */
-const APP_TYPES = {
-  web: {
-    label: "Web application",
-    hint: "Server-side app — Next.js, Django, Rails. Keeps a secret.",
-    clientType: "confidential",
-    grants: ["authorization_code", "refresh_token"],
-    summary: "Confidential · authorization code + PKCE",
-  },
-  spa: {
-    label: "Single-page application",
-    hint: "Runs in the browser — React, Vue, Angular. No secret; PKCE proves it.",
-    clientType: "public",
-    grants: ["authorization_code", "refresh_token"],
-    summary: "Public · authorization code + PKCE",
-  },
-  native: {
-    label: "Native or mobile app",
-    hint: "iOS, Android, desktop. Anything a user can read the source of is public.",
-    clientType: "public",
-    grants: ["authorization_code", "refresh_token"],
-    summary: "Public · authorization code + PKCE",
-  },
-  service: {
-    label: "Machine-to-machine",
-    hint: "A backend job or a kiosk acting as itself. No person signs in.",
-    clientType: "confidential",
-    grants: ["client_credentials"],
-    summary: "Confidential · client credentials",
-  },
-} as const;
-
-type AppType = keyof typeof APP_TYPES;
 
 const schema = z
   .object({
@@ -92,8 +46,12 @@ const schema = z
     path: ["redirectUris"],
     message: "A client that signs people in needs at least one redirect URI.",
   })
-  .refine((values) => lines(values.redirectUris).every((uri) => uri.includes("://")), {
+  .refine((values) => lines(values.redirectUris).every(isAbsoluteUri), {
     path: ["redirectUris"],
+    message: "Each URI must be absolute, including the scheme.",
+  })
+  .refine((values) => lines(values.postLogoutRedirectUris).every(isAbsoluteUri), {
+    path: ["postLogoutRedirectUris"],
     message: "Each URI must be absolute, including the scheme.",
   });
 
@@ -149,7 +107,16 @@ export function ClientCreateRoute() {
       .map((option) => option.identifier ?? option.label);
 
   if (created) {
-    return <SecretHandover created={created} />;
+    return (
+      <SecretHandover
+        name={created.name}
+        clientSecret={created.clientSecret ?? ""}
+        listTo="/admin/clients"
+        listLabel="Back to clients"
+        recordTo={`/admin/clients/${created.id}`}
+        recordLabel="Open this client"
+      />
+    );
   }
 
   const steps: Step<Values>[] = [
@@ -213,7 +180,7 @@ export function ClientCreateRoute() {
       lede: usesCode
         ? "Matched exactly — no wildcards, and no forgiveness for a trailing slash. This is what stops an authorization code being delivered somewhere else."
         : undefined,
-      fields: ["redirectUris"],
+      fields: ["redirectUris", "postLogoutRedirectUris"],
       render: (f) =>
         usesCode ? (
           <div className="flex max-w-xl flex-col gap-6">
@@ -236,6 +203,7 @@ export function ClientCreateRoute() {
             <Field
               label="Post-logout redirect URIs"
               hint="Where a sign-out may return the browser. Optional; one per line."
+              error={f.formState.errors.postLogoutRedirectUris?.message}
             >
               {(props) => (
                 <Textarea
@@ -407,31 +375,6 @@ export function ClientCreateRoute() {
         })
       }
     />
-  );
-}
-
-/** The secret is returned once. That is the whole screen until it is dismissed. */
-function SecretHandover({ created }: { created: ClientCreated }) {
-  const navigate = useNavigate();
-  return (
-    <div className="max-w-xl">
-      <h1 className="text-display-md">{created.name} registered</h1>
-      <p className="mt-2 text-body-md text-body">
-        Store the secret now. It is argon2-hashed on the way in and cannot be shown again — only
-        rotated.
-      </p>
-      <div className="mt-6">
-        <SecretRevealOnce label="Client secret" secret={created.clientSecret ?? ""} />
-      </div>
-      <div className="mt-8 flex gap-3">
-        <Button variant="outline" onClick={() => void navigate("/admin/clients")}>
-          Back to clients
-        </Button>
-        <Button variant="default" onClick={() => void navigate(`/admin/clients/${created.id}`)}>
-          Open this client
-        </Button>
-      </div>
-    </div>
   );
 }
 

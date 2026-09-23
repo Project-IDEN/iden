@@ -17,6 +17,7 @@ import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "../../app/api";
 import { config } from "../../app/config";
+import { lines } from "../../app/forms";
 import { PageHeader } from "../../app/shell";
 import {
   APPLICATIONS,
@@ -25,12 +26,6 @@ import {
   useApplicationWrite,
   type Application,
 } from "./api";
-
-const lines = (value: string) =>
-  value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
 
 function kind(application: Application): string {
   return application.clientType === "public"
