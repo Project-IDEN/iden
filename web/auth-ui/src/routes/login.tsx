@@ -142,7 +142,12 @@ function CredentialsStep({
           : "Enter the credentials for your organization account."
       }
       footer={
-        <Link className="text-primary underline-offset-2 hover:underline" to="/auth/forgot">
+        // Carries the challenge so recovery can offer the way back. It is the
+        // same value already in this page's own URL.
+        <Link
+          className="text-primary underline-offset-2 hover:underline"
+          to={`/auth/forgot?challenge=${encodeURIComponent(challengeId)}`}
+        >
           Forgot your password?
         </Link>
       }
