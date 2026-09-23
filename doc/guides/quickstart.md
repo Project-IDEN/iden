@@ -121,6 +121,12 @@ It refuses to run when `IDEN_ENV=prod`.
     PostgreSQL has not finished starting. `docker compose -f deploy/docker-compose.yml ps` should
     show it healthy.
 
+??? failure "`NOAUTH Authentication required` from Redis"
+    The container asks for a password and the URL carries none. Both stores in
+    `deploy/docker-compose.yml` default to `iden`, which is what `.env.example` already uses —
+    so this means `IDEN_REDIS_URL` was edited, or `IDEN_REDIS_PASSWORD` in `deploy/.env` was set
+    to something the provider does not know.
+
 ??? failure "`No schema found. Run alembic upgrade head first.`"
     Exactly what it says — the seed refuses to half-fill an unmigrated database.
 
