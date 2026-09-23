@@ -18,6 +18,11 @@ They hold overlapping *keys* but cannot hold the same *values*: `provider/.env` 
 at `localhost:5432`, and inside a container that address is the container itself. Each has an
 `.env.example` beside it to copy.
 
+Every setting in the table below can be set from `deploy/.env`, whether or not it appears in
+`deploy/.env.example` — `docker-compose.yml` names them all with their defaults. The one exception is
+`IDEN_BOOTSTRAP_ADMIN_PASSWORD`, deliberately: a value there would sit in the container's environment
+for as long as the container lives, where `docker inspect` reads it.
+
 !!! info "`environment:` in docker-compose.yml is not another place to configure things"
     That block holds two kinds of value, and only one is yours:
 

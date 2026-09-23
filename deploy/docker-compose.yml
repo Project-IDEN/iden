@@ -119,6 +119,31 @@ services:
       IDEN_S3_ACCESS_KEY: ${IDEN_S3_ACCESS_KEY:-iden}
       IDEN_S3_SECRET_KEY: ${IDEN_S3_SECRET_KEY:-idensecret}
       IDEN_S3_BUCKET: iden
+      IDEN_S3_REGION: ${IDEN_S3_REGION:-us-east-1}
+
+      # Everything else the provider reads, so that setting one in deploy/.env
+      # does what it looks like it does. A container only ever receives what is
+      # named here, so a setting left off this list is not defaulted — it is
+      # ignored, and only under Compose, which is the confusing half.
+      #
+      # `IDEN_BOOTSTRAP_ADMIN_PASSWORD` is the one deliberate omission; see above.
+      IDEN_LOG_LEVEL: ${IDEN_LOG_LEVEL:-info}
+      IDEN_API_PREFIX: ${IDEN_API_PREFIX:-}
+      IDEN_AVATAR_MAX_BYTES: ${IDEN_AVATAR_MAX_BYTES:-5242880}
+      IDEN_SIGNING_ALGORITHM: ${IDEN_SIGNING_ALGORITHM:-RS256}
+      # Empty means `totp.key` beside the signing keys, which is /keys above.
+      IDEN_TOTP_KEY_FILE: ${IDEN_TOTP_KEY_FILE:-}
+      IDEN_ACCESS_TOKEN_TTL: ${IDEN_ACCESS_TOKEN_TTL:-600}
+      IDEN_ID_TOKEN_TTL: ${IDEN_ID_TOKEN_TTL:-600}
+      IDEN_REFRESH_TOKEN_TTL: ${IDEN_REFRESH_TOKEN_TTL:-2592000}
+      IDEN_AUTH_CODE_TTL: ${IDEN_AUTH_CODE_TTL:-60}
+      IDEN_SESSION_TTL: ${IDEN_SESSION_TTL:-86400}
+      IDEN_CHALLENGE_TTL: ${IDEN_CHALLENGE_TTL:-600}
+      IDEN_REFRESH_GRACE_PERIOD: ${IDEN_REFRESH_GRACE_PERIOD:-30}
+      IDEN_RATE_LIMIT_ENABLED: ${IDEN_RATE_LIMIT_ENABLED:-true}
+      IDEN_DEVELOPER_MAX_CLIENTS: ${IDEN_DEVELOPER_MAX_CLIENTS:-5}
+      IDEN_BIOMETRIC_ENABLED: ${IDEN_BIOMETRIC_ENABLED:-false}
+      IDEN_ENGINE_BASE_URL: ${IDEN_ENGINE_BASE_URL:-http://engine:8000}
     volumes: &provider-volumes
       # Written by `uv run python -m scripts.gen_keys`, read-only inside. The
       # whole directory: `totp.key` lives here too, and it is what makes a stolen
