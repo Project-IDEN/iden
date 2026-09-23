@@ -45,8 +45,10 @@ export function SetPicker({
     onChange(next);
   }
 
+  // Clipped: the rows are square and sit flush in the corners, so a hovered
+  // first row would otherwise paint over the rounded border.
   return (
-    <fieldset className="rounded-lg border border-hairline">
+    <fieldset className="overflow-hidden rounded-lg border border-hairline">
       <legend className="sr-only">{legend}</legend>
 
       {options.length > 8 ? (
