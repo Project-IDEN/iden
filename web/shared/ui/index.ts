@@ -1,4 +1,5 @@
 export { cn } from "./cn";
+export { useDocumentTitle } from "./use-document-title";
 
 /* shadcn primitives, unmodified except where DESIGN.md is explicit about a
    value — see the note at the top of each adapted file. */

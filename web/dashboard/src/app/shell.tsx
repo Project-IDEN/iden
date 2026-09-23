@@ -10,6 +10,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
   Mark,
+  useDocumentTitle,
 } from "@iden/shared";
 import {
   AppWindow,
@@ -322,6 +323,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   const trail = useTrail();
+  useDocumentTitle(title, config.branding.organization);
 
   return (
     <header className="mb-8 border-b border-hairline pb-6">

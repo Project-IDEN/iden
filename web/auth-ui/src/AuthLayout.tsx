@@ -1,4 +1,4 @@
-import { Brand, Mark } from "@iden/shared";
+import { Brand, Mark, useDocumentTitle } from "@iden/shared";
 import type { ReactNode } from "react";
 import { branding } from "./branding";
 
@@ -22,6 +22,8 @@ export function AuthLayout({
   /** Changing this replays the entrance, marking a step within the same flow. */
   step?: string;
 }) {
+  useDocumentTitle(title, branding.organization);
+
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center px-6 py-12">
       <div className="w-full max-w-[26rem]">

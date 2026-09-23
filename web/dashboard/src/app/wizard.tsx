@@ -11,11 +11,13 @@ import {
   cn,
   ErrorState,
   Mark,
+  useDocumentTitle,
 } from "@iden/shared";
 import { ArrowLeft, Check } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import type { FieldValues, Path, UseFormReturn } from "react-hook-form";
 import { Link, useNavigate } from "react-router";
+import { config } from "./config";
 
 /** What a step can do to the flow it sits in. */
 export interface StepControls {
@@ -149,6 +151,7 @@ export function Wizard<T extends FieldValues>({
   error?: unknown;
 }) {
   const navigate = useNavigate();
+  useDocumentTitle(title, config.branding.organization);
   const [current, setCurrent] = useState(0);
   // How far the flow has been validated, so the stepper knows what is reachable
   // and a step revisited from the review does not reset progress.
