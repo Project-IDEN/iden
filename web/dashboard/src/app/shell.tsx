@@ -33,6 +33,8 @@ import {
 import { useState, type ReactNode } from "react";
 import { useAuth } from "react-oidc-context";
 import { NavLink, Outlet, useLocation } from "react-router";
+import { useProfile } from "../features/account/api";
+import { useApi } from "./api";
 import { config } from "./config";
 import { useGrantedScopes, useSignOut } from "./session";
 
@@ -149,7 +151,15 @@ function Section({
   );
 }
 
-function AccountMenu({ name, email, picture }: { name: string; email: string; picture?: string }) {
+function AccountMenu({
+  name,
+  email,
+  picture,
+}: {
+  name: string;
+  email: string;
+  picture?: string | null;
+}) {
   const signOut = useSignOut();
 
   return (
@@ -191,15 +201,26 @@ function AccountMenu({ name, email, picture }: { name: string; email: string; pi
 
 export function Shell() {
   const auth = useAuth();
+  const api = useApi();
   const granted = useGrantedScopes();
   const [open, setOpen] = useState(false);
+  const profile = useProfile(api, granted.has("entity:profile:read"));
 
-  const name = auth.user?.profile.name ?? auth.user?.profile.preferred_username ?? "";
-  const email = auth.user?.profile.email ?? "";
-  // From the ID token, like the name beside it, so it lags a photo the person
-  // has just changed until their next sign-in. The profile page shows the
-  // current one, which is where they were looking when they changed it.
-  const picture = auth.user?.profile.picture;
+  // The ID token is a snapshot taken at sign-in, so a photo or a name changed on
+  // the account screens is wrong here until the next one. The profile query is
+  // what those screens write to, so follow it whenever there is one — including
+  // when it says the photo is gone, which is why this is not a field-wise `??`.
+  const account = profile.data
+    ? {
+        name: profile.data.displayName || profile.data.username,
+        email: profile.data.email,
+        picture: profile.data.pictureUrl,
+      }
+    : {
+        name: auth.user?.profile.name ?? auth.user?.profile.preferred_username ?? "",
+        email: auth.user?.profile.email ?? "",
+        picture: auth.user?.profile.picture,
+      };
 
   const sections = SECTIONS.map((section) => ({
     ...section,
@@ -258,7 +279,7 @@ export function Shell() {
             open ? "block" : "hidden md:block",
           )}
         >
-          <AccountMenu name={name} email={email} picture={picture} />
+          <AccountMenu {...account} />
         </div>
       </nav>
 

@@ -11,8 +11,12 @@ export type Sessions = components["schemas"]["SessionListResponse"];
 export type Connections = components["schemas"]["ConnectionListResponse"];
 export type Permissions = components["schemas"]["PermissionsResponse"];
 
-export function useProfile(api: AxiosInstance) {
-  return useQuery({ queryKey: ["profile"], queryFn: () => get<Profile>(api, "/entity/profile") });
+export function useProfile(api: AxiosInstance, enabled = true) {
+  return useQuery({
+    queryKey: ["profile"],
+    queryFn: () => get<Profile>(api, "/entity/profile"),
+    enabled,
+  });
 }
 
 export function useProfileSchema(api: AxiosInstance) {

@@ -20,9 +20,8 @@ export function Avatar({
   className?: string;
 }) {
   // Which src failed, rather than a boolean, so a new photo resets the
-  // fallback without an effect. A URL can 404 legitimately: the sidebar reads
-  // the photo from an ID token, which still names the old file for as long as
-  // the token lives after the photo was replaced or removed.
+  // fallback without an effect. A URL can 404 legitimately — an ID token names
+  // whichever photo existed when it was issued, and outlives a replaced one.
   const [failed, setFailed] = useState<string | null>(null);
 
   return (
