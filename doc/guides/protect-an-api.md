@@ -5,11 +5,6 @@ database, no network hop between your service and identity.
 
 Any language with a JWT library can do this; the steps are the same everywhere.
 
-!!! tip "There is a working one to read"
-    The [`door-access`](sample-applications.md) sample is this page as a running service — a door
-    controller that validates offline, checks the audience, and distinguishes `401` from `403`,
-    with a panel next to it that presses the doors and shows what came back.
-
 ## 1. Register the API and its permissions
 
 ```bash
