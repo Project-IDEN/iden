@@ -1,10 +1,4 @@
-# The contents, not the directory: git never descends into an ignored
-# directory, so a negation for a file inside one can never take effect.
-.vscode/*
-# Shared editor settings, which teach the YAML extension that MkDocs'
-# `!!python/name:` tags are legitimate. Without it every clone reports
-# mkdocs.yml as broken.
-!.vscode/settings.json
+.vscode/
 claude/
 .claude/
 old-provider/
