@@ -70,6 +70,8 @@ nav = [
 ]
 
 [project.theme]
+logo = "assets/logo.svg"
+favicon = "assets/logo.svg"
 features = [
   "content.action.edit",
   "navigation.sections",
