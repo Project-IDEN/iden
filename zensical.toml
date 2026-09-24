@@ -1,0 +1,121 @@
+[project]
+site_name = "IDEN"
+site_description = """\
+  A self-hosted identity and access control provider. One organization, one \
+  deployment, one source of truth for who people are and what they may do.\
+  """
+site_url = "https://docs.iden.live/iden/"
+repo_url = "https://github.com/Project-IDEN/iden"
+repo_name = "Project-IDEN/iden"
+edit_uri = "edit/dev/doc/"
+
+# The site covers the whole repository, not just the provider: the kiosk, the
+# engine and the front ends get their own sections as they are built.
+docs_dir = "doc"
+site_dir = "site"
+
+nav = [
+  { "Home" = "index.md" },
+  { "Concepts" = [
+    "concepts/index.md",
+    { "Identity and access" = "concepts/identity-and-access.md" },
+    { "Tokens" = "concepts/tokens.md" },
+    { "Sessions and single sign-on" = "concepts/sessions.md" },
+    { "Assurance and step-up" = "concepts/assurance.md" },
+    { "Consent" = "concepts/consent.md" },
+    { "Profile fields" = "concepts/profile-fields.md" },
+    { "The audit log" = "concepts/audit.md" },
+  ] },
+  { "Guides" = [
+    "guides/index.md",
+    { "Install it for your organization" = "guides/install.md" },
+    { "Run it locally" = "guides/quickstart.md" },
+    { "Run the frontends" = "guides/run-the-frontends.md" },
+    { "Integrating an application" = [
+      { "Register your application" = "guides/register-a-client.md" },
+      { "Let people register their own" = "guides/self-service-registration.md" },
+      { "Using a standard OIDC library" = "guides/oidc-libraries.md" },
+      { "Add a web application" = "guides/web-application.md" },
+      { "Add a machine client" = "guides/machine-client.md" },
+      { "Validate tokens in your API" = "guides/protect-an-api.md" },
+      { "Handle single sign-out" = "guides/single-sign-out.md" },
+      { "Troubleshooting" = "guides/troubleshooting.md" },
+    ] },
+    { "Define your profile schema" = "guides/profile-schema.md" },
+  ] },
+  { "Reference" = [
+    "reference/index.md",
+    { "Endpoints" = "reference/endpoints.md" },
+    { "Scopes" = "reference/scopes.md" },
+    { "Token claims" = "reference/claims.md" },
+    { "Configuration" = "reference/configuration.md" },
+    { "Data model" = "reference/data-model.md" },
+    { "Errors" = "reference/errors.md" },
+  ] },
+  { "Operations" = [
+    "operations/index.md",
+    { "Deployment" = "operations/deployment.md" },
+    { "Behind a Cloudflare Tunnel" = "operations/cloudflare-tunnel.md" },
+    { "Backup and restore" = "operations/backup-and-restore.md" },
+    { "Before you expose it" = "operations/security-checklist.md" },
+  ] },
+  { "Contributing" = [
+    "contributing/index.md",
+    { "Development setup" = "contributing/development.md" },
+    { "Conventions" = "contributing/conventions.md" },
+    { "Database migrations" = "contributing/migrations.md" },
+    { "Testing" = "contributing/testing.md" },
+  ] },
+  { "Roadmap" = "roadmap.md" },
+]
+
+[project.theme]
+features = [
+  "content.action.edit",
+  "navigation.sections",
+  "navigation.top",
+  "navigation.tracking",
+  "navigation.indexes",
+  "toc.follow",
+  "content.code.copy",
+  "search.highlight",
+  "search.suggest",
+]
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: light)"
+scheme = "default"
+primary = "indigo"
+accent = "indigo"
+toggle.icon = "material/weather-night"
+toggle.name = "Switch to dark mode"
+
+[[project.theme.palette]]
+media = "(prefers-color-scheme: dark)"
+scheme = "slate"
+primary = "indigo"
+accent = "indigo"
+toggle.icon = "material/weather-sunny"
+toggle.name = "Switch to light mode"
+
+[project.markdown_extensions]
+abbr = {}
+admonition = {}
+attr_list = {}
+def_list = {}
+footnotes = {}
+md_in_html = {}
+tables = {}
+toc.permalink = true
+pymdownx.details = {}
+# `:material-rocket-launch-outline:` and friends. The icon sets ship as an emoji
+# index, so without this the shortcodes reach the page as text.
+pymdownx.emoji.emoji_index = "zensical.extensions.emoji.twemoji"
+pymdownx.emoji.emoji_generator = "zensical.extensions.emoji.to_svg"
+pymdownx.highlight.anchor_linenums = true
+pymdownx.inlinehilite = {}
+pymdownx.snippets = {}
+pymdownx.tabbed.alternate_style = true
+pymdownx.superfences.custom_fences = [
+  { name = "mermaid", class = "mermaid", format = "pymdownx.superfences.fence_code_format" },
+]

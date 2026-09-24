@@ -75,14 +75,14 @@ Never hand-edit the dependency lists — `uv` owns them and the lockfile.
 
 ```bash
 # From the repository root. Port 8001, because the provider itself uses 8000.
-uv run --project provider mkdocs serve -a localhost:8001
+uv run --project provider zensical serve -a localhost:8001
 ```
 
 Live reload at <http://localhost:8001>. The site lives at the repository root rather than under
 `provider/` because it will grow sections for the kiosk, the engine, and the front ends.
 
 ```bash
-uv run --project provider mkdocs build --strict
+uv run --project provider zensical build --strict
 ```
 
 `--strict` turns broken internal links into failures, which is what you want before pushing.

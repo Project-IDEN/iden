@@ -43,5 +43,5 @@ CVS
 *.swp
 *~
 
-# MkDocs build output
+# Zensical build output
 site/

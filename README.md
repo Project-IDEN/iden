@@ -20,7 +20,7 @@ Full documentation â€” concepts, integration guides, reference, and operations â
 [`doc/`](doc/index.md) and builds as a site:
 
 ```bash
-uv run --project provider mkdocs serve -a localhost:8001
+uv run --project provider zensical serve -a localhost:8001
 ```
 
 Start with [Concepts](doc/concepts/index.md) if identity is new to you, or

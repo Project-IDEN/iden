@@ -5,7 +5,7 @@ and an **access-control service**. This document is the reference — setup, con
 endpoints, tokens, and conventions. For the *order of work*, see [PLAN.md](PLAN.md). For the
 system-level picture (Docker topology, frontends, kiosks), see the [root README](../README.md). For the
 reader-facing documentation — concepts, integration guides, operations — see
-[`doc/`](../doc/index.md), which builds as a MkDocs site.
+[`doc/`](../doc/index.md), which builds as a Zensical site.
 
 One process hosts four logical modules:
 
