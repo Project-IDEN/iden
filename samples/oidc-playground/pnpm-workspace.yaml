@@ -1,5 +1,0 @@
-# pnpm reads build-script approval from this file. The playground is one
-# package, not a workspace — this is here only so `pnpm install` does not
-# stop to ask about esbuild.
-allowBuilds:
-  esbuild: true

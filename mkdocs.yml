@@ -9,9 +9,9 @@ site_name: IDEN
 site_description: >-
   A self-hosted identity and access control provider. One organization, one
   deployment, one source of truth for who people are and what they may do.
-site_url: https://yephonekyaw.github.io/iden/
-repo_url: https://github.com/yephonekyaw/iden
-repo_name: yephonekyaw/iden
+site_url: https://docs.iden.live/iden/
+repo_url: https://github.com/Project-IDEN/iden
+repo_name: Project-IDEN/iden
 edit_uri: edit/dev/doc/
 
 # The site covers the whole repository, not just the provider: the kiosk, the
@@ -103,7 +103,6 @@ nav:
           - Validate tokens in your API: guides/protect-an-api.md
           - Handle single sign-out: guides/single-sign-out.md
           - Troubleshooting: guides/troubleshooting.md
-      - Sample applications: guides/sample-applications.md
       - Define your profile schema: guides/profile-schema.md
   - Reference:
       - reference/index.md

@@ -1,4 +1,0 @@
-# pnpm reads build-script approval from this file. This is one package, not a
-# workspace — the entry is here only so `pnpm install` does not stop to ask.
-allowBuilds:
-  esbuild: true

@@ -1,8 +1,0 @@
-node_modules/
-.next/
-# Real credentials. They belong in the container's environment at run time, not
-# in a layer that anyone who can pull the image can read.
-.env.local
-*.tsbuildinfo
-Dockerfile
-.dockerignore

@@ -90,7 +90,7 @@ uv run --project provider mkdocs build --strict
 ## How the site is published
 
 `.github/workflows/docs.yml` builds on every pull request that touches `doc/` and publishes to
-[GitHub Pages](https://yephonekyaw.github.io/iden/) when those changes reach **`dev`**, which is
+[GitHub Pages](https://docs.iden.live/iden/) when those changes reach **`dev`**, which is
 where work lands — so the published site tracks the code rather than the last release.
 
 Pull requests build but do not publish, so a broken link fails the check before it is merged rather

@@ -1,3 +1,0 @@
-# pnpm writes this file; reformatting it produces a diff of thousands of lines
-# that says nothing about the dependencies.
-pnpm-lock.yaml

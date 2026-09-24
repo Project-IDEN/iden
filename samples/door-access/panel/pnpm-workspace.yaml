@@ -1,5 +1,0 @@
-# pnpm reads build-script approval from this file. This is one package, not a
-# workspace — the entries are here only so `pnpm install` does not stop to ask.
-allowBuilds:
-  sharp: true
-  unrs-resolver: true

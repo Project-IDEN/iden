@@ -1,8 +1,0 @@
-node_modules/
-.next/
-# Secrets do not belong in an image layer. The panel is a confidential client,
-# so this file holds a real client secret.
-.env
-.env.local
-Dockerfile
-.dockerignore

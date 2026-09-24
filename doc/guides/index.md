@@ -30,10 +30,6 @@ Start here if you are connecting something you built to IDEN.
 6. **[Handle single sign-out](single-sign-out.md)** — so that signing out means something.
 7. **[Troubleshooting](troubleshooting.md)** — symptom first, then what IDEN is telling you.
 
-**[Sample applications](sample-applications.md)** are three working integrations you can run: a
-playground that shows the raw protocol, a pair of apps sharing one session, and a stock Auth.js
-setup. Reading one is often faster than reading about one.
-
 ## Administering IDEN
 
 - **[Define your profile schema](profile-schema.md)** — the fields your organization collects about
