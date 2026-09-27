@@ -28,9 +28,14 @@ nav = [
   ] },
   { "Guides" = [
     "guides/index.md",
-    { "Install it for your organization" = "guides/install.md" },
-    { "Run it locally" = "guides/quickstart.md" },
-    { "Run the frontends" = "guides/run-the-frontends.md" },
+    { "Install IDEN" = [
+      "guides/install.md",
+      { "On a laptop, in Docker" = "guides/local-docker.md" },
+      { "Behind a Cloudflare Tunnel" = "operations/cloudflare-tunnel.md" },
+      { "Run the provider from source" = "guides/quickstart.md" },
+      { "Develop the frontends" = "guides/run-the-frontends.md" },
+      { "After installing" = "guides/first-steps.md" },
+    ] },
     { "Integrating an application" = [
       { "Register your application" = "guides/register-a-client.md" },
       { "Let people register their own" = "guides/self-service-registration.md" },
@@ -55,7 +60,6 @@ nav = [
   { "Operations" = [
     "operations/index.md",
     { "Deployment" = "operations/deployment.md" },
-    { "Behind a Cloudflare Tunnel" = "operations/cloudflare-tunnel.md" },
     { "Backup and restore" = "operations/backup-and-restore.md" },
     { "Before you expose it" = "operations/security-checklist.md" },
   ] },

@@ -5,15 +5,19 @@ on, and links back where it matters.
 
 ## Getting IDEN running
 
-Two paths, depending on what you are doing.
+Four paths. Each is one page with every step, from an empty directory to a signed-in administrator.
+[Install IDEN](install.md) compares them.
 
-- **[Install it for your organization](install.md)** — the whole system in containers, from a clone
-  to a signed-in administrator, with a check on every part before anyone else is let in. About thirty
-  minutes.
-- **[Run it locally](quickstart.md)** — the server alone, on your own machine, in about five minutes.
-  For reading the code, running the tests, or pointing an integration at something you control.
-- **[Run the frontends](run-the-frontends.md)** — the development loop for the sign-in page and the
-  dashboard themselves.
+- **[On a laptop, in Docker](local-docker.md)**: the whole system in containers on `localhost`,
+  to try or demo it. About fifteen minutes.
+- **[Behind a Cloudflare Tunnel](../operations/cloudflare-tunnel.md)**: the whole system on the
+  internet for your organization, with no inbound port. About an hour.
+- **[Run the provider from source](quickstart.md)**: the server alone, for reading the code,
+  running the tests, or pointing an integration at it. About five minutes.
+- **[Develop the frontends](run-the-frontends.md)**: the provider and both frontends from source,
+  for working on the sign-in page and the dashboard.
+
+Then **[After installing](first-steps.md)** checks every part and sets up your organization.
 
 ## Integrating an application
 

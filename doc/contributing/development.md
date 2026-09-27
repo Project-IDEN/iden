@@ -1,6 +1,6 @@
 # Development setup
 
-See [Run it locally](../guides/quickstart.md) for the environment. This page is about working on the
+See [Run the provider from source](../guides/quickstart.md) for the environment. This page is about working on the
 code.
 
 ## The scripts

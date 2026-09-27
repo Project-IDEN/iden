@@ -1,10 +1,11 @@
-# Run it locally
+# Run the provider from source
 
-The provider on your own machine, in about five minutes. This is the page for reading the code,
-running the tests, or pointing an integration at something you control.
+The provider on your own machine, in about five minutes. Use this page to read the code, run the
+tests, or point an integration at something you control.
 
-For the whole system — the provider plus both frontends, in containers — see
-[Install it for your organization](install.md).
+This page covers the provider alone, with no sign-in page or dashboard. To add those, follow
+[Develop the frontends](run-the-frontends.md), which includes these steps. To run the whole
+system in containers, see [On a laptop, in Docker](local-docker.md).
 
 ## You need
 
@@ -55,7 +56,7 @@ credential IDEN cannot hash, since verifying a code means recomputing it. Back b
 **`seed`** prints two credentials, **once**:
 
 ```text
-Seeded 28 system scopes across 3 APIs.
+Seeded 27 system scopes across 3 APIs.
 
   Bootstrap administrator — shown once, change it after first login
     email:    admin@localhost
@@ -66,9 +67,8 @@ Seeded 28 system scopes across 3 APIs.
     client_secret: 7ZJbgK2um1y9QeliyysqElTJ-SUhC_8R8aXRygrmUgM
 ```
 
-They are hashed on the way into the database and cannot be recovered. Losing them means seeding a
-fresh database — or, since this is development, running
-[`scripts.reset`](../contributing/development.md).
+Both are hashed before they're stored and can't be recovered. If you lose one,
+[start over](#starting-over).
 
 ## Check it worked
 
@@ -86,10 +86,10 @@ is read from the database, so permissions you define appear there without a rest
 
 | | Detail |
 |---|---|
-| **Two APIs** | `admin` and `entity` — IDEN's own, with all 25 of their [permissions](../reference/scopes.md) |
-| **Two roles** | `administrator` (everything) and `member` (self-service only) |
+| **Three APIs** | `admin`, `entity` and `developer`, IDEN's own, with their 27 [permissions](../reference/scopes.md) |
+| **Three roles** | `administrator` (everything), `member` (self-service only), and `developer` (self-service plus registering their own applications) |
 | **One person** | The bootstrap administrator |
-| **`dashboard`** | A public client for the browser: PKCE, consent skipped, callbacks on ports 3000 and 5173 |
+| **`dashboard`** | A public client for the browser, using PKCE and skipping consent. Its callbacks are `/console/callback` on `localhost` ports 8000, 3000 and 5173 |
 | **`kiosk`** | A confidential client for machine-to-machine access |
 
 The seed is idempotent — re-run it any time. It creates nothing structural; that is
@@ -104,7 +104,8 @@ uv run pytest tests/test_auth_code_flow.py -v
 ```
 
 To drive it by hand, see [Add a web application](web-application.md). To get the sign-in page and the
-dashboard in a browser, see [Run the frontends](run-the-frontends.md).
+dashboard in a browser, continue with [Develop the frontends](run-the-frontends.md#2-start-the-frontends).
+The provider you just started is its step 1.
 
 ## Starting over
 

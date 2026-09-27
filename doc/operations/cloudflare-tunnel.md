@@ -35,7 +35,7 @@ as one caller and writes one address into every audit row. Three settings fix it
 agree — see [Who the caller is](#who-the-caller-is).
 
 **Cloudflare is now in the request path, and it has opinions.** Bot protection, caching and script
-rewriting are all on by default in ways that break OIDC. See [Cloudflare's settings](#5-cloudflares-settings).
+rewriting are all on by default in ways that break OIDC. See [Change Cloudflare's settings](#8-change-cloudflares-settings).
 
 ## One origin, three applications
 
@@ -47,7 +47,7 @@ and set by the provider, and one origin makes it unambiguously first-party for b
 | `/.well-known/*` | provider | OIDC requires discovery at the host root. Never mount IDEN under a sub-path — `IDEN_API_PREFIX` must stay empty. |
 | `/oauth2/*` | provider | The protocol endpoints. |
 | `/api/v1/auth/*` | provider | Where a password is checked. |
-| `/admin/*`, `/entity/*` | provider | The two resource servers. |
+| `/admin/*`, `/entity/*`, `/developer/*` | provider | The resource servers. |
 | `/media/*` | provider | Profile photos. This is the URL in the `picture` claim, fetched by `<img>` tags that cannot present a token. |
 | `/auth/*` | auth-ui | The hosted sign-in page. The provider redirects here by name. |
 | `/console/*` | dashboard | Administration and self-service. |
@@ -67,56 +67,41 @@ rebuild.
 
 ## Before you start
 
-- A domain on Cloudflare, with the orange cloud enabled.
-- Docker with Compose on the host.
-- The repository cloned on that host.
+- A domain on Cloudflare, with proxying (the orange cloud) turned on.
+- A Linux host with Docker and Compose. `docker compose version` should answer.
+- `openssl`, for generating passwords.
 
 **Decide the hostname now.** `IDEN_ISSUER` goes into every token and is compared character for
 character. Changing it later invalidates everything already issued.
 
-Throughout, `iden.example.org` stands for yours.
-
-## The order to do it in
-
-This page and [Install it for your organization](../guides/install.md) interleave — the tunnel needs
-a deployment to point at, and the deployment needs its hostname before it is seeded. Follow this
-sequence and neither doubles back on the other.
-
-| | Step | Where |
-|---|---|---|
-| 1 | Clone the repository | [install 1](../guides/install.md#1-get-the-code) |
-| 2 | Generate the signing key | [install 2](../guides/install.md#2-generate-a-signing-key) |
-| 3 | Create the tunnel, copy its token | [below](#1-create-the-tunnel) |
-| 4 | Write `deploy/.env` — hostname, token | [below](#2-configure-the-deployment) |
-| 5 | Copy `iden.conf.example` to `iden.conf` | [below](#2-configure-the-deployment) |
-| 6 | Start everything, **with the tunnel overlay** | [below](#3-start-it) |
-| 7 | Seed the first administrator | [install 5](../guides/install.md#5-create-the-first-administrator) |
-| 8 | Point the `dashboard` client at the hostname | [below](#4-point-the-dashboard-client-at-the-hostname) |
-| 9 | Change Cloudflare's settings | [below](#5-cloudflares-settings) |
-| 10 | Verify, then sign in | [below](#verify-it) · [install 7](../guides/install.md#7-sign-in) |
-| 11 | Work through the security checklist | [checklist](security-checklist.md) |
-| 12 | Take a backup, and restore it once | [backup](backup-and-restore.md#testing-it) |
-
-Steps 1, 2 and 7 are the install guide's; everything else is here. The install guide's own step 3
-and step 4 are replaced by steps 4–6 above, which are the same work with the tunnel in it.
+Throughout this page, `iden.example.org` stands for your hostname. Every command runs from the
+repository root.
 
 !!! tip "Already running it on a laptop?"
-    Then you have done 1, 2 and 7 already. Start at step 3, and at step 6 add the overlay to the
-    stack you have. The database and the signing key carry over — only the hostname changes, which
-    means redoing step 8.
+    Follow the steps below on the server. To carry a laptop database over rather than starting
+    fresh, see [Moving an existing deployment here](#moving-an-existing-deployment-here) once
+    you've finished.
 
 ---
 
-## 1. Create the tunnel
+## 1. Get the code
 
-In the Cloudflare dashboard: **Zero Trust → Networks → Tunnels → Create a tunnel**, choose
-**Cloudflared**, name it, and copy the token it shows.
+```bash
+git clone https://github.com/Project-IDEN/iden.git
+cd iden
+```
 
-Do not install the connector the way the page suggests — Compose runs it. You only need the token.
+## 2. Create the tunnel
+
+In the Cloudflare dashboard, go to **Zero Trust → Networks → Tunnels → Create a tunnel**. Choose
+**Cloudflared**, give the tunnel a name, and copy the token it shows.
+
+Don't install the connector the way that page suggests, because Compose runs it for you. You only
+need the token.
 
 !!! danger "The token is a credential"
-    It authenticates this host as the tunnel. Anyone holding it can serve your hostname. Keep it in
-    `deploy/.env`, which is git-ignored, and treat it the way you treat a password.
+    It authenticates this host as the tunnel, and anyone holding it can serve your hostname. It goes
+    in `deploy/.env`, which git ignores. Treat it like a password.
 
 Then add a **public hostname** to the tunnel:
 
@@ -126,58 +111,135 @@ Then add a **public hostname** to the tunnel:
 | Service type | **HTTP** |
 | URL | `nginx:80` |
 
-`nginx` is the Compose service name — `cloudflared` runs on the same network and resolves it
-directly. **HTTP**, not HTTPS: the hop is inside the Docker network, and putting a self-signed
-certificate on it with `noTLSVerify` would be encryption without authentication, which is worse than
-the plaintext it replaces.
+`nginx` is the Compose service name. `cloudflared` runs on the same Docker network and resolves it
+directly. Use **HTTP**, not HTTPS. This hop never leaves the Docker network, and a self-signed
+certificate with `noTLSVerify` would encrypt the traffic without authenticating anything.
 
 Cloudflare creates the DNS record for you.
 
-## 2. Configure the deployment
+## 3. Write `deploy/.env`
 
 ```bash
 cp deploy/.env.example deploy/.env
 ```
 
-Edit `deploy/.env`. Every value is explained in the file; these are the ones that matter:
+Every value is explained in the file. Edit these:
 
 ```bash
+# The hostname: all three are the same origin.
 IDEN_ENV=prod
 IDEN_ISSUER=https://iden.example.org
 IDEN_AUTH_UI_BASE_URL=https://iden.example.org
 IDEN_ALLOWED_ADMIN_ORIGINS=[]
 IDEN_FORWARDED_ALLOW_IPS=172.31.250.0/24
-CLOUDFLARE_TUNNEL_TOKEN=<the token from step 1>
+
+# Your organization.
+IDEN_ORG_NAME=Example University
+IDEN_ORG_LOGO_URL=
+IDEN_MAIL_DOMAIN=example.org
+IDEN_BOOTSTRAP_ADMIN_EMAIL=admin@example.org
+
+# The stores' credentials. Generate each one, see below.
+IDEN_POSTGRES_PASSWORD=...
+IDEN_REDIS_PASSWORD=...
+IDEN_S3_ACCESS_KEY=...
+IDEN_S3_SECRET_KEY=...
+
+CLOUDFLARE_TUNNEL_TOKEN=<the token from step 2>
 ```
 
-`IDEN_ENV=prod` marks the session cookie `Secure` and sends HSTS. It also removes `/docs`, `/redoc`
-and `/openapi.json`, which would otherwise publish the complete shape of your admin API.
+Generate each of the four store credentials separately:
 
-`IDEN_ALLOWED_ADMIN_ORIGINS` is **empty on purpose**. One origin means the dashboard's calls to the
-provider are same-origin, so there is no cross-origin request to allow. Name an origin here only for
-a browser application on some *other* host that calls the provider directly.
+```bash
+openssl rand -hex 24
+```
 
-Then copy the proxy config:
+Use hex so the values are safe inside a URL. The PostgreSQL and Redis passwords end up in connection
+strings, where a `/` or `+` from base64 would break them.
+
+What each group does:
+
+- **`IDEN_ENV=prod`** marks the session cookie `Secure`, sends HSTS, and removes `/docs`, `/redoc`
+  and `/openapi.json`. It also makes the provider refuse to start on an `http://` issuer, a store
+  password printed in the repository, or `IDEN_FORWARDED_ALLOW_IPS=*`.
+- **`IDEN_ALLOWED_ADMIN_ORIGINS` stays empty.** Everything is on one origin, so the dashboard's
+  calls to the provider aren't cross-origin and there's nothing to allow.
+- **`IDEN_FORWARDED_ALLOW_IPS`** is the Docker network nginx proxies from. It lets the provider see
+  each caller's real address instead of the proxy's. See [Who the caller is](#who-the-caller-is).
+- **`IDEN_MAIL_DOMAIN`** is the domain every account is created on, as `<name>@example.org`. Set it
+  now. Addresses can't be changed later, so changing the domain after people exist leaves them on
+  the old one.
+- **`IDEN_BOOTSTRAP_ADMIN_EMAIL`** is read only when the first administrator is created, in step 7.
+- **The store credentials** have to be set before the first `up`. PostgreSQL and SeaweedFS keep the
+  credential they initialised their volume with, so changing it later doesn't re-key them. The
+  tunnel overlay refuses to start while any of the four is empty.
+
+## 4. Generate the keys
+
+IDEN signs every token with an RSA private key that you own. It **refuses to start without one** and
+never creates one on its own. The same command also writes `totp.key`, which encrypts authenticator
+secrets at rest.
+
+Build the provider image, then run the generator inside it, so the host doesn't need Python:
+
+```bash
+docker compose -f deploy/docker-compose.yml build provider
+
+mkdir -p provider/keys
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD/provider/keys:/keys" -e IDEN_SIGNING_KEY_DIR=/keys \
+  --entrypoint python iden-dev-provider:latest -m scripts.gen_keys
+```
+
+```text
+Wrote signing key: /keys/iden-20260927.pem (kid: iden-20260927)
+Wrote secret-encryption key: /keys/totp.key
+```
+
+**Check it worked:** `ls provider/keys/` shows one `.pem` file and `totp.key`.
+
+`mkdir` and `--user` are required on Linux. The image runs as uid 1000, and without them Docker
+creates the directory as `root` and the generator fails with `Permission denied`.
+
+!!! danger "Back up `provider/keys/` now, separately from the database"
+    Anyone who can read the `.pem` can mint a token for anyone. Losing it signs everyone out.
+    Losing `totp.key` locks everyone with an authenticator out of their second factor, with no
+    way to recover it. Keep both somewhere you would trust with a password, and never commit them.
+
+## 5. Copy the proxy config
 
 ```bash
 cp deploy/nginx/iden.conf.example deploy/nginx/iden.conf
 ```
 
-It works unedited if you keep the default subnet. Read it anyway — it is short, and it is where
-every routing decision on this page actually lives.
+It works without edits if you keep the default subnet. Read it anyway. It's short, and it's where
+every routing decision on this page is actually made.
 
-## 3. Start it
+## 6. Start it
 
 ```bash
 docker compose -f deploy/docker-compose.yml \
                -f deploy/docker-compose.tunnel.yml up -d --build
 ```
 
-The overlay adds `nginx` and `cloudflared`, and pins the project network to `172.31.250.0/24` — a
-fixed subnet so that the address nginx trusts is knowable in advance rather than looked up after
-every `up`.
+The overlay adds `nginx` and `cloudflared`, and fixes the Docker network at `172.31.250.0/24`, so
+the address nginx trusts is known in advance instead of changing on every `up`.
 
-**Check it worked**, without going out to Cloudflare and back:
+The first build takes a few minutes. After that, startup runs in order. The stores come up healthy,
+`migrate` creates the schema and exits, and then the provider starts.
+
+**Check it worked:**
+
+```bash
+docker compose -f deploy/docker-compose.yml \
+               -f deploy/docker-compose.tunnel.yml ps -a
+```
+
+Eight services running, and `migrate` exited with code `0`. If `migrate` failed, read its log with
+`... logs migrate`. A line starting `Refusing to start with an unsafe configuration` lists exactly
+which settings in `deploy/.env` need fixing.
+
+Then check the provider through nginx, without the round trip out to Cloudflare:
 
 ```bash
 curl -s -H 'Host: iden.example.org' \
@@ -188,52 +250,56 @@ curl -s -H 'Host: iden.example.org' \
 "https://iden.example.org"
 ```
 
-nginx publishes `127.0.0.1:8080` for exactly this. If the issuer says `localhost`, `deploy/.env` is
-not being read — check that it sits next to `docker-compose.yml`, not at the repository root.
+nginx publishes `127.0.0.1:8080` for exactly this check. If the issuer says `localhost`,
+`deploy/.env` isn't being read. Make sure it's next to `docker-compose.yml`, not at the repository
+root.
 
-Then from anywhere:
-
-```bash
-curl -s https://iden.example.org/.well-known/openid-configuration | jq .issuer
-```
-
-## 4. Point the dashboard client at the hostname
-
-The seeded `dashboard` client allows only localhost callbacks. Until it names your origin, sign-in
-loops.
+## 7. Create the first administrator
 
 ```bash
-docker compose -f deploy/docker-compose.yml exec -T postgres \
-  psql -U iden -d iden -c \
-  "update clients set redirect_uris = ARRAY['https://iden.example.org/console/callback']
-   where client_id = 'dashboard';"
-```
-
-`redirect_uris` is a PostgreSQL array (`character varying[]`), not JSON — hence `ARRAY[...]` rather
-than a bracketed string. A JSON literal here fails with *malformed array literal*.
-
-Note `/console/callback`: the dashboard's redirect URI moved with the app.
-
-**Check it worked**, since a wrong value here presents as a sign-in loop rather than an error:
-
-```bash
-docker compose -f deploy/docker-compose.yml exec -T postgres \
-  psql -U iden -d iden -c \
-  "select client_id, redirect_uris from clients where client_id = 'dashboard';"
+docker compose -f deploy/docker-compose.yml \
+               -f deploy/docker-compose.tunnel.yml exec provider python -m scripts.seed
 ```
 
 ```text
- client_id |                redirect_uris
------------+--------------------------------------
- dashboard | {https://iden.example.org/console/callback}
+Seeded 27 system scopes across 3 APIs.
+
+  Bootstrap administrator — shown once, change it after first login
+    email:    admin@example.org
+    password: _qajl3wRjjx6QsuXMO9YY5tw
+
+  Kiosk client secret — shown once, it is hashed in the database
+    client_id:     kiosk
+    client_secret: 7ZJbgK2um1y9QeliyysqElTJ-SUhC_8R8aXRygrmUgM
 ```
 
-Once you can sign in, the **Clients** screen in the dashboard edits this without SQL. Direct
-`psql` is for the bootstrap, when there is no way in yet.
+!!! warning "Write both down before you close the terminal"
+    Both are hashed before they're stored and can't be recovered. If you lose the administrator
+    password before creating a second administrator, the only way back in is a fresh database.
 
-## 5. Cloudflare's settings
+    To choose the password yourself, pass it to this one command instead of putting it in
+    `deploy/.env`, where it would stay in the container's environment:
 
-This is the part that is easy to skip and expensive to skip.
+    ```bash
+    docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tunnel.yml exec \
+      -e IDEN_BOOTSTRAP_ADMIN_PASSWORD='...' provider python -m scripts.seed
+    ```
+
+The seed creates IDEN's three APIs and their 27 [permissions](../reference/scopes.md), the
+`administrator`, `member` and `developer` roles, the administrator, and two clients: `dashboard`
+for the browser and `kiosk` for machine-to-machine access.
+
+The `dashboard` client's redirect URI is built from `IDEN_ISSUER`, so here it's
+`https://iden.example.org/console/callback` and nothing else. The `localhost` callbacks for
+development are only added when `IDEN_ENV=dev`.
+
+The seed is idempotent. Re-run it after an upgrade that ships new permissions. It never resets a
+credential or overwrites a redirect URI that already exists.
+
+## 8. Change Cloudflare's settings
+
+It's easy to skip this step, and skipping it causes problems that are hard to trace. Several of Cloudflare's
+defaults break an identity provider in ways that look like bugs in IDEN.
 
 ### Turn on
 
@@ -268,7 +334,7 @@ interstitial or a `403`. Every one of these is a non-browser caller:
 - `POST /oauth2/introspect`, `POST /oauth2/revoke`
 - `GET /.well-known/jwks.json` — fetched by every API validating a token
 - `GET /.well-known/openid-configuration` — fetched by every client library at startup
-- `/admin/*` and `/entity/*` with a bearer token
+- `/admin/*`, `/entity/*` and `/developer/*` with a bearer token
 
 A challenged token exchange returns `text/html` with a `403`. The client library tries to parse it as
 the error object RFC 6749 defines, fails, and reports something opaque about invalid JSON — while
@@ -281,13 +347,110 @@ http.host eq "iden.example.org" and (
   starts_with(http.request.uri.path, "/oauth2/") or
   starts_with(http.request.uri.path, "/.well-known/") or
   starts_with(http.request.uri.path, "/admin/") or
-  starts_with(http.request.uri.path, "/entity/")
+  starts_with(http.request.uri.path, "/entity/") or
+  starts_with(http.request.uri.path, "/developer/")
 )
 ```
 
 Leave protection on for `/auth/*` and `/console/*`, which genuinely are only ever browsers.
 
----
+## 9. Verify it
+
+Now the requests go the whole way: through Cloudflare, down the tunnel, and through nginx.
+
+### The routing
+
+```bash
+for p in / /auth/login /console/ /console/admin/users \
+         /.well-known/openid-configuration /admin/users /health /docs; do
+  printf '%-38s %s\n' "$p" "$(curl -s -o /dev/null -w '%{http_code}' https://iden.example.org$p)"
+done
+```
+
+| Path | Expect | Meaning |
+|---|---|---|
+| `/` | `302` → `/console/` | The bare hostname opens the dashboard |
+| `/auth/login` | `200` | The sign-in page is served, with its own assets |
+| `/console/`, `/console/admin/users` | `200` | Deep links into the dashboard survive a refresh |
+| `/.well-known/openid-configuration` | `200` | Discovery, advertising your hostname |
+| `/admin/users` | `401` | The **API**, not the screen — refusing an unauthenticated caller |
+| `/health` | `403` | Not public |
+| `/docs` | `404` | Not public |
+
+## 10. Sign in
+
+Open `https://iden.example.org/`. It redirects to `/console/`, the dashboard sends you to the sign-in
+page at `/auth/login`, and you come back signed in.
+
+**Change the bootstrap password now**, under **Security**.
+
+### Check the caller's address
+
+Signing in and changing the password are both recorded in the audit log, with the address they came
+from:
+
+```bash
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tunnel.yml \
+  exec postgres psql -U iden -d iden -c \
+  "select action, status_code, ip from audit_events order by occurred_at desc limit 5;"
+```
+
+`ip` must be your own public address. If it shows `172.31.250.x`, the three settings in
+[Who the caller is](#who-the-caller-is) don't agree.
+
+Then check that a forged address isn't believed. From any machine, send a fake one through the
+public hostname:
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -X POST https://iden.example.org/api/v1/auth/login \
+     -H 'Content-Type: application/json' -d '{}' \
+     -H 'X-Forwarded-For: 9.9.9.9' -H 'CF-Connecting-IP: 9.9.9.9'
+```
+
+Run the audit query again. The newest row must show that machine's real public address, never
+`9.9.9.9`. If Cloudflare refuses the request before it reaches you, that also passes. If you see
+`9.9.9.9`, something between Cloudflare and the provider trusts a header it shouldn't. Compare
+`real_ip_header` in `deploy/nginx/iden.conf` with the shipped example.
+
+### Next
+
+1. **[After installing](../guides/first-steps.md)** checks every part of the system and covers
+   setting up your organization.
+2. **[Before you expose it](security-checklist.md)** lists what has to be true before anyone else
+   is let in.
+3. **[Backup and restore](backup-and-restore.md#testing-it)**: take a backup and restore it once.
+
+## Moving an existing deployment here
+
+If this host already ran IDEN on another address, such as a laptop install you're promoting, three
+things still carry the old setup.
+
+**The `dashboard` client's redirect URIs.** The seed only sets them when it creates the client, so
+they still name the old origin, and sign-in loops until they're updated. You can't use the
+**Clients** screen, because you can't sign in yet, so update the database directly:
+
+```bash
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tunnel.yml \
+  exec postgres psql -U iden -d iden
+```
+
+```sql
+update clients set redirect_uris = ARRAY['https://iden.example.org/console/callback']
+where client_id = 'dashboard';
+```
+
+`redirect_uris` is a PostgreSQL array, so use `ARRAY[...]`. A JSON string fails with
+*malformed array literal*.
+
+**The store passwords.** PostgreSQL and SeaweedFS keep the credential their volume was initialised
+with, so a laptop volume still uses the published `iden`, and `prod` refuses to start on that. Change
+the database password first, with `alter user iden password '<new value>';` in the same `psql`,
+and then put the same value in `deploy/.env` as `IDEN_POSTGRES_PASSWORD`. SeaweedFS holds only
+profile photos. If you can lose them, remove its volume
+(`docker volume rm iden-dev_seaweedfs-data`) before the next `up`.
+
+**Everyone's sessions.** Tokens issued under the old issuer stop validating as soon as
+`IDEN_ISSUER` changes, so everyone signs in again.
 
 ## Who the caller is
 
@@ -376,54 +539,6 @@ group by 1, 2 order by 3 desc;
 | `/health`, `/health/*` | `403` at nginx | Says whether PostgreSQL and Redis are reachable. Point monitoring at the provider container directly. |
 | `/docs`, `/redoc`, `/openapi.json` | `404` at nginx | The provider already withholds them when `IDEN_ENV=prod`. Not routing them means a deployment accidentally left in `dev` does not publish its admin API either. |
 | Everything unlisted | `404` at nginx | So a frontend route added later cannot quietly be answered by the API. |
-
----
-
-## Verify it
-
-Work through this before anyone else is let in. Then work through [Before you expose
-it](security-checklist.md), which covers the parts that are not specific to a tunnel.
-
-### The routing
-
-```bash
-for p in / /auth/login /console/ /console/admin/users \
-         /.well-known/openid-configuration /admin/users /health /docs; do
-  printf '%-38s %s\n' "$p" "$(curl -s -o /dev/null -w '%{http_code}' https://iden.example.org$p)"
-done
-```
-
-| Path | Expect | Meaning |
-|---|---|---|
-| `/` | `302` → `/console/` | The bare hostname opens the dashboard |
-| `/auth/login` | `200` | The sign-in page is served, with its own assets |
-| `/console/`, `/console/admin/users` | `200` | Deep links into the dashboard survive a refresh |
-| `/.well-known/openid-configuration` | `200` | Discovery, advertising your hostname |
-| `/admin/users` | `401` | The **API**, not the screen — refusing an unauthenticated caller |
-| `/health` | `403` | Not public |
-| `/docs` | `404` | Not public |
-
-### The caller's address
-
-Sign in through the browser, then:
-
-```sql
-select action, status_code, ip from audit_events order by occurred_at desc limit 5;
-```
-
-`ip` must be your own public address. If it shows `172.31.250.x`, the three settings do not agree.
-
-### The negative test
-
-The one people skip. From the host, bypass nginx and lie:
-
-```bash
-curl -s -o /dev/null -H 'X-Forwarded-For: 9.9.9.9' \
-     -H 'CF-Connecting-IP: 9.9.9.9' http://127.0.0.1:8000/health/live
-```
-
-Nothing in the audit log should ever record `9.9.9.9`. If it does, `IDEN_FORWARDED_ALLOW_IPS` is
-wider than the network nginx sits on.
 
 ---
 

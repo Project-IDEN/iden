@@ -24,7 +24,7 @@ uv run --project provider zensical serve -a localhost:8001
 ```
 
 Start with [Concepts](doc/concepts/index.md) if identity is new to you, or
-[Run it locally](doc/guides/quickstart.md) to have something working in five minutes. This file
+[Run the provider from source](doc/guides/quickstart.md) to have something working in five minutes. This file
 stays as the system-level overview; the server's own reference is
 [`provider/README.md`](provider/README.md).
 
@@ -626,7 +626,7 @@ network.
 ## Quick Start
 
 ```bash
-git clone https://github.com/yephonekyaw/iden.git
+git clone https://github.com/Project-IDEN/iden.git
 cd iden
 
 # IDEN signs tokens with a key you own, and refuses to start without one.
@@ -638,7 +638,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
 
 docker compose -f deploy/docker-compose.yml up -d --build
 
-# Permissions, the two starting roles, the bootstrap administrator, two clients.
+# Permissions, the starting roles, the bootstrap administrator, two clients.
 docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed
 ```
 
@@ -652,17 +652,9 @@ docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed
 Each service publishes its own port on loopback. In a real deployment all three sit on **one
 origin** — the provider at the root, the sign-in page under `/auth`, the dashboard under `/console`
 — which is what `deploy/nginx/iden.conf.example` sets up. To put that origin on the internet with
-no inbound port at all:
-
-```bash
-cp deploy/.env.example deploy/.env          # hostname, tunnel token
-cp deploy/nginx/iden.conf.example deploy/nginx/iden.conf
-
-docker compose -f deploy/docker-compose.yml \
-               -f deploy/docker-compose.tunnel.yml up -d --build
-```
-
-See [Behind a Cloudflare Tunnel](doc/operations/cloudflare-tunnel.md).
+no inbound port at all, follow [Behind a Cloudflare Tunnel](doc/operations/cloudflare-tunnel.md)
+from the start: it needs the hostname, the store passwords and the tunnel token in `deploy/.env`
+before the first `up`.
 
 ### Verify the Setup
 
@@ -676,8 +668,9 @@ Then open the dashboard at <http://localhost:3000/console/> and sign in.
 The seed prints the bootstrap administrator's password **once** — it is hashed on the way into the
 database and cannot be recovered. Change it immediately after signing in.
 
-For a full walkthrough, including a check on every part of the system before anyone else is let in,
-see [Install IDEN for your organization](doc/guides/install.md).
+For the full walkthrough, see [On a laptop, in Docker](doc/guides/local-docker.md). To check every
+part of the system afterwards, see [After installing](doc/guides/first-steps.md).
+[Install IDEN](doc/guides/install.md) compares all four ways to run it.
 
 For backend development without Docker, see [provider/README.md](provider/README.md) and the phased
 build plan in [provider/PLAN.md](provider/PLAN.md).

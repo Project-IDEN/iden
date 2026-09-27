@@ -4,8 +4,6 @@ Losing an identity provider's database locks every person in your organization o
 application that trusts it. This page is the procedure, and the last section is the one that
 matters — a backup nobody has restored is a hope, not a backup.
 
-Every command here has been run end to end: dump, destroy the volumes, restore, sign in.
-
 ## What to back up
 
 | | Back it up? | If you lose it |
@@ -97,7 +95,7 @@ docker compose -f deploy/docker-compose.yml start provider
 ```
 
 If the signing keys were lost too, restore them into `provider/keys/` before step 4 — or
-[generate a new one](../guides/install.md#2-generate-a-signing-key) and accept that everyone signs
+[generate a new one](cloudflare-tunnel.md#4-generate-the-keys) and accept that everyone signs
 in again.
 
 ### What comes back, and what does not
@@ -118,8 +116,17 @@ Expect a wave of sign-ins after any restore. That is the design working, not a f
     This is the step the [security checklist](security-checklist.md) requires, and the one that
     gets skipped. Do it once now, and once a year after that.
 
-Never test by restoring over production. Use a throwaway Compose project — `-p` gives it its own
-volumes, so nothing you already run is touched:
+Never test by restoring over production. Restore on **another machine** instead. A laptop is fine.
+The Compose file publishes fixed ports on `127.0.0.1`, which the live deployment already holds, so
+the test can't run next to it. On the test machine:
+
+- Clone the repository, and **don't** create `deploy/.env`. The test copy runs with laptop defaults
+  on `localhost`.
+- Extract the key backup into `provider/keys/`. Restoring the keys is part of the test: without the
+  same `totp.key`, nobody with an authenticator can sign in.
+
+The `-p` below gives the test its own project name and volumes, so it can't touch anything else on
+that machine either:
 
 ```bash
 # A separate deployment, from the same files.
@@ -131,6 +138,17 @@ docker compose -p iden-restore-test -f deploy/docker-compose.yml exec -T -i post
 
 docker compose -p iden-restore-test -f deploy/docker-compose.yml run --rm migrate
 docker compose -p iden-restore-test -f deploy/docker-compose.yml restart provider
+
+# The dump names your real hostname in two places. The seed points IDEN's own
+# APIs at this copy's issuer (it never touches credentials)...
+docker compose -p iden-restore-test -f deploy/docker-compose.yml exec provider \
+  python -m scripts.seed
+
+# ...and this lets the dashboard client accept localhost, so you can sign in.
+docker compose -p iden-restore-test -f deploy/docker-compose.yml exec -T postgres \
+  psql -U iden -d iden -c \
+  "update clients set redirect_uris = redirect_uris || ARRAY['http://localhost:3000/console/callback']
+   where client_id = 'dashboard';"
 ```
 
 Then prove it, rather than looking at row counts:

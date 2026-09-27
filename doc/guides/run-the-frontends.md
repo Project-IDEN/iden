@@ -1,8 +1,15 @@
-# Run the frontends
+# Develop the frontends
 
-The development loop for the two browser applications themselves. To *deploy* them, see
-[Install it for your organization](install.md) — this page is about editing them and seeing the
-change.
+The development loop for the two browser apps. You run the provider and both frontends from your
+checkout, with only the stores in Docker, so edits show up right away. To *deploy* them, see
+[Install IDEN](install.md).
+
+## You need
+
+- **Python 3.14+** and [uv](https://docs.astral.sh/uv/), for the provider
+- **Node.js** and [pnpm](https://pnpm.io/), for the frontends
+- **Docker**, for PostgreSQL, Redis and SeaweedFS
+- Ports **8000, 4000 and 5173** free
 
 IDEN ships two. They are what turns the API into something a person can use, and both are ordinary
 OIDC clients of the provider with no privileged path of their own.
@@ -22,7 +29,7 @@ rebuild; change it anywhere else and the two disagree.
 
 Both are React on Vite in the `web/` pnpm workspace, sharing an `@iden/shared` package: the design
 tokens, the generated API types, one axios client, and the components that render identity data.
-[`web/README.md`](https://github.com/yephonekyaw/iden/blob/dev/web/README.md) has the layout.
+[`web/README.md`](https://github.com/Project-IDEN/iden/blob/dev/web/README.md) has the layout.
 
 The dev ports differ from the container ports for the dashboard, and both are already accounted for:
 5173 and 3000 are in the CORS allowlist and in the seeded `dashboard` client's redirect URIs, so
@@ -30,19 +37,40 @@ either works without configuration.
 
 ## 1. Start the provider
 
-The frontends have nothing to show without it. From `provider/`:
+The frontends have nothing to show without it. Start the stores, from the repository root:
 
 ```bash
-docker compose -f ../deploy/docker-compose.yml up -d postgres redis seaweedfs
+docker compose -f deploy/docker-compose.yml up -d postgres redis seaweedfs
+```
 
-uv run python -m scripts.gen_keys    # once — the provider will not start without its keys
-uv run alembic upgrade head
+Name the three services. Running `up -d` without them also starts the containerized provider and
+frontends, which take the ports you're about to use. Leave `seaweedfs` out if you're not working on
+profile photos. Those endpoints then answer `503`, and nothing else changes.
+
+Then the provider, from `provider/`:
+
+```bash
+cd provider
+
+uv sync                              # install dependencies
+cp .env.example .env                 # the defaults match the containers above
+
+uv run python -m scripts.gen_keys    # once: signing key + totp.key
+uv run alembic upgrade head          # create the schema
 uv run python -m scripts.seed        # prints the bootstrap password, once
+
 uv run provider                      # http://localhost:8000
 ```
 
-Leave `seaweedfs` out if you are not working on profile photos; those endpoints will answer `503` and
-nothing else changes. [Run it locally](quickstart.md) explains these steps in more detail.
+Copy the administrator's email and password from the seed's output. Both are hashed before they're
+stored and are only printed this once. If you lose them, `uv run python -m scripts.reset` drops
+everything and seeds again with a new password.
+
+`provider/.env` already allows the dashboard's dev origin (`http://localhost:5173`) in
+`IDEN_ALLOWED_ADMIN_ORIGINS`. The seeded `dashboard` client already accepts
+`http://localhost:5173/console/callback`. Neither needs changing.
+
+Leave the provider running and open a second terminal.
 
 ## 2. Start the frontends
 
@@ -59,7 +87,9 @@ the redirect URI.
 
 Open <http://localhost:5173/console/> and you are sent through a real sign-in: the dashboard
 redirects to `/oauth2/authorize`, the provider redirects to auth-ui at
-<http://localhost:4000/auth/login>, and you come back to `/console/callback` with a code.
+<http://localhost:4000/auth/login>, and you come back to `/console/callback` with a code. Sign in
+with the bootstrap administrator from step 1. [After installing](first-steps.md) has a walkthrough
+that exercises every screen.
 
 Note the trailing paths — though you do not have to type them. All three ways of serving these apps
 redirect their root to the base: Vite's dev server, each app's own container, and the production
@@ -118,8 +148,7 @@ inline.
     All three are compared exactly, and the browser console says which one — a CORS refusal points at
     `IDEN_ALLOWED_ADMIN_ORIGINS`, an `invalid_request` on the redirect points at the client.
 
-    The settings, and how to change them, are in
-    [Install it for your organization](install.md#3-configure).
+    The settings, and how to change them, are in [Configuration](../reference/configuration.md).
 
 ??? failure "Vite refuses to start: port is already in use"
     `strictPort` is deliberate. Something else holds 4000 or 5173 — usually the containerized
@@ -134,4 +163,4 @@ inline.
     That is the permission system working. The sidebar is built from the scopes in your token — sign
     in as someone holding the `administrator` role.
 
-[guidelines]: https://github.com/yephonekyaw/iden/blob/dev/GUIDELINES.md
+[guidelines]: https://github.com/Project-IDEN/iden/blob/dev/GUIDELINES.md
