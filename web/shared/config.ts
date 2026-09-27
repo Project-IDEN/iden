@@ -11,8 +11,18 @@ declare global {
       issuer?: string;
       organization?: string;
       organizationLogoUrl?: string;
+      mailDomain?: string;
     };
   }
+}
+
+/**
+ * The domain every new account's address is on. Only shown: the provider builds
+ * the address from its own IDEN_MAIL_DOMAIN, so a mismatch here misleads the
+ * administrator but cannot put anyone on another domain.
+ */
+export function readMailDomain(fallback: string | undefined): string {
+  return window.__IDEN_CONFIG__?.mailDomain || fallback || "localhost";
 }
 
 export function readIssuer(fallback: string | undefined): string {

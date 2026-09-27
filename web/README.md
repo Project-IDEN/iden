@@ -90,12 +90,13 @@ pnpm build
 
 ## Configuration
 
-| Variable                                   | Where      | Meaning                                                                                                                                                     |
-| ------------------------------------------ | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `VITE_IDEN_ISSUER`                         | `pnpm dev` | The provider's origin. Defaults to `http://localhost:8000`.                                                                                                 |
-| `IDEN_ISSUER`                              | container  | Written into `/config.js` at start-up, so one image serves any deployment.                                                                                  |
-| `VITE_IDEN_ORG_NAME` / `IDEN_ORG_NAME`     | both       | The organization this deployment belongs to. It takes the larger type in the brand lockup and IDEN drops to a caption beneath it. Unset, IDEN stands alone. |
-| `VITE_IDEN_ORG_LOGO` / `IDEN_ORG_LOGO_URL` | both       | Optional logo shown beside the organization name. Any URL the browser can reach.                                                                            |
+| Variable                                     | Where      | Meaning                                                                                                                                                     |
+| -------------------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_IDEN_ISSUER`                           | `pnpm dev` | The provider's origin. Defaults to `http://localhost:8000`.                                                                                                 |
+| `IDEN_ISSUER`                                | container  | Written into `/config.js` at start-up, so one image serves any deployment.                                                                                  |
+| `VITE_IDEN_ORG_NAME` / `IDEN_ORG_NAME`       | both       | The organization this deployment belongs to. It takes the larger type in the brand lockup and IDEN drops to a caption beneath it. Unset, IDEN stands alone. |
+| `VITE_IDEN_ORG_LOGO` / `IDEN_ORG_LOGO_URL`   | both       | Optional logo shown beside the organization name. Any URL the browser can reach.                                                                            |
+| `VITE_IDEN_MAIL_DOMAIN` / `IDEN_MAIL_DOMAIN` | both       | Dashboard only. Shown beside the email field when adding a user. The provider decides the address; give both the same value.                                   |
 
 Whichever origin serves the dashboard must appear in the provider's
 `IDEN_ALLOWED_ADMIN_ORIGINS`, and be registered as a redirect URI on the `dashboard` client —

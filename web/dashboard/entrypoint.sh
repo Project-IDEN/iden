@@ -18,6 +18,7 @@ window.__IDEN_CONFIG__ = {
   issuer: "$(escape "$ISSUER")",
   organization: "$(escape "${IDEN_ORG_NAME:-}")",
   organizationLogoUrl: "$(escape "${IDEN_ORG_LOGO_URL:-}")",
+  mailDomain: "$(escape "${IDEN_MAIL_DOMAIN:-localhost}")",
 };
 JS
 

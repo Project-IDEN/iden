@@ -782,6 +782,8 @@ export interface paths {
          * Create a user
          * @description Creates an account, optionally with roles and group memberships.
          *
+         *     Only the part before the `@` is chosen: the address is `<emailLocalPart>@<IDEN_MAIL_DOMAIN>`, lowercased, so every account sits on the organization's own domain. It is fixed from then on; the username stays changeable.
+         *
          *     Omit `password` and one is generated and returned **once** in `generatedPassword`. It is argon2-hashed on the way in and cannot be recovered afterwards.
          *
          *     **Required scope:** `admin:users:write`
@@ -822,7 +824,9 @@ export interface paths {
         head?: never;
         /**
          * Update a user
-         * @description Deactivating a user (`isActive: false`) immediately revokes every session and refresh token — otherwise the account stays usable until they expire on their own.
+         * @description The address cannot be changed: it is fixed when the account is created. Sending `email` is refused with `422`.
+         *
+         *     Deactivating a user (`isActive: false`) immediately revokes every session and refresh token — otherwise the account stays usable until they expire on their own.
          *
          *     Deactivating the last active administrator is refused with `409`.
          *
@@ -1327,30 +1331,6 @@ export interface paths {
          *     **Required scope:** `entity:credentials:write`
          */
         post: operations["change_password_entity_credentials_password_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/entity/credentials/email": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Change your email address
-         * @description The new address starts unverified — keeping the old verification would let someone claim an address they cannot read.
-         *
-         *     **Needs a recent sign-in.** A valid token is not enough: someone holding a stolen one could take the account over outright. A sign-in within five minutes is required, and the refusal is RFC 9470's `insufficient_user_authentication` with the `max_age` that would satisfy it — send the user back through `/authorize` with that `max_age`.
-         *
-         *     **Required scope:** `entity:credentials:write`
-         */
-        post: operations["change_email_entity_credentials_email_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2378,13 +2358,6 @@ export interface components {
             /** Scopes */
             scopes: components["schemas"]["ScopeSource"][];
         };
-        /** EmailChange */
-        EmailChange: {
-            /** Email */
-            email: string;
-            /** Currentpassword */
-            currentPassword: string;
-        };
         /**
          * ErrorResponse
          * @description The JSON error shape returned everywhere except the OAuth endpoints,
@@ -3388,8 +3361,11 @@ export interface components {
         };
         /** UserCreate */
         UserCreate: {
-            /** Email */
-            email: string;
+            /**
+             * Emaillocalpart
+             * @description What goes before the `@`. The address is `<emailLocalPart>@<IDEN_MAIL_DOMAIN>`, lowercased; there is no way to choose another domain, and no way to change it afterwards.
+             */
+            emailLocalPart: string;
             /** Username */
             username: string;
             /** Displayname */
@@ -3510,8 +3486,6 @@ export interface components {
         };
         /** UserUpdate */
         UserUpdate: {
-            /** Email */
-            email?: string | null;
             /** Username */
             username?: string | null;
             /** Displayname */
@@ -5761,7 +5735,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Email or username taken, or would leave no administrator */
+            /** @description Username taken, or would leave no administrator */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6964,57 +6938,6 @@ export interface operations {
                 };
             };
             /** @description Wrong or unchanged password */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    change_email_entity_credentials_email_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EmailChange"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CredentialChangeResponse"];
-                };
-            };
-            /** @description Sign-in is not recent enough */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Address already in use */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Wrong password */
             422: {
                 headers: {
                     [name: string]: unknown;

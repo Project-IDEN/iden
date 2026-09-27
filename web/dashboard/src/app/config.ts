@@ -1,4 +1,4 @@
-import { readBranding, readIssuer } from "@iden/shared";
+import { readBranding, readIssuer, readMailDomain } from "@iden/shared";
 
 /**
  * The path this app is served under, without its trailing slash.
@@ -17,4 +17,5 @@ export const config = {
     organization: import.meta.env.VITE_IDEN_ORG_NAME,
     logoUrl: import.meta.env.VITE_IDEN_ORG_LOGO,
   }),
+  mailDomain: readMailDomain(import.meta.env.VITE_IDEN_MAIL_DOMAIN),
 };

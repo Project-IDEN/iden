@@ -5,16 +5,21 @@ import { Controller, useForm } from "react-hook-form";
 import { useNavigate } from "react-router";
 import { z } from "zod";
 import { useApi } from "../../app/api";
+import { config } from "../../app/config";
 import { NotSet, ReviewItem, ReviewList, Wizard, type Step } from "../../app/wizard";
 import { useWrite, type UserCreated } from "./api";
 import { useGroupOptions, useRoleOptions } from "./options";
 import { SetPicker } from "./picker";
 
 const schema = z.object({
-  email: z
+  emailLocalPart: z
     .string()
     .min(1, "An email address is required.")
-    .regex(/^[^@\s]+@[^@\s]+$/, "That does not look like an email address."),
+    .max(64, "At most 64 characters.")
+    .regex(
+      /^[a-zA-Z0-9]+([._-][a-zA-Z0-9]+)*$/,
+      "Letters and numbers, with single dots, dashes or underscores between them.",
+    ),
   username: z
     .string()
     .min(1, "A username is required.")
@@ -26,6 +31,9 @@ const schema = z.object({
 
 type Values = z.infer<typeof schema>;
 
+/** The provider builds the same address; this is only what the form shows. */
+const addressOf = (localPart: string) => `${localPart.toLowerCase()}@${config.mailDomain}`;
+
 export function UserCreateRoute() {
   const api = useApi();
   const navigate = useNavigate();
@@ -36,12 +44,18 @@ export function UserCreateRoute() {
   const form = useForm<Values>({
     resolver: zodResolver(schema),
     mode: "onTouched",
-    defaultValues: { email: "", username: "", displayName: "", roleIds: [], groupIds: [] },
+    defaultValues: {
+      emailLocalPart: "",
+      username: "",
+      displayName: "",
+      roleIds: [],
+      groupIds: [],
+    },
   });
 
   const create = useWrite<Values, UserCreated>(["/admin/users"], async (values) => {
     const response = await api.post<UserCreated>("/admin/users", {
-      email: values.email,
+      emailLocalPart: values.emailLocalPart,
       username: values.username,
       displayName: values.displayName || null,
       roleIds: values.roleIds,
@@ -87,12 +101,30 @@ export function UserCreateRoute() {
       id: "identity",
       label: "Identity",
       title: "Who is this?",
-      lede: "The email address is what they sign in with. A one-time password is generated and shown once at the end.",
-      fields: ["email", "username", "displayName"],
+      lede: "The email address is what they sign in with, on this organization's domain. A one-time password is generated and shown once at the end.",
+      fields: ["emailLocalPart", "username", "displayName"],
       render: (f) => (
         <div className="flex max-w-xl flex-col gap-6">
-          <Field label="Email" required error={f.formState.errors.email?.message}>
-            {(props) => <Input {...props} {...f.register("email")} type="email" />}
+          <Field
+            label="Email"
+            required
+            hint="Cannot be changed once the account exists."
+            error={f.formState.errors.emailLocalPart?.message}
+          >
+            {(props) => (
+              <div className="flex">
+                <Input
+                  {...props}
+                  {...f.register("emailLocalPart")}
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="rounded-r-none"
+                />
+                <span className="flex h-control max-w-1/2 shrink-0 items-center truncate rounded-r-md border border-l-0 border-input bg-secondary px-3.5 text-body-md text-muted-foreground">
+                  @{config.mailDomain}
+                </span>
+              </div>
+            )}
           </Field>
           <Field
             label="Username"
@@ -170,7 +202,7 @@ export function UserCreateRoute() {
         const groups = named(groupOptions.data, v.groupIds);
         return (
           <ReviewList>
-            <ReviewItem label="Email">{v.email}</ReviewItem>
+            <ReviewItem label="Email">{addressOf(v.emailLocalPart)}</ReviewItem>
             <ReviewItem label="Username">{v.username}</ReviewItem>
             <ReviewItem label="Display name">{v.displayName || <NotSet />}</ReviewItem>
             <ReviewItem label="Roles">{roles.length ? roles.join(", ") : <NotSet />}</ReviewItem>

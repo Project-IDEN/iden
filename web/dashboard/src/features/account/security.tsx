@@ -207,27 +207,6 @@ function PasswordSetting() {
 function EmailSetting() {
   const api = useApi();
   const profile = useProfile(api);
-  const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const [email, setEmail] = useState("");
-  const [currentPassword, setPassword] = useState("");
-
-  const change = useMutation({
-    mutationFn: async () => {
-      const response = await api.post<{ sessionsEnded: number }>("/entity/credentials/email", {
-        email,
-        currentPassword,
-      });
-      return response.data;
-    },
-    onSuccess: () => {
-      setPassword("");
-      setOpen(false);
-      void queryClient.invalidateQueries({ queryKey: ["profile"] });
-    },
-  });
-
-  const problem = change.error instanceof IdenError ? change.error : null;
 
   return (
     <Setting
@@ -235,73 +214,14 @@ function EmailSetting() {
       status={
         profile.data ? (
           <>
-            You sign in as <span className="text-body-strong">{profile.data.email}</span>. A new
-            address starts unverified.
+            You sign in as <span className="text-body-strong">{profile.data.email}</span>. It was
+            given to you by your organization and cannot be changed.
           </>
         ) : (
           "The address you sign in with."
         )
       }
-      action={<Toggle open={open} onOpenChange={setOpen} label="Change address" />}
-    >
-      {open ? (
-        <form
-          noValidate
-          className="flex flex-col gap-5"
-          onSubmit={(event) => {
-            event.preventDefault();
-            change.mutate();
-          }}
-        >
-          <Field
-            label="New email address"
-            hint="Changing this signs out your other sessions."
-            error={
-              problem?.code === "email_taken"
-                ? "That address already belongs to an account."
-                : undefined
-            }
-          >
-            {(props) => (
-              <Input
-                {...props}
-                type="email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            )}
-          </Field>
-          <Field label="Your password">
-            {(props) => (
-              <Input
-                {...props}
-                type="password"
-                autoComplete="current-password"
-                value={currentPassword}
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            )}
-          </Field>
-
-          <StepUpNotice problem={problem} />
-
-          {problem && !problem.stepUpMaxAge && problem.code !== "email_taken" ? (
-            <p role="alert" className="text-body-sm text-error">
-              {problem.code === "wrong_password" ? "That password is not right." : problem.message}
-            </p>
-          ) : null}
-
-          <Button
-            type="submit"
-            variant="default"
-            className="self-start"
-            disabled={change.isPending}
-          >
-            {change.isPending ? "Changing…" : "Change address"}
-          </Button>
-        </form>
-      ) : null}
-    </Setting>
+    />
   );
 }
 
