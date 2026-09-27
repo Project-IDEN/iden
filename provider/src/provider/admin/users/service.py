@@ -18,7 +18,7 @@ from provider.admin.users.schemas import UserCreate, UserUpdate
 from provider.authz.logout import service as logout_service
 from provider.authz.services.token_service import now
 from provider.core.config import settings
-from provider.core.security import hash_secret
+from provider.core.security import hash_secret_async
 from provider.shared.models import (
     Group,
     RefreshToken,
@@ -147,7 +147,7 @@ async def create_user(
         email_verified_at=now(),
         username=data.username,
         display_name=data.display_name,
-        password_hash=hash_secret(password),
+        password_hash=await hash_secret_async(password),
     )
     user.roles = await _resolve(session, Role, data.role_ids, UnknownRoles)
     user.groups = await _resolve(session, Group, data.group_ids, UnknownGroups)
@@ -276,7 +276,7 @@ async def reset_password(
 
     new_password = password or secrets.token_urlsafe(18)
     generated = None if password else new_password
-    user.password_hash = hash_secret(new_password)
+    user.password_hash = await hash_secret_async(new_password)
 
     await revoke_everything(session, redis, user_id)
     await session.commit()

@@ -1,5 +1,6 @@
 """Reading and writing one person's profile."""
 
+import anyio.to_thread
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -134,9 +135,10 @@ async def set_photo(
     naming a file that is not there.
     """
     name = avatars.new_name()
-    await storage.put(
-        avatars.object_key(name), images.to_avatar(data), images.AVATAR_CONTENT_TYPE
-    )
+    # Off the event loop: decoding and resampling a large photo is seconds of
+    # CPU, and every other request on this worker would wait for it.
+    avatar = await anyio.to_thread.run_sync(images.to_avatar, data)
+    await storage.put(avatars.object_key(name), avatar, images.AVATAR_CONTENT_TYPE)
 
     previous = user.picture_key
     user.picture_key = name

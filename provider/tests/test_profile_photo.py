@@ -75,6 +75,24 @@ class TestUpload:
         assert response.status_code == 422
         assert response.json()["code"] == "invalid_image"
 
+    async def test_a_decompression_bomb_is_refused(self, client, entity_headers):
+        """A few bytes declaring a 20,000-pixel square: Pillow refuses it in
+        `open`, before any pixel is decoded."""
+        import struct
+        import zlib
+
+        def chunk(kind: bytes, body: bytes) -> bytes:
+            crc = zlib.crc32(kind + body)
+            return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", crc)
+
+        header = struct.pack(">IIBBBBB", 20_000, 20_000, 8, 2, 0, 0, 0)
+        bomb = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", header) + chunk(b"IEND", b"")
+
+        response = await upload(client, entity_headers, bomb)
+
+        assert response.status_code == 422
+        assert response.json()["code"] == "invalid_image"
+
     async def test_an_oversized_file_is_refused(self, client, entity_headers):
         from provider.core.config import settings
 

@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     # claim about the caller's address is accepted, and both the rate limiter and
     # the audit log rest on it. Name the proxy; never `*`.
     iden_forwarded_allow_ips: str = ""
+    # Server processes outside development. Each is one event loop, so one slow
+    # request is felt by that worker's share of traffic rather than all of it.
+    # Everything shared lives in PostgreSQL and Redis, so any number is safe;
+    # budget roughly 300 MiB each, argon2 included.
+    iden_workers: int = 2
 
     # Issuer
     iden_issuer: str = "http://localhost:8000"

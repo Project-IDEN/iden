@@ -325,13 +325,16 @@ app.include_router(router, prefix=settings.iden_api_prefix)
 def main():
     # Reload watches the source tree and restarts on every write. In a container
     # that is a memory cost and a restart loop waiting for a mounted file to
-    # change, so it follows the environment rather than being always on.
+    # change, so it follows the environment rather than being always on. Reload
+    # and several workers are mutually exclusive in uvicorn.
+    dev = settings.iden_env == "dev"
     uvicorn.run(
         "provider.core.app:app",
         host="0.0.0.0",
         port=8000,
         log_config=None,
-        reload=settings.iden_env == "dev",
+        reload=dev,
+        workers=1 if dev else settings.iden_workers,
         # Uvicorn rewrites `scope["client"]` from `X-Forwarded-For` for trusted
         # peers, so neither the rate limiter nor the audit log needs to know a
         # proxy exists. An empty list trusts nobody; uvicorn's default trusts

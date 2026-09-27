@@ -16,7 +16,7 @@ from provider.authz.logout import service as logout_service
 from provider.authz.recovery.errors import InvalidResetToken
 from provider.core import notifier
 from provider.core.config import settings
-from provider.core.security import generate_token, hash_secret, hash_token
+from provider.core.security import generate_token, hash_secret_async, hash_token
 from provider.shared.models import RefreshToken, User
 
 TOKEN_TTL = 900
@@ -66,7 +66,7 @@ async def confirm_reset(
     if user is None or not user.is_active:
         raise InvalidResetToken
 
-    user.password_hash = hash_secret(new_password)
+    user.password_hash = await hash_secret_async(new_password)
 
     # Whoever prompted the reset may be the reason it was needed. Everything
     # issued before this moment stops working.

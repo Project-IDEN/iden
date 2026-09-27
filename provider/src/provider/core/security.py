@@ -15,6 +15,8 @@ import secrets
 from functools import cache
 from pathlib import Path
 
+import anyio
+import anyio.to_thread
 from argon2 import PasswordHasher
 from argon2.exceptions import VerificationError, VerifyMismatchError
 from cryptography.exceptions import InvalidTag
@@ -44,6 +46,27 @@ def verify_secret(hashed: str | None, secret: str) -> bool:
 
 def needs_rehash(hashed: str) -> bool:
     return _hasher.check_needs_rehash(hashed)
+
+
+# Each hash holds 64 MiB for its duration, so the thread pool's default of 40
+# would let a burst of sign-ins take 2.5 GiB. Past this many, callers queue.
+_hashing_slots = anyio.CapacityLimiter(4)
+
+
+async def hash_secret_async(secret: str) -> str:
+    """`hash_secret` off the event loop, for request handlers.
+
+    argon2 is deliberately slow, and run inline it stalls every request the
+    worker is serving — a flood of sign-ins would stall token refreshes too.
+    """
+    return await anyio.to_thread.run_sync(hash_secret, secret, limiter=_hashing_slots)
+
+
+async def verify_secret_async(hashed: str | None, secret: str) -> bool:
+    """`verify_secret` off the event loop, for request handlers."""
+    return await anyio.to_thread.run_sync(
+        verify_secret, hashed, secret, limiter=_hashing_slots
+    )
 
 
 def generate_token(nbytes: int = 32) -> str:

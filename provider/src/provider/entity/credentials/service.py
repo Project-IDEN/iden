@@ -11,7 +11,7 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.authz.logout import service as logout_service
-from provider.core.security import hash_secret, verify_secret
+from provider.core.security import hash_secret_async, verify_secret_async
 from provider.entity.credentials.errors import SamePassword, WrongPassword
 from provider.shared.models import RefreshToken, User
 
@@ -46,12 +46,12 @@ async def change_password(
     new: str,
     keep_session: str | None = None,
 ) -> int:
-    if not verify_secret(user.password_hash, current):
+    if not await verify_secret_async(user.password_hash, current):
         raise WrongPassword
-    if verify_secret(user.password_hash, new):
+    if await verify_secret_async(user.password_hash, new):
         raise SamePassword
 
-    user.password_hash = hash_secret(new)
+    user.password_hash = await hash_secret_async(new)
     ended = await _invalidate_everything_else(
         session, redis, user, keep_session=keep_session
     )

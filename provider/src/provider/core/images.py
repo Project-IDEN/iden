@@ -40,6 +40,10 @@ def to_avatar(data: bytes) -> bytes:
         image = ImageOps.fit(
             image, (AVATAR_SIZE, AVATAR_SIZE), Image.Resampling.LANCZOS
         )
+    except Image.DecompressionBombError as exc:
+        # Pillow's own ceiling, checked inside `open` for a canvas more than
+        # twice its default limit — before the check above can run.
+        raise InvalidImage("That image is too large to process.") from exc
     except (UnidentifiedImageError, OSError, ValueError) as exc:
         raise InvalidImage from exc
 

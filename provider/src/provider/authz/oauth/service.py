@@ -9,7 +9,7 @@ from provider.authz.oauth.errors import InvalidClient, InvalidGrant
 from provider.authz.services.pkce import verify_challenge
 from provider.authz.services.token_service import now
 from provider.core.config import settings
-from provider.core.security import generate_token, hash_token, verify_secret
+from provider.core.security import generate_token, hash_token, verify_secret_async
 from provider.shared.enums import ClientType, GrantType
 from provider.shared.models import AuthorizationCode, Client, User
 
@@ -55,7 +55,7 @@ async def authenticate_endpoint_client(
         raise InvalidClient("Unknown client.")
 
     if client.client_type == ClientType.CONFIDENTIAL:
-        if not client_secret or not verify_secret(
+        if not client_secret or not await verify_secret_async(
             client.client_secret_hash, client_secret
         ):
             raise InvalidClient()
@@ -79,7 +79,7 @@ async def authenticate_client(
         raise InvalidClient("Unknown client.")
 
     if client.client_type == ClientType.CONFIDENTIAL:
-        if not client_secret or not verify_secret(
+        if not client_secret or not await verify_secret_async(
             client.client_secret_hash, client_secret
         ):
             raise InvalidClient()

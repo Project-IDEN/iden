@@ -13,7 +13,7 @@ from provider.admin.clients.errors import (
     UnknownScopes,
 )
 from provider.admin.clients.schemas import ClientCreate, ClientUpdate
-from provider.core.security import generate_token, hash_secret
+from provider.core.security import generate_token, hash_secret_async
 from provider.shared.enums import ClientType, GrantType
 from provider.shared.models import Client, ClientScope, Scope
 from provider.shared.scopes import RESTRICTED_PREFIXES
@@ -97,7 +97,7 @@ async def create_client(
         client_id=data.client_id,
         name=data.name,
         client_type=data.client_type,
-        client_secret_hash=hash_secret(secret) if secret else None,
+        client_secret_hash=await hash_secret_async(secret) if secret else None,
         allowed_grants=data.allowed_grants,
         redirect_uris=data.redirect_uris,
         post_logout_redirect_uris=data.post_logout_redirect_uris,
@@ -160,7 +160,7 @@ async def rotate_secret(session: AsyncSession, client_id: UUID) -> str:
         raise PublicClientHasNoSecret
 
     secret = generate_token(32)
-    client.client_secret_hash = hash_secret(secret)
+    client.client_secret_hash = await hash_secret_async(secret)
     await session.commit()
     return secret
 

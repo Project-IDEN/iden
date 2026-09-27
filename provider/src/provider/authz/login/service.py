@@ -11,7 +11,11 @@ from provider.authz.login.errors import (
     InvalidTotpCode,
     TotpNotEnrolled,
 )
-from provider.core.security import decrypt_secret, hash_secret, verify_secret
+from provider.core.security import (
+    decrypt_secret,
+    hash_secret,
+    verify_secret_async,
+)
 from provider.shared.enums import AmrMethod
 from provider.shared.models import TotpCredential, User
 
@@ -27,10 +31,10 @@ async def authenticate_password(
     user = await session.scalar(select(User).where(User.email == email))
 
     if user is None:
-        verify_secret(_DUMMY_HASH, password)
+        await verify_secret_async(_DUMMY_HASH, password)
         raise InvalidCredentials
 
-    if not verify_secret(user.password_hash, password):
+    if not await verify_secret_async(user.password_hash, password):
         raise InvalidCredentials
 
     if not user.is_active:

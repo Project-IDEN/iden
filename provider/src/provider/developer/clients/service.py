@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.authz.services.scope_resolver import OIDC_SCOPES, grantable_scopes
 from provider.core.config import settings
-from provider.core.security import generate_token, hash_secret
+from provider.core.security import generate_token, hash_secret_async
 from provider.developer.clients.errors import (
     ApplicationNotFound,
     ApplicationQuotaReached,
@@ -107,7 +107,7 @@ async def create_application(
         client_id=_client_id_for(data.name),
         name=data.name,
         client_type=data.client_type,
-        client_secret_hash=hash_secret(secret) if secret else None,
+        client_secret_hash=await hash_secret_async(secret) if secret else None,
         allowed_grants=list(SELF_SERVICE_GRANTS),
         redirect_uris=data.redirect_uris,
         post_logout_redirect_uris=data.post_logout_redirect_uris,
@@ -149,7 +149,7 @@ async def rotate_secret(
         raise PublicClientHasNoSecret
 
     secret = generate_token(32)
-    client.client_secret_hash = hash_secret(secret)
+    client.client_secret_hash = await hash_secret_async(secret)
     await session.commit()
     return secret
 
