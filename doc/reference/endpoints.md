@@ -3,7 +3,7 @@
 Generated from the running application. The interactive version, with request and response bodies,
 is at `/docs` on any deployment — it is the same data, and it is always current.
 
-Every `/admin/*` and `/entity/*` route is gated by a permission named in its description there.
+Every `/admin/*`, `/entity/*` and `/developer/*` route is gated by a permission named in its description there.
 
 ### Admin — apis
 
@@ -95,6 +95,20 @@ Every `/admin/*` and `/entity/*` route is gated by a permission named in its des
 | `PUT` | `/admin/users/{user_id}/roles` | Set a user's roles |
 | `PUT` | `/admin/users/{user_id}/scopes` | Set a user's direct scope grants |
 | `DELETE` | `/admin/users/{user_id}/totp` | Clear a user's authenticator |
+
+### Developer — clients
+
+Self-service registration, for accounts holding the `developer:` scopes. Each person sees and changes
+only the applications they registered.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/developer/clients` | List the applications you registered |
+| `POST` | `/developer/clients` | Register an application |
+| `DELETE` | `/developer/clients/{application_id}` | Delete one of your applications |
+| `GET` | `/developer/clients/{application_id}` | Read one of your applications |
+| `PATCH` | `/developer/clients/{application_id}` | Update one of your applications |
+| `POST` | `/developer/clients/{application_id}/rotate-secret` | Rotate an application's secret |
 
 ### Sign-in and recovery
 

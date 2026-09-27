@@ -148,5 +148,7 @@ For a sensitive screen, add `max_age=300` — or `prompt=login` to force it outr
     Any script on the page can read them. Prefer memory plus a short refresh, or a backend that holds
     them.
 
-!!! failure "Treating `email` as the identifier"
-    It changes, and IDEN marks it unverified when it does. `sub` never changes.
+!!! failure "Treating `email` or `preferred_username` as the identifier"
+    IDEN fixes an address when the account is created, but a username can be renamed, and an
+    address can be reused by someone else after the account is deleted. `sub` never changes and
+    is never reused.

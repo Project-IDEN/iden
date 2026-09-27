@@ -1,7 +1,7 @@
 # Roadmap
 
 The full build plan and every open issue live in
-[`provider/PLAN.md`](https://github.com/yephonekyaw/iden/blob/dev/provider/PLAN.md). This is
+[`provider/PLAN.md`](https://github.com/Project-IDEN/iden/blob/dev/provider/PLAN.md). This is
 the summary.
 
 ## Phases
@@ -21,7 +21,7 @@ the summary.
 Phase 7 shipped both browser applications: `auth-ui` (password, TOTP, consent and recovery) and the
 dashboard (self-service plus all seven admin resources, each gated on its read scope). Their own
 phased plan, with the same *Status* notes, is
-[`web/PLAN.md`](https://github.com/yephonekyaw/iden/blob/dev/web/PLAN.md). What is outstanding there
+[`web/PLAN.md`](https://github.com/Project-IDEN/iden/blob/dev/web/PLAN.md). What is outstanding there
 is a visual review: the screens have been verified functionally and in containers, not walked through
 in a browser with a designer's eye.
 

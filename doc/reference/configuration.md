@@ -82,18 +82,16 @@ than compiled in — one image serves any deployment. The entrypoint writes thes
 
 | Variable | Default | Notes |
 |---|---|---|
-| `IDEN_WORKERS` | `2` | Server processes when `IDEN_ENV=prod`; development always runs one, with reload. Each is its own event loop, so a slow request holds up only its worker's share. Budget roughly 300 MiB each. |
 | `IDEN_ISSUER` | `http://localhost:8000` | The provider's origin, which is what these apps call. If it differs from the origin the app itself is served from, that **serving** origin is the one that has to appear in `IDEN_ALLOWED_ADMIN_ORIGINS` — CORS permits the caller, not the callee. |
 | `IDEN_ORG_NAME` | *empty* | Whose sign-in page this is. Takes the larger type wherever both appear, with IDEN as a caption beneath. Empty and IDEN stands alone. The provider reads the same variable — give all three services the same value. |
 | `IDEN_ORG_LOGO_URL` | *empty* | Any URL the browser can reach. Sits beside the name. |
 | `IDEN_MAIL_DOMAIN` | `localhost` | Dashboard only. Shown beside the email field when adding a user. The provider decides the address, so give both the same value. |
 
-Under `pnpm dev` there is no container, so the same three are read from Vite environment variables
-with a `VITE_` prefix — `VITE_IDEN_ISSUER`, `VITE_IDEN_ORG_NAME`, `VITE_IDEN_ORG_LOGO`, and the dashboard's
-`VITE_IDEN_MAIL_DOMAIN`. Each app has
-an `.env.example` to copy.
+Under `pnpm dev` there is no container, so the same settings are read from Vite environment variables
+with a `VITE_` prefix: `VITE_IDEN_ISSUER`, `VITE_IDEN_ORG_NAME`, `VITE_IDEN_ORG_LOGO`, and the
+dashboard's `VITE_IDEN_MAIL_DOMAIN`. Each app has an `.env.example` to copy.
 
-## The four that matter in production
+## The ones that matter in production
 
 **`IDEN_ISSUER`** is the identity of the deployment. It goes into every token and every client
 validates against it. Set it to the public HTTPS URL, and treat changing it as invalidating every

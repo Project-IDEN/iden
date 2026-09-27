@@ -60,9 +60,10 @@ match the code.
     docker compose -f deploy/docker-compose.yml up -d --build
     ```
 
+    On a tunnel deployment, add `-f deploy/docker-compose.tunnel.yml` to both commands.
+
     The `migrate` service runs `alembic upgrade head` to completion before the provider starts, so
-    the schema is handled. Add the tunnel overlay's `-f` if you deploy with it. Then, **only if the
-    release shipped new permissions**:
+    the schema is handled. Then, **only if the release shipped new permissions**:
 
     ```bash
     docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed
@@ -109,7 +110,7 @@ first-party:
 
 | Path | Serves |
 |---|---|
-| `/.well-known/*`, `/oauth2/*`, `/api/v1/auth/*`, `/admin/*`, `/entity/*`, `/media/*` | provider |
+| `/.well-known/*`, `/oauth2/*`, `/api/v1/auth/*`, `/admin/*`, `/entity/*`, `/developer/*`, `/media/*` | provider |
 | `/auth/*` | auth-ui |
 | `/console/*` | dashboard |
 

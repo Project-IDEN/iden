@@ -92,6 +92,23 @@ To implement the receiving end, see [Handle single sign-out](../guides/single-si
     is by session. To end every session at once, an administrator can revoke everything for a user,
     and changing a password does it automatically.
 
+## How long a session lasts
+
+Two limits, and whichever comes first ends it:
+
+| Limit | Default | Setting |
+|---|---|---|
+| **Idle.** Unused for this long, the session ends. Every use restarts the clock. | 24 hours | `IDEN_SESSION_TTL` |
+| **Absolute.** This long after sign-in, the session ends however recently it was used. | 7 days | `IDEN_SESSION_MAX_AGE` |
+
+The absolute limit is what stops a session in daily use, a stolen cookie replayed often enough, or
+a shared computer left signed in from lasting forever. Signing in again, including through
+`prompt=login` or `max_age`, starts a new clock. A step-up to a second factor doesn't.
+
+Refresh tokens are separate. An application holding one keeps its access for
+`IDEN_REFRESH_TOKEN_TTL`, even after the browser session has ended, until the person signs out or
+the token is revoked.
+
 ## Sessions are visible to their owner
 
 `GET /entity/sessions` lists where someone is signed in, with the applications each session reached,

@@ -69,7 +69,7 @@ erDiagram
 
 | Key | Lifetime |
 |---|---|
-| `session:{hash}` | Sliding, 24 hours |
+| `session:{hash}` | Sliding, 24 hours, and never more than 7 days after sign-in |
 | `session_clients:{hash}` | With the session — which applications it reached |
 | `challenge:{hash}` | 10 minutes — a pending sign-in or consent page |
 | `denylist:{jti}` | Until the access token would have expired |
