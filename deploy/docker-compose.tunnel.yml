@@ -13,6 +13,34 @@
 # settings on the Cloudflare side matter as much as the ones here.
 
 services:
+  # The stores' credentials are required here rather than defaulted. The base
+  # file falls back to values it publishes, and Compose applies that fallback to
+  # an empty value too — so a deploy/.env copied from the example with a line
+  # left blank would start a public deployment on `iden`. Failing before `up`
+  # matters because PostgreSQL and SeaweedFS keep the credential they first
+  # initialised their volume with.
+  postgres:
+    environment:
+      POSTGRES_PASSWORD: ${IDEN_POSTGRES_PASSWORD:?set IDEN_POSTGRES_PASSWORD in deploy/.env}
+
+  redis:
+    command:
+      [
+        "redis-server",
+        "--requirepass",
+        "${IDEN_REDIS_PASSWORD:?set IDEN_REDIS_PASSWORD in deploy/.env}",
+        "--save",
+        "60",
+        "1",
+      ]
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${IDEN_REDIS_PASSWORD}", "ping"]
+
+  seaweedfs:
+    environment:
+      AWS_ACCESS_KEY_ID: ${IDEN_S3_ACCESS_KEY:?set IDEN_S3_ACCESS_KEY in deploy/.env}
+      AWS_SECRET_ACCESS_KEY: ${IDEN_S3_SECRET_KEY:?set IDEN_S3_SECRET_KEY in deploy/.env}
+
   nginx:
     image: nginx:1.31-alpine
     volumes:

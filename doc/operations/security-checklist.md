@@ -36,7 +36,8 @@ Work through this before anyone outside your own machine can reach the deploymen
       `IDEN_REDIS_PASSWORD` and `IDEN_S3_SECRET_KEY` each default to a value published in
       `deploy/docker-compose.yml`. Redis matters as much as PostgreSQL here and is easy to
       overlook: a session id *is* the cookie, so read access to Redis is read access to every
-      signed-in account. Set them before the first `up` — PostgreSQL and the blob store keep
+      signed-in account. The tunnel overlay will not start while one is empty, and the provider
+      will not start in `prod` on a published one — but a value you generated is what protects you. Set them before the first `up` — PostgreSQL and the blob store keep
       whatever credential they were initialised with, so changing the value later does not re-key
       an existing volume.
 - [ ] **The proxy does not strip or rewrite IDEN's response headers.** The application sets

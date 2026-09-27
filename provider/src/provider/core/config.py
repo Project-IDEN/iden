@@ -1,8 +1,15 @@
 from pathlib import Path
-from typing import Literal
+from typing import Literal, Self
+from urllib.parse import urlsplit
 
-from pydantic import field_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# The store credentials published in deploy/docker-compose.yml and
+# provider/.env.example. A deployment still using one is protected by a password
+# anyone can read — and Compose substitutes them for an empty value, so copying
+# the example file and forgetting a line is enough to end up here.
+PUBLISHED_CREDENTIALS = frozenset({"iden", "idensecret"})
 
 
 class Settings(BaseSettings):
@@ -108,6 +115,63 @@ class Settings(BaseSettings):
         and enrolment fails on a message about a missing key.
         """
         return value or None
+
+    @model_validator(mode="after")
+    def refuse_unsafe_deployment(self) -> Self:
+        """Fail at startup rather than serve with a setting that is unsafe.
+
+        Raised from here so the provider, the migrations and the seed all refuse
+        alike, before anything touches a store.
+        """
+        problems = (
+            self._production_problems()
+            if self.iden_env == "prod"
+            else self._development_problems()
+        )
+        if problems:
+            raise ValueError(
+                "Refusing to start with an unsafe configuration:\n- "
+                + "\n- ".join(problems)
+            )
+        return self
+
+    def _production_problems(self) -> list[str]:
+        problems = []
+
+        for name, url in (
+            ("IDEN_ISSUER", self.iden_issuer),
+            ("IDEN_AUTH_UI_BASE_URL", self.iden_auth_ui_base_url),
+        ):
+            if not url.startswith("https://"):
+                problems.append(f"{name} must be an https:// URL in prod, not {url!r}.")
+
+        for name, url in (
+            ("IDEN_DATABASE_URL", self.iden_database_url),
+            ("IDEN_REDIS_URL", self.iden_redis_url),
+        ):
+            password = urlsplit(url).password
+            if not password or password in PUBLISHED_CREDENTIALS:
+                problems.append(f"{name} needs a password of its own.")
+
+        if self.blob_storage_configured and (
+            not self.iden_s3_secret_key
+            or self.iden_s3_secret_key in PUBLISHED_CREDENTIALS
+        ):
+            problems.append("IDEN_S3_SECRET_KEY needs a value of its own.")
+
+        if self.iden_forwarded_allow_ips.strip() == "*":
+            problems.append(
+                "IDEN_FORWARDED_ALLOW_IPS must name the proxy's network, not '*'."
+            )
+
+        return problems
+
+    def _development_problems(self) -> list[str]:
+        # An https issuer is a real deployment, and dev would serve it with a
+        # non-Secure session cookie and the whole admin API documented at /docs.
+        if self.iden_issuer.startswith("https://"):
+            return ["IDEN_ISSUER is https:// but IDEN_ENV is dev; set IDEN_ENV=prod."]
+        return []
 
     @property
     def totp_key_path(self) -> Path:

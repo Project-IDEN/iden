@@ -39,7 +39,7 @@ for as long as the container lives, where `docker inspect` reads it.
 
 | Variable | Default | Notes |
 |---|---|---|
-| `IDEN_ENV` | `dev` | `prod` makes the session cookie `Secure`, sends HSTS, and withholds `/docs`, `/redoc` and `/openapi.json`. |
+| `IDEN_ENV` | `dev` | `prod` makes the session cookie `Secure`, sends HSTS, and withholds `/docs`, `/redoc` and `/openapi.json`. **The provider refuses to start** in `prod` with an `http://` issuer or Auth UI, a database or Redis URL without a password of its own, a published S3 secret, or `IDEN_FORWARDED_ALLOW_IPS=*` — and in `dev` with an `https://` issuer, which is a real deployment misconfigured. |
 | `IDEN_LOG_LEVEL` | `info` |  |
 | `IDEN_API_PREFIX` | *empty* | Mount the whole app under a sub-path. Must stay empty otherwise — OIDC requires `/.well-known/*` at the host root. |
 | `IDEN_ALLOWED_ADMIN_ORIGINS` | `[]` | Browser origins allowed to send credentialed requests, beyond the Auth UI. Empty is correct when everything is on one origin: same-origin calls are not cross-origin and there is nothing to permit. |
