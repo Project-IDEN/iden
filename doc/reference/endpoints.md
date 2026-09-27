@@ -119,7 +119,6 @@ Every `/admin/*` and `/entity/*` route is gated by a permission named in its des
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/entity/credentials/email` | Change your email address |
 | `POST` | `/entity/credentials/password` | Change your password |
 
 ### Entity — permissions

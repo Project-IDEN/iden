@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # authenticator app entry are one setting rather than two that can disagree.
     iden_org_name: str = ""
 
+    # Every account IDEN creates is `<local part>@<this>`, so an administrator
+    # cannot hand out an address the organization does not own. Set it at
+    # install: changing it later leaves existing accounts on the old domain.
+    iden_mail_domain: str = "localhost"
+
     # Storage
     iden_database_url: str = "postgresql+asyncpg://iden:iden@localhost:5432/iden"
     iden_redis_url: str = "redis://localhost:6379/0"

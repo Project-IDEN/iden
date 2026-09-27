@@ -1,4 +1,4 @@
-from provider.core.errors import ConflictError, ValidationError
+from provider.core.errors import ValidationError
 
 
 class WrongPassword(ValidationError):
@@ -9,8 +9,3 @@ class WrongPassword(ValidationError):
 class SamePassword(ValidationError):
     code = "same_password"
     message = "The new password must differ from the current one."
-
-
-class EmailTaken(ConflictError):
-    code = "email_taken"
-    message = "Another account already uses that address."

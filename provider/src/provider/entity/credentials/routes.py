@@ -6,11 +6,7 @@ from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse
 from provider.entity.credentials import service
-from provider.entity.credentials.schemas import (
-    CredentialChangeResponse,
-    EmailChange,
-    PasswordChange,
-)
+from provider.entity.credentials.schemas import CredentialChangeResponse, PasswordChange
 
 router = APIRouter(prefix="/entity/credentials", tags=["entity: credentials"])
 
@@ -58,41 +54,6 @@ async def change_password(
         user,
         current=body.current_password,
         new=body.new_password,
-        keep_session=request.cookies.get(session_cookie.NAME),
-    )
-    return CredentialChangeResponse(sessions_ended=ended)
-
-
-@router.post(
-    "/email",
-    response_model=CredentialChangeResponse,
-    summary="Change your email address",
-    description=(
-        "The new address starts unverified — keeping the old verification "
-        "would let someone claim an address they cannot read.\n\n"
-        + FRESHNESS
-        + "**Required scope:** `entity:credentials:write`"
-    ),
-    responses={
-        403: {"model": ErrorResponse, "description": "Sign-in is not recent enough"},
-        409: {"model": ErrorResponse, "description": "Address already in use"},
-        422: {"model": ErrorResponse, "description": "Wrong password"},
-    },
-    dependencies=[WRITE, FRESH],
-)
-async def change_email(
-    body: EmailChange,
-    request: Request,
-    user: CurrentUserDep,
-    session: DBSessionDep,
-    redis: RedisDep,
-) -> CredentialChangeResponse:
-    ended = await service.change_email(
-        session,
-        redis,
-        user,
-        email=body.email,
-        current=body.current_password,
         keep_session=request.cookies.get(session_cookie.NAME),
     )
     return CredentialChangeResponse(sessions_ended=ended)

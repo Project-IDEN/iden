@@ -100,6 +100,9 @@ services:
       # The provider reads the organization name too: it is what an
       # authenticator app files someone's second factor under.
       IDEN_ORG_NAME: ${IDEN_ORG_NAME:-}
+      # Every new account is <local part>@ this. The dashboard reads the same
+      # variable to show it beside the email field.
+      IDEN_MAIL_DOMAIN: ${IDEN_MAIL_DOMAIN:-localhost}
       # Whose X-Forwarded-For is believed. Empty here because nothing is in
       # front; the tunnel overlay names the network nginx proxies from.
       IDEN_FORWARDED_ALLOW_IPS: ${IDEN_FORWARDED_ALLOW_IPS:-}
@@ -191,6 +194,7 @@ services:
     environment:
       IDEN_ISSUER: ${IDEN_ISSUER:-http://localhost:8000}
       IDEN_ORG_NAME: ${IDEN_ORG_NAME:-}
+      IDEN_MAIL_DOMAIN: ${IDEN_MAIL_DOMAIN:-localhost}
       IDEN_ORG_LOGO_URL: ${IDEN_ORG_LOGO_URL:-}
     ports:
       - "127.0.0.1:3000:3000"

@@ -2,22 +2,32 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
-from pydantic import Field
+from pydantic import ConfigDict, Field
 
 from provider.core.schemas import CamelCaseBaseModel
 
-# Deliberately permissive: an address, not a deliverable mailbox. A self-hosted
-# IdP routinely holds internal addresses — `admin@localhost`, `staff@uni.local`
-# — that strict RFC/deliverability validation rejects as special-use domains.
-# The seeded bootstrap administrator is one of them, so a stricter rule here
-# would make an account IDEN itself creates un-creatable through its own API.
-# Phase 3's verification flow is what actually proves an address works.
-EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+$"
+USERNAME_PATTERN = r"^[a-zA-Z0-9._-]+$"
+
+# A dot, dash or underscore only between letters or digits: `a..b@` and `.a@`
+# are not addresses.
+LOCAL_PART_PATTERN = r"^[a-zA-Z0-9]+([._-][a-zA-Z0-9]+)*$"
 
 
 class UserCreate(CamelCaseBaseModel):
-    email: str = Field(pattern=EMAIL_PATTERN, max_length=320)
-    username: str = Field(max_length=64, pattern=r"^[a-zA-Z0-9._-]+$")
+    # A caller still sending `email` believes it chose the address. Refusing the
+    # field says otherwise; ignoring it would create someone else's.
+    model_config = CamelCaseBaseModel.model_config | ConfigDict(extra="forbid")
+
+    email_local_part: str = Field(
+        max_length=64,
+        pattern=LOCAL_PART_PATTERN,
+        description=(
+            "What goes before the `@`. The address is "
+            "`<emailLocalPart>@<IDEN_MAIL_DOMAIN>`, lowercased; there is no way "
+            "to choose another domain, and no way to change it afterwards."
+        ),
+    )
+    username: str = Field(max_length=64, pattern=USERNAME_PATTERN)
     display_name: str | None = None
     password: str | None = Field(
         default=None,
@@ -29,10 +39,12 @@ class UserCreate(CamelCaseBaseModel):
 
 
 class UserUpdate(CamelCaseBaseModel):
-    email: str | None = Field(default=None, pattern=EMAIL_PATTERN, max_length=320)
-    username: str | None = Field(
-        default=None, max_length=64, pattern=r"^[a-zA-Z0-9._-]+$"
-    )
+    # The address is fixed at creation — it names a mailbox on the organization's
+    # domain, and a mailbox cannot be renamed. Refused rather than ignored, so a
+    # caller still sending `email` learns the change did not happen.
+    model_config = CamelCaseBaseModel.model_config | ConfigDict(extra="forbid")
+
+    username: str | None = Field(default=None, max_length=64, pattern=USERNAME_PATTERN)
     display_name: str | None = None
     is_active: bool | None = Field(
         default=None,

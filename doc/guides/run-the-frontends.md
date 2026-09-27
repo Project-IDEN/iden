@@ -77,9 +77,10 @@ entrypoint.
 | `VITE_IDEN_ISSUER` | The provider's origin — what these apps call. In `pnpm dev` it is a different origin from the app itself, so the app's own origin (5173 or 4000) must be in `IDEN_ALLOWED_ADMIN_ORIGINS`: CORS permits the caller, not the callee. Behind one origin in production, nothing needs listing. |
 | `VITE_IDEN_ORG_NAME` | Whose sign-in page this is. Takes the larger type; IDEN drops to a caption beneath it. |
 | `VITE_IDEN_ORG_LOGO` | Optional, sits beside the name. |
+| `VITE_IDEN_MAIL_DOMAIN` | Dashboard only. Shown beside the email field when adding a user; match the provider's `IDEN_MAIL_DOMAIN`. |
 
 Each app has an `.env.example` next to its `package.json` — copy it to `.env` and edit. The container
-equivalents drop the `VITE_` prefix: `IDEN_ISSUER`, `IDEN_ORG_NAME`, `IDEN_ORG_LOGO_URL`.
+equivalents drop the `VITE_` prefix: `IDEN_ISSUER`, `IDEN_ORG_NAME`, `IDEN_ORG_LOGO_URL`, `IDEN_MAIL_DOMAIN`.
 
 ## Types come from the server
 

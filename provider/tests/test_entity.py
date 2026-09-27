@@ -96,30 +96,20 @@ class TestPasswordChange:
 
 
 class TestEmailChange:
-    async def test_the_new_address_starts_unverified(
+    async def test_there_is_no_way_to_change_your_address(
         self, client, entity_headers, member, db
     ):
-        """Carrying the old verification over would let someone claim an
-        address they cannot read."""
-        await client.post(
+        """The address names a mailbox on the organization's domain, fixed at
+        creation."""
+        response = await client.post(
             "/entity/credentials/email",
             json={"email": "new@test.local", "currentPassword": ADMIN_PASSWORD},
             headers=entity_headers,
         )
+        assert response.status_code == 404
 
         await db.refresh(member)
-        assert member.email == "new@test.local"
-        assert member.email_verified_at is None
-
-    async def test_it_cannot_take_someone_elses(
-        self, client, entity_headers, admin_user
-    ):
-        response = await client.post(
-            "/entity/credentials/email",
-            json={"email": admin_user.email, "currentPassword": ADMIN_PASSWORD},
-            headers=entity_headers,
-        )
-        assert response.status_code == 409
+        assert member.email != "new@test.local"
 
 
 class TestTotp:

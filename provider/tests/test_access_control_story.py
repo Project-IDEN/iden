@@ -105,7 +105,7 @@ async def officer(client, admin_headers, attendance):
         await client.post(
             "/admin/users",
             json={
-                "email": "officer@test.local",
+                "emailLocalPart": "officer",
                 "username": "officer",
                 "password": PASSWORD,
             },
@@ -126,7 +126,7 @@ async def outsider(client, admin_headers):
         await client.post(
             "/admin/users",
             json={
-                "email": "outsider@test.local",
+                "emailLocalPart": "outsider",
                 "username": "outsider",
                 "password": PASSWORD,
             },

@@ -17,6 +17,7 @@ from provider.admin.users.errors import (
 from provider.admin.users.schemas import UserCreate, UserUpdate
 from provider.authz.logout import service as logout_service
 from provider.authz.services.token_service import now
+from provider.core.config import settings
 from provider.core.security import hash_secret
 from provider.shared.models import (
     Group,
@@ -127,16 +128,23 @@ async def create_user(
     permissions are conferred — and the most tempting one, because the password
     comes back in the response and the account can be signed into immediately.
     """
-    if await session.scalar(select(User).where(User.email == data.email)):
-        raise EmailTaken
+    # Lowercased because a mailbox is case-insensitive: `Alice@` and `alice@`
+    # are one address, and the second must be refused.
+    email = f"{data.email_local_part.lower()}@{settings.iden_mail_domain}"
+
     if await session.scalar(select(User).where(User.username == data.username)):
         raise UsernameTaken
+    if await session.scalar(select(User).where(User.email == email)):
+        raise EmailTaken
 
     password = data.password or secrets.token_urlsafe(18)
     generated = None if data.password else password
 
     user = User(
-        email=data.email,
+        email=email,
+        # IDEN assigned the address on the organization's own domain, so there
+        # is nothing for a verification email to prove.
+        email_verified_at=now(),
         username=data.username,
         display_name=data.display_name,
         password_hash=hash_secret(password),
@@ -166,11 +174,6 @@ async def update_user(
     caller_scopes: set[str],
 ) -> User:
     user = await get_user_to_modify(session, user_id, caller_scopes)
-
-    if data.email is not None and data.email != user.email:
-        if await session.scalar(select(User).where(User.email == data.email)):
-            raise EmailTaken
-        user.email = data.email
 
     if data.username is not None and data.username != user.username:
         if await session.scalar(select(User).where(User.username == data.username)):

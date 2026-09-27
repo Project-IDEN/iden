@@ -73,7 +73,7 @@ class TestSecrets:
         await client.post(
             "/admin/users",
             json={
-                "email": "new@test.local",
+                "emailLocalPart": "new",
                 "username": "new",
                 "displayName": "New",
                 "password": "hunter2-hunter2",
@@ -115,7 +115,7 @@ class TestHistorySurvivesDeletion:
             await client.post(
                 "/admin/users",
                 json={
-                    "email": "temp@test.local",
+                    "emailLocalPart": "temp",
                     "username": "temp",
                     "displayName": "Temp",
                 },

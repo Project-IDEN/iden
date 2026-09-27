@@ -124,6 +124,10 @@ async def list_users(
     summary="Create a user",
     description=(
         "Creates an account, optionally with roles and group memberships.\n\n"
+        "Only the part before the `@` is chosen: the address is "
+        "`<emailLocalPart>@<IDEN_MAIL_DOMAIN>`, lowercased, so every account "
+        "sits on the organization's own domain. It is fixed from then on; the "
+        "username stays changeable.\n\n"
         "Omit `password` and one is generated and returned **once** in "
         "`generatedPassword`. It is argon2-hashed on the way in and cannot be "
         "recovered afterwards.\n\n"
@@ -197,6 +201,8 @@ async def effective_scopes(user_id: UUID, session: DBSessionDep) -> EffectiveSco
     response_model=UserResponse,
     summary="Update a user",
     description=(
+        "The address cannot be changed: it is fixed when the account is "
+        "created. Sending `email` is refused with `422`.\n\n"
         "Deactivating a user (`isActive: false`) immediately revokes every "
         "session and refresh token — otherwise the account stays usable until "
         "they expire on their own.\n\n"
@@ -207,7 +213,7 @@ async def effective_scopes(user_id: UUID, session: DBSessionDep) -> EffectiveSco
         404: {"model": ErrorResponse, "description": "No such user"},
         409: {
             "model": ErrorResponse,
-            "description": "Email or username taken, or would leave no administrator",
+            "description": "Username taken, or would leave no administrator",
         },
     },
 )

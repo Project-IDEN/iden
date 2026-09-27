@@ -10,11 +10,6 @@ class PasswordChange(CamelCaseBaseModel):
     new_password: str = Field(min_length=12, max_length=256)
 
 
-class EmailChange(CamelCaseBaseModel):
-    email: str = Field(max_length=255)
-    current_password: str
-
-
 class CredentialChangeResponse(CamelCaseBaseModel):
     sessions_ended: int = Field(
         description="Other sessions signed out. A credential change that leaves "

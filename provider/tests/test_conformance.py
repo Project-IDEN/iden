@@ -229,7 +229,7 @@ class TestChallengeHeaders:
 
         response = await client.post(
             "/admin/users",
-            json={"email": "x@test.local", "username": "x"},
+            json={"emailLocalPart": "x", "username": "x"},
             headers=headers,
         )
 

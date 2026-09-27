@@ -77,7 +77,7 @@ async def target(client, admin_headers):
     return (
         await client.post(
             "/admin/users",
-            json={"email": "t@test.local", "username": "target"},
+            json={"emailLocalPart": "target", "username": "target"},
             headers=admin_headers,
         )
     ).json()
@@ -91,7 +91,7 @@ class TestTheScopeSplit:
 
         created = await client.post(
             "/admin/users",
-            json={"email": "new@test.local", "username": "newcomer"},
+            json={"emailLocalPart": "newcomer", "username": "newcomer"},
             headers=headers,
         )
         assert created.status_code == 201
@@ -172,7 +172,7 @@ class TestDelegationIsRefused:
         response = await client.post(
             "/admin/users",
             json={
-                "email": "backdoor@test.local",
+                "emailLocalPart": "backdoor",
                 "username": "backdoor",
                 "roleIds": [elevated_role["id"]],
             },

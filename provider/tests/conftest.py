@@ -213,6 +213,9 @@ async def client(engine, redis, storage, monkeypatch) -> AsyncGenerator[AsyncCli
     # factory has to be redirected separately — otherwise it writes to the
     # developer's own database while the rest of the test uses iden_test.
     monkeypatch.setattr(audit, "session_factory", factory)
+    # The domain the fixtures' addresses are written in, whatever the
+    # developer's own .env says.
+    monkeypatch.setattr(settings, "iden_mail_domain", "test.local")
 
     # base_url matches the configured issuer on purpose: /authorize builds
     # absolute resume URLs from it, and a cookie set on one host is not sent to

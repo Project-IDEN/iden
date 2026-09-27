@@ -874,7 +874,6 @@ Every route derives the user from the token's `sub` and never accepts a user id 
 | `GET` `PATCH` | `/entity/profile` | `entity:profile:read` / `:write` | 4 |
 | `GET` | `/entity/profile/schema` | `entity:profile:read` | 4 |
 | `POST` | `/entity/credentials/password` | `entity:credentials:write` + fresh auth | 4 |
-| `POST` | `/entity/credentials/email` | `entity:credentials:write` + fresh auth | 4 |
 | `POST` | `/entity/totp/enroll` · `/entity/totp/confirm` | `entity:totp:enroll` | 4 |
 | `GET` `DELETE` | `/entity/totp` | `entity:totp:read` / `:enroll` | 4 |
 | `GET` | `/entity/sessions` | `entity:sessions:read` | 4 |

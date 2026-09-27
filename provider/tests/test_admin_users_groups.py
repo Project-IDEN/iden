@@ -1,9 +1,13 @@
+from uuid import UUID
+
 import pytest
+
+from provider.shared.models import User
 
 pytestmark = pytest.mark.usefixtures("admin_user", "dashboard")
 
 NEW_USER = {
-    "email": "student@test.local",
+    "emailLocalPart": "student",
     "username": "student",
     "displayName": "A Student",
 }
@@ -42,7 +46,7 @@ class TestUserCreation:
                 "/admin/users",
                 json=NEW_USER
                 | {
-                    "email": "b@test.local",
+                    "emailLocalPart": "b",
                     "username": "b",
                     "password": "a-long-password",
                 },
@@ -56,33 +60,99 @@ class TestUserCreation:
         response = await client.post(
             "/admin/users",
             json=NEW_USER
-            | {"email": "c@test.local", "username": "c", "password": "short"},
+            | {"emailLocalPart": "c", "username": "c", "password": "short"},
             headers=admin_headers,
         )
         assert response.status_code == 422
 
-    async def test_duplicate_email_is_rejected(self, client, admin_headers, user):
+    async def test_the_address_is_the_local_part_at_the_mail_domain(self, user):
+        assert user["email"] == "student@test.local"
+
+    async def test_the_address_starts_verified(self, user, db):
+        """IDEN assigned it on the organization's domain; there is nothing for a
+        verification email to prove."""
+        created = await db.get(User, UUID(user["id"]))
+        assert created.email_verified_at is not None
+
+    async def test_the_username_is_independent_of_the_address(
+        self, client, admin_headers
+    ):
+        body = (
+            await client.post(
+                "/admin/users",
+                json={"emailLocalPart": "Ada.Lovelace", "username": "ada"},
+                headers=admin_headers,
+            )
+        ).json()
+
+        assert body["username"] == "ada"
+        assert body["email"] == "ada.lovelace@test.local"
+
+    async def test_an_email_cannot_be_chosen(self, client, admin_headers):
+        """Ignoring the field would create an account at an address the caller
+        did not ask for, and let it believe it had chosen one."""
         response = await client.post(
-            "/admin/users", json=NEW_USER | {"username": "other"}, headers=admin_headers
+            "/admin/users",
+            json=NEW_USER | {"email": "student@elsewhere.example"},
+            headers=admin_headers,
         )
-        assert response.status_code == 409
-        assert response.json()["code"] == "email_taken"
+        assert response.status_code == 422
 
     async def test_duplicate_username_is_rejected(self, client, admin_headers, user):
         response = await client.post(
             "/admin/users",
-            json=NEW_USER | {"email": "other@test.local"},
+            json=NEW_USER | {"emailLocalPart": "someone.else"},
             headers=admin_headers,
         )
+        assert response.status_code == 409
         assert response.json()["code"] == "username_taken"
 
-    async def test_invalid_email_is_rejected(self, client, admin_headers):
+    async def test_duplicate_address_is_rejected(self, client, admin_headers, user):
         response = await client.post(
             "/admin/users",
-            json=NEW_USER | {"email": "not-an-email"},
+            json={"emailLocalPart": "STUDENT", "username": "other"},
+            headers=admin_headers,
+        )
+        assert response.status_code == 409
+        assert response.json()["code"] == "email_taken"
+
+    @pytest.mark.parametrize("local_part", ["a..b", ".a", "a.", "a@b", "a b"])
+    async def test_a_local_part_that_is_not_an_address_is_rejected(
+        self, client, admin_headers, local_part
+    ):
+        response = await client.post(
+            "/admin/users",
+            json={"emailLocalPart": local_part, "username": "valid"},
             headers=admin_headers,
         )
         assert response.status_code == 422
+
+
+class TestUserUpdate:
+    async def test_the_address_cannot_be_changed(self, client, admin_headers, user):
+        response = await client.patch(
+            f"/admin/users/{user['id']}",
+            json={"email": "someone@elsewhere.example"},
+            headers=admin_headers,
+        )
+        assert response.status_code == 422
+
+        fetched = (
+            await client.get(f"/admin/users/{user['id']}", headers=admin_headers)
+        ).json()
+        assert fetched["email"] == "student@test.local"
+
+    async def test_renaming_leaves_the_address_alone(self, client, admin_headers, user):
+        renamed = (
+            await client.patch(
+                f"/admin/users/{user['id']}",
+                json={"username": "renamed"},
+                headers=admin_headers,
+            )
+        ).json()
+
+        assert renamed["username"] == "renamed"
+        assert renamed["email"] == "student@test.local"
 
 
 class TestUserFiltering:
@@ -99,7 +169,7 @@ class TestUserFiltering:
             )
         ).json()
 
-        assert [u["email"] for u in body["items"]] == [NEW_USER["email"]]
+        assert [u["email"] for u in body["items"]] == ["student@test.local"]
 
     async def test_filters_by_active_status(self, client, admin_headers, user):
         await client.patch(
@@ -111,7 +181,7 @@ class TestUserFiltering:
         inactive = (
             await client.get("/admin/users?isActive=false", headers=admin_headers)
         ).json()
-        assert [u["email"] for u in inactive["items"]] == [NEW_USER["email"]]
+        assert [u["email"] for u in inactive["items"]] == ["student@test.local"]
 
     async def test_searches_email_and_username(self, client, admin_headers, user):
         body = (
@@ -139,7 +209,7 @@ class TestDeactivation:
         await client.post(
             "/admin/users",
             json={
-                "email": "deputy@test.local",
+                "emailLocalPart": "deputy",
                 "username": "deputy",
                 "password": "correct-horse-battery",
                 "roleIds": [str(catalogue["roles"]["administrator"].id)],
