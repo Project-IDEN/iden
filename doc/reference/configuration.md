@@ -64,7 +64,8 @@ for as long as the container lives, where `docker inspect` reads it.
 | `IDEN_ID_TOKEN_TTL` | `600` (10 min) |  |
 | `IDEN_REFRESH_TOKEN_TTL` | `2592000` (30 days) | Sliding; rotated on every use. |
 | `IDEN_AUTH_CODE_TTL` | `60` (1 min) | Single use. |
-| `IDEN_SESSION_TTL` | `86400` (24 hours) | Sliding browser session. |
+| `IDEN_SESSION_TTL` | `86400` (24 hours) | Sliding browser session: ends after this long unused. |
+| `IDEN_SESSION_MAX_AGE` | `604800` (7 days) | Ends a browser session this long after sign-in, however recently it was used, so a stolen cookie or a shared computer left signed in does not stay signed in forever. Signing in again restarts it; a step-up does not. Refresh tokens are separate and follow `IDEN_REFRESH_TOKEN_TTL`. |
 | `IDEN_CHALLENGE_TTL` | `600` (10 min) | How long a pending sign-in or consent page stays valid. |
 | `IDEN_REFRESH_GRACE_PERIOD` | `30` (seconds) | How long a spent refresh token keeps returning what it was exchanged for. `0` restores strict single use, at the price of signing people out over a double-click. |
 | `IDEN_RATE_LIMIT_ENABLED` | `true` | Off only for a load test against a deployment you own. |

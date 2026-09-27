@@ -128,3 +128,68 @@ async def test_the_listing_carries_the_same_fields(redis):
     listed = await session_store.list_for_user(redis, user_id)
 
     assert [(s.ip, s.user_agent) for s in listed] == [("203.0.113.7", CHROME_MAC)]
+
+
+async def _age_sign_in(redis, session_id: str, *, seconds: int) -> None:
+    """Backdate `authenticated_at` while keeping the session in recent use."""
+    key = f"session:{session_store.public_id_of(session_id)}"
+    data = json.loads(await redis.get(key))
+    data["authenticated_at"] = (
+        datetime.now(UTC) - timedelta(seconds=seconds)
+    ).isoformat()
+    await redis.set(key, json.dumps(data))
+
+
+class TestAbsoluteLifetime:
+    """The TTL slides with every use, so a session read daily — or a stolen
+    cookie replayed daily — would otherwise never end."""
+
+    async def test_a_session_past_the_limit_is_gone_however_recently_used(self, redis):
+        from provider.core.config import settings
+
+        user_id = uuid.uuid7()
+        session = await session_store.create(redis, user_id, "pwd")
+        await _age_sign_in(redis, session.id, seconds=settings.iden_session_max_age + 1)
+
+        assert await session_store.get(redis, session.id) is None
+        assert await redis.exists(f"session:{session.public_id}") == 0
+        assert await session_store.list_for_user(redis, user_id) == []
+
+    async def test_the_listing_drops_it_too(self, redis):
+        from provider.core.config import settings
+
+        user_id = uuid.uuid7()
+        old = await session_store.create(redis, user_id, "pwd")
+        fresh = await session_store.create(redis, user_id, "pwd")
+        await _age_sign_in(redis, old.id, seconds=settings.iden_session_max_age + 1)
+
+        listed = await session_store.list_for_user(redis, user_id)
+
+        assert [s.id for s in listed] == [fresh.public_id]
+        assert await redis.exists(f"session:{old.public_id}") == 0
+
+    async def test_a_session_inside_the_limit_survives(self, redis):
+        from provider.core.config import settings
+
+        session = await session_store.create(redis, uuid.uuid7(), "pwd")
+        await _age_sign_in(
+            redis, session.id, seconds=settings.iden_session_max_age - 60
+        )
+
+        assert await session_store.get(redis, session.id) is not None
+
+    async def test_signing_in_again_restarts_the_clock(self, redis):
+        from provider.core.config import settings
+
+        session = await session_store.create(redis, uuid.uuid7(), "pwd")
+        await _age_sign_in(
+            redis, session.id, seconds=settings.iden_session_max_age - 60
+        )
+        stored = await session_store.get(redis, session.id)
+        assert stored is not None
+
+        await session_store.reauthenticate(redis, stored, "pwd")
+        fetched = await session_store.get(redis, session.id)
+
+        assert fetched is not None
+        assert datetime.now(UTC) - fetched.authenticated_at < timedelta(minutes=1)

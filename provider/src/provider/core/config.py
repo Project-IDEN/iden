@@ -78,6 +78,9 @@ class Settings(BaseSettings):
     iden_refresh_token_ttl: int = 2_592_000
     iden_auth_code_ttl: int = 60
     iden_session_ttl: int = 86_400
+    # The absolute ceiling, from sign-in. The TTL above slides with every use, so
+    # without this a session in daily use — or a stolen cookie — never ends.
+    iden_session_max_age: int = 604_800
     iden_challenge_ttl: int = 600
     # How long a spent refresh token keeps returning what it was exchanged for.
     # Without it, two tabs refreshing at once look exactly like theft.

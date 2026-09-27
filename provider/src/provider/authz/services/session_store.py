@@ -143,6 +143,16 @@ def _parse(session_id: str, raw: str) -> Session:
     )
 
 
+def _outlived(session: Session) -> bool:
+    """Past the absolute limit, however recently it was used.
+
+    Measured from sign-in, so a re-authentication — `prompt=login`, a `max_age`
+    — starts the clock again, and a step-up does not.
+    """
+    age = datetime.now(UTC) - session.authenticated_at
+    return age.total_seconds() > settings.iden_session_max_age
+
+
 async def get(redis: Redis, session_id: str | None) -> Session | None:
     if not session_id:
         return None
@@ -151,12 +161,15 @@ async def get(redis: Redis, session_id: str | None) -> Session | None:
     if raw is None:
         return None
 
+    session = _parse(session_id, str(raw))
+    if _outlived(session):
+        await delete_by_public_id(redis, session.user_id, session.public_id)
+        return None
+
     # Sliding expiry: an active session should not be logged out mid-use.
     # Unconditional, unlike the last_seen write below — this one is what keeps
     # the session alive, not what describes it.
     await redis.expire(_key(session_id), settings.iden_session_ttl)
-
-    session = _parse(session_id, str(raw))
 
     now = datetime.now(UTC)
     if (now - session.last_seen_at).total_seconds() > SEEN_RESOLUTION:
@@ -183,7 +196,11 @@ async def list_for_user(redis: Redis, user_id: UUID) -> list[Session]:
             # lazily rather than transactionally.
             await redis.srem(_user_key(user_id), key)
             continue
-        sessions.append(_parse(key.removeprefix("session:"), str(raw)))
+        session = _parse(key.removeprefix("session:"), str(raw))
+        if _outlived(session):
+            await delete_by_public_id(redis, user_id, session.id)
+            continue
+        sessions.append(session)
 
     # By when each sign-in began, not by activity: this list is read while it is
     # being acted on, and ordering by last-seen would reshuffle it under the
