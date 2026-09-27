@@ -3,12 +3,12 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from provider.admin import delegation
 from provider.admin.clients.errors import (
     ClientIdTaken,
     ClientNotFound,
     PublicClientHasNoSecret,
     RedirectUriRequired,
+    RestrictedScopeOnOwnedClient,
     SystemClientImmutable,
     UnknownScopes,
 )
@@ -16,6 +16,7 @@ from provider.admin.clients.schemas import ClientCreate, ClientUpdate
 from provider.core.security import generate_token, hash_secret
 from provider.shared.enums import ClientType, GrantType
 from provider.shared.models import Client, ClientScope, Scope
+from provider.shared.scopes import RESTRICTED_PREFIXES
 
 
 async def _validate_scope_ids(session: AsyncSession, scope_ids: set[UUID]) -> None:
@@ -28,23 +29,19 @@ async def _validate_scope_ids(session: AsyncSession, scope_ids: set[UUID]) -> No
 
 
 async def _apply_scopes(
-    session: AsyncSession,
-    client: Client,
-    grantable: list[UUID],
-    granted: list[UUID],
-    *,
-    caller_scopes: set[str],
+    session: AsyncSession, client: Client, grantable: list[UUID], granted: list[UUID]
 ) -> None:
-    """Attach scopes to a client, subject to the same delegation rule as a person.
+    wanted = set(grantable) | set(granted)
+    await _validate_scope_ids(session, wanted)
 
-    A client is the other way to obtain a token, and `granted` is the dangerous
-    half: a confidential client holding `admin:grants:write` in its own right is
-    a `client_credentials` request away from being an administrator, with a
-    secret the registrant was shown once. Without this, `admin:clients:write`
-    was a complete escalation path of its own, independent of anything a person
-    was allowed to be granted.
-    """
-    await _validate_scope_ids(session, set(grantable) | set(granted))
+    # A developer can repoint their own application's redirect URIs, so a
+    # restricted scope on it would let them collect administrators' tokens.
+    if client.owner_user_id is not None:
+        values = await session.scalars(
+            select(Scope.value).where(Scope.id.in_(wanted), Scope.is_system)
+        )
+        if any(value.split(":")[0] in RESTRICTED_PREFIXES for value in values):
+            raise RestrictedScopeOnOwnedClient
 
     existing = {
         link.scope_id: link
@@ -53,21 +50,6 @@ async def _apply_scopes(
         )
     }
 
-    wanted = set(grantable) | set(granted)
-    # What is *newly conferred*, which is not the same as what is newly attached:
-    # a scope already present as `grantable` and promoted to `granted` gains the
-    # client the right to mint it for itself, and comparing only the id sets
-    # missed exactly that. A capability the client did not have before counts,
-    # however the row got there.
-    conferred = {
-        scope_id
-        for scope_id in wanted
-        if (link := existing.get(scope_id)) is None
-        or (scope_id in granted and not link.granted)
-        or (scope_id in grantable and not link.grantable)
-    }
-    added = await session.scalars(select(Scope).where(Scope.id.in_(conferred)))
-    delegation.refuse_undelegatable(caller_scopes, list(added))
     for scope_id in wanted:
         link = existing.get(scope_id) or ClientScope(
             client_id=client.id, scope_id=scope_id
@@ -100,23 +82,8 @@ async def get_client(session: AsyncSession, client_id: UUID) -> Client:
     return client
 
 
-async def get_client_to_modify(
-    session: AsyncSession, client_id: UUID, caller_scopes: set[str]
-) -> Client:
-    """The client a write is about, once the caller is allowed to act on it.
-
-    A client holding a scope outright is dormant only until somebody adds the
-    `client_credentials` grant and rotates its secret — both `admin:clients:write`,
-    and neither of them a scope assignment. So the gate is on touching the client
-    at all, not on the scope endpoint alone.
-    """
-    client = await get_client(session, client_id)
-    delegation.refuse_if_client_outranks(caller_scopes, client)
-    return client
-
-
 async def create_client(
-    session: AsyncSession, data: ClientCreate, *, caller_scopes: set[str]
+    session: AsyncSession, data: ClientCreate
 ) -> tuple[Client, str | None]:
     if await session.scalar(select(Client).where(Client.client_id == data.client_id)):
         raise ClientIdTaken
@@ -142,11 +109,7 @@ async def create_client(
     await session.flush()
 
     await _apply_scopes(
-        session,
-        client,
-        data.grantable_scope_ids,
-        data.granted_scope_ids,
-        caller_scopes=caller_scopes,
+        session, client, data.grantable_scope_ids, data.granted_scope_ids
     )
     await session.commit()
     await session.refresh(client)
@@ -154,13 +117,9 @@ async def create_client(
 
 
 async def update_client(
-    session: AsyncSession,
-    client_id: UUID,
-    data: ClientUpdate,
-    *,
-    caller_scopes: set[str],
+    session: AsyncSession, client_id: UUID, data: ClientUpdate
 ) -> Client:
-    client = await get_client_to_modify(session, client_id, caller_scopes)
+    client = await get_client(session, client_id)
 
     for field in (
         "name",
@@ -186,26 +145,17 @@ async def update_client(
 
 
 async def set_client_scopes(
-    session: AsyncSession,
-    client_id: UUID,
-    grantable: list[UUID],
-    granted: list[UUID],
-    *,
-    caller_scopes: set[str],
+    session: AsyncSession, client_id: UUID, grantable: list[UUID], granted: list[UUID]
 ) -> Client:
-    client = await get_client_to_modify(session, client_id, caller_scopes)
-    await _apply_scopes(
-        session, client, grantable, granted, caller_scopes=caller_scopes
-    )
+    client = await get_client(session, client_id)
+    await _apply_scopes(session, client, grantable, granted)
     await session.commit()
     await session.refresh(client)
     return client
 
 
-async def rotate_secret(
-    session: AsyncSession, client_id: UUID, *, caller_scopes: set[str]
-) -> str:
-    client = await get_client_to_modify(session, client_id, caller_scopes)
+async def rotate_secret(session: AsyncSession, client_id: UUID) -> str:
+    client = await get_client(session, client_id)
     if client.client_type != ClientType.CONFIDENTIAL:
         raise PublicClientHasNoSecret
 
@@ -215,10 +165,8 @@ async def rotate_secret(
     return secret
 
 
-async def delete_client(
-    session: AsyncSession, client_id: UUID, *, caller_scopes: set[str]
-) -> None:
-    client = await get_client_to_modify(session, client_id, caller_scopes)
+async def delete_client(session: AsyncSession, client_id: UUID) -> None:
+    client = await get_client(session, client_id)
     if client.is_system:
         raise SystemClientImmutable
 

@@ -53,8 +53,11 @@ Work through this before anyone outside your own machine can reach the deploymen
       the one scope that can raise somebody's authority, and it is separate from `admin:users:write`
       for that reason. An account that manages people — creating, renaming, deactivating, resetting
       passwords, clearing a lost authenticator — does not need it. Neither rule can be worked
-      around by acting on somebody who already holds more: that is refused too, for people and for
-      applications. See [Scopes](../reference/scopes.md#delegation).
+      around by acting on somebody who already holds more: that is refused too. See
+      [Scopes](../reference/scopes.md#delegation).
+- [ ] **Only full administrators can change applications.** There is no clients-only permission;
+      see [Scopes](../reference/scopes.md#applications). If a team needs its own application, it
+      registers it through self-service.
 - [ ] `skipConsent` is set only on applications your organization owns.
 - [ ] Every client's `redirectUris` are exact — no unused entries left from testing.
 - [ ] Machine clients hold the narrowest permissions that let them work.

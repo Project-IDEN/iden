@@ -20,7 +20,6 @@ export const ADMIN_SCOPES = [
   "admin:scopes:read",
   "admin:scopes:write",
   "admin:clients:read",
-  "admin:clients:write",
   "admin:audit:read",
   "admin:profile-fields:read",
   "admin:profile-fields:write",
@@ -47,6 +46,18 @@ export const ENTITY_SCOPES = [
 export const DEVELOPER_SCOPES = ["developer:clients:read", "developer:clients:write"] as const;
 
 /**
+ * Present only when the provider runs with `IDEN_BIOMETRIC_ENABLED`. Requested
+ * regardless — an unknown scope is pruned — because changing an OAuth client
+ * needs every restricted scope the deployment defines, these included.
+ */
+export const BIOMETRIC_SCOPES = [
+  "biometric:enroll",
+  "biometric:verify",
+  "biometric:search",
+  "biometric:liveness",
+] as const;
+
+/**
  * Not in the DB and never carry an audience — see `scope_resolver.OIDC_SCOPES`.
  *
  * `offline_access` is what asks for a refresh token (OIDC Core Section 11). The
@@ -67,6 +78,7 @@ export const DASHBOARD_SCOPE = [
   ...ADMIN_SCOPES,
   ...ENTITY_SCOPES,
   ...DEVELOPER_SCOPES,
+  ...BIOMETRIC_SCOPES,
 ].join(" ");
 
 /** Parses the `scope` claim, which is space-delimited per RFC 6749. */

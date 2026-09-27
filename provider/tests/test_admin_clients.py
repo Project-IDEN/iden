@@ -216,3 +216,126 @@ class TestProtection:
         headers = await token_for("admin:clients:read")
         response = await client.post("/admin/clients", json=WEB_APP, headers=headers)
         assert response.status_code == 403
+
+
+class TestChangingAClientNeedsAFullAdministrator:
+    """A client's configuration decides who receives its tokens, so whoever
+    controls it can act as anyone who signs in through it. Only a caller who
+    already holds every restricted scope has nothing to gain from that."""
+
+    @pytest.fixture
+    async def almost_full_headers(self, token_for, catalogue):
+        """Every admin scope but one unrelated to clients."""
+        return await token_for(
+            *[
+                value
+                for value in catalogue["scopes"]
+                if value.startswith("admin:") and value != "admin:audit:read"
+            ]
+        )
+
+    @pytest.fixture
+    async def existing(self, client, admin_headers):
+        return (
+            await client.post("/admin/clients", json=SERVICE, headers=admin_headers)
+        ).json()
+
+    @pytest.mark.parametrize(
+        ("method", "path", "body"),
+        [
+            ("POST", "/admin/clients", WEB_APP),
+            ("PATCH", "/admin/clients/{id}", {"name": "Renamed"}),
+            ("PUT", "/admin/clients/{id}/scopes", {}),
+            ("POST", "/admin/clients/{id}/rotate-secret", None),
+            ("DELETE", "/admin/clients/{id}", None),
+        ],
+    )
+    async def test_every_write_is_refused_short_of_it(
+        self, client, almost_full_headers, existing, method, path, body
+    ):
+        response = await client.request(
+            method,
+            path.format(id=existing["id"]),
+            json=body,
+            headers=almost_full_headers,
+        )
+
+        assert response.status_code == 403
+        assert "insufficient_scope" in response.headers["www-authenticate"]
+        assert "admin:audit:read" in response.json()["message"]
+
+    async def test_reading_still_needs_only_the_read_scope(
+        self, client, token_for, existing
+    ):
+        headers = await token_for("admin:clients:read")
+        response = await client.get(f"/admin/clients/{existing['id']}", headers=headers)
+
+        assert response.status_code == 200
+
+    async def test_the_dashboard_cannot_be_repointed(
+        self, client, almost_full_headers, dashboard
+    ):
+        """The takeover: add your own redirect URI to the client that skips
+        consent and may request every admin scope, then send an administrator
+        a link. Their code would arrive at your site."""
+        response = await client.patch(
+            f"/admin/clients/{dashboard.id}",
+            json={"redirectUris": ["https://evil.example/cb"]},
+            headers=almost_full_headers,
+        )
+
+        assert response.status_code == 403
+
+    async def test_the_gate_is_every_restricted_scope_in_the_catalogue(self, catalogue):
+        from provider.shared.scopes import FULL_ADMIN_SCOPES, RESTRICTED_PREFIXES
+
+        restricted = {
+            value
+            for value in catalogue["scopes"]
+            if value.split(":")[0] in RESTRICTED_PREFIXES
+        }
+        assert restricted == set(FULL_ADMIN_SCOPES)
+
+
+class TestDeveloperApplications:
+    """Their owner can repoint the redirect URIs, so a restricted scope on one
+    would let a developer collect administrators' tokens."""
+
+    @pytest.fixture
+    async def owned(self, client, developer_headers):
+        return (
+            await client.post(
+                "/developer/clients",
+                json={
+                    "name": "Owned",
+                    "clientType": "public",
+                    "redirectUris": ["https://owned.example.org/cb"],
+                },
+                headers=developer_headers,
+            )
+        ).json()
+
+    async def test_cannot_be_given_a_restricted_scope(
+        self, client, admin_headers, owned, catalogue
+    ):
+        response = await client.put(
+            f"/admin/clients/{owned['id']}/scopes",
+            json={
+                "grantableScopeIds": [str(catalogue["scopes"]["admin:users:read"].id)]
+            },
+            headers=admin_headers,
+        )
+
+        assert response.status_code == 422
+        assert response.json()["code"] == "restricted_scope_on_owned_client"
+
+    async def test_can_be_given_an_organizations_own_scope(
+        self, client, admin_headers, owned, unheld_scope
+    ):
+        response = await client.put(
+            f"/admin/clients/{owned['id']}/scopes",
+            json={"grantableScopeIds": [str(unheld_scope.id)]},
+            headers=admin_headers,
+        )
+
+        assert response.status_code == 200

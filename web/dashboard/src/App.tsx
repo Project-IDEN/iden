@@ -1,4 +1,4 @@
-import { Brand, Button, ErrorState, Spinner } from "@iden/shared";
+import { ADMIN_SCOPES, Brand, Button, ErrorState, Spinner } from "@iden/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ErrorResponse } from "oidc-client-ts";
@@ -29,7 +29,7 @@ import { ApplicationsRoute, ApplicationDetailRoute } from "./features/developer/
 import { ApplicationCreateRoute } from "./features/developer/apps-new";
 
 /** Every admin route is gated on the read scope its endpoints require. */
-function guarded(scope: string, element: React.ReactNode) {
+function guarded(scope: string | readonly string[], element: React.ReactNode) {
   return <RequireScope scope={scope}>{element}</RequireScope>;
 }
 
@@ -80,7 +80,9 @@ const router = createBrowserRouter(
         { path: "admin/clients", element: guarded("admin:clients:read", <ClientsRoute />) },
         {
           path: "admin/clients/new",
-          element: guarded("admin:clients:write", <ClientCreateRoute />),
+          // Changing a client is a full administrator's action. The provider
+          // also requires the biometric scopes when that module is on.
+          element: guarded(ADMIN_SCOPES, <ClientCreateRoute />),
         },
         {
           path: "admin/clients/:clientId",

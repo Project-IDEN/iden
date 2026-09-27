@@ -39,3 +39,11 @@ class RedirectUriRequired(ValidationError):
 class UnknownScopes(NotFoundError):
     code = "unknown_scopes"
     message = "One or more scope ids do not exist."
+
+
+class RestrictedScopeOnOwnedClient(ValidationError):
+    code = "restricted_scope_on_owned_client"
+    message = (
+        "An application registered by a developer cannot be given an `admin:` or "
+        "`biometric:` scope: its owner controls where its tokens are delivered."
+    )

@@ -60,7 +60,6 @@ ADMIN_SCOPES = (
     ScopeSpec("admin:scopes:read", "View the scopes defined under an API."),
     ScopeSpec("admin:scopes:write", "Define, update, and delete scopes under an API."),
     ScopeSpec("admin:clients:read", "View registered OAuth clients."),
-    ScopeSpec("admin:clients:write", "Register clients and rotate their secrets."),
     # Read-only by design: the audit log is written by the requests it records
     # and has no write endpoint to grant.
     ScopeSpec("admin:audit:read", "Read the audit log."),
@@ -148,6 +147,18 @@ def system_apis() -> tuple[ApiSpec, ...]:
 # identity provider exists so administrators can grant permissions they do not
 # personally hold.
 RESTRICTED_PREFIXES = frozenset({"admin", "biometric"})
+
+# Every restricted scope this deployment defines: what changing an OAuth client
+# requires. A client's configuration decides who receives its tokens, so whoever
+# controls it can act as anyone the client reaches. Only a caller already holding
+# all of these has nothing left to gain from that, which is why client management
+# has no scope of its own.
+FULL_ADMIN_SCOPES = tuple(
+    scope.value
+    for api in system_apis()
+    for scope in api.scopes
+    if scope.value.split(":")[0] in RESTRICTED_PREFIXES
+)
 
 
 def system_roles() -> tuple[RoleSpec, ...]:

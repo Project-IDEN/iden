@@ -431,7 +431,7 @@ class TestTheGate:
     async def test_an_admin_token_does_not_open_this_module(
         self, client, admin_headers
     ):
-        """`admin:clients:write` is a different authority against a different
+        """Administering clients is a different authority against a different
         audience. It opens `/admin/clients`, not someone's own list."""
         response = await client.get("/developer/clients", headers=admin_headers)
 

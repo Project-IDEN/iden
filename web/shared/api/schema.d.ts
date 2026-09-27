@@ -1020,7 +1020,9 @@ export interface paths {
          *
          *     `grantableScopeIds` are what the client may request for a user; `grantedScopeIds` are what it holds itself for `client_credentials`. The two are independent.
          *
-         *     **Required scope:** `admin:clients:write`\n\n**You cannot grant what you do not hold.** Any `admin:` or `biometric:` scope in what this would confer must already be in the caller's own token, or the request is refused with `403 cannot_delegate`.
+         *     **Required scope:** every `admin:` scope, plus every `biometric:` scope when that module is enabled.
+         *
+         *     Changing an application is a full administrator's action. Its redirect URIs, grants, secret and scopes decide who receives its tokens, so whoever controls them can act as anyone who signs in through it.
          */
         post: operations["create_client_admin_clients_post"];
         delete?: never;
@@ -1047,9 +1049,9 @@ export interface paths {
          * Delete an OAuth client
          * @description Every token and consent grant belonging to the client goes with it.
          *
-         *     **Required scope:** `admin:clients:write`
+         *     **Required scope:** every `admin:` scope, plus every `biometric:` scope when that module is enabled.
          *
-         *     **You cannot act on an application above your own authority.** If it holds an `admin:` or `biometric:` scope in its own right that the caller lacks, the request is refused with `403 cannot_administer` — otherwise adding the `client_credentials` grant and rotating its secret would be a way to borrow it.
+         *     Changing an application is a full administrator's action. Its redirect URIs, grants, secret and scopes decide who receives its tokens, so whoever controls them can act as anyone who signs in through it.
          */
         delete: operations["delete_client_admin_clients__client_id__delete"];
         options?: never;
@@ -1058,7 +1060,9 @@ export interface paths {
          * Update an OAuth client
          * @description `clientId` and `clientType` are immutable — both are baked into issued tokens and into however the application is configured.
          *
-         *     **Required scope:** `admin:clients:write`
+         *     **Required scope:** every `admin:` scope, plus every `biometric:` scope when that module is enabled.
+         *
+         *     Changing an application is a full administrator's action. Its redirect URIs, grants, secret and scopes decide who receives its tokens, so whoever controls them can act as anyone who signs in through it.
          */
         patch: operations["update_client_admin_clients__client_id__patch"];
         trace?: never;
@@ -1075,7 +1079,11 @@ export interface paths {
          * Set a client's scopes
          * @description **Replaces both sets.** A scope listed in neither is removed from the client entirely.
          *
-         *     **Required scope:** `admin:clients:write`\n\n**You cannot grant what you do not hold.** Any `admin:` or `biometric:` scope in what this would confer must already be in the caller's own token, or the request is refused with `403 cannot_delegate`.
+         *     An application registered by a developer cannot be given an `admin:` or `biometric:` scope.
+         *
+         *     **Required scope:** every `admin:` scope, plus every `biometric:` scope when that module is enabled.
+         *
+         *     Changing an application is a full administrator's action. Its redirect URIs, grants, secret and scopes decide who receives its tokens, so whoever controls them can act as anyone who signs in through it.
          */
         put: operations["set_client_scopes_admin_clients__client_id__scopes_put"];
         post?: never;
@@ -1098,9 +1106,9 @@ export interface paths {
          * Rotate a client secret
          * @description Issues a new secret and returns it **once**. The previous secret stops working immediately, so deploy the new one before rotating.
          *
-         *     **Required scope:** `admin:clients:write`
+         *     **Required scope:** every `admin:` scope, plus every `biometric:` scope when that module is enabled.
          *
-         *     **You cannot act on an application above your own authority.** If it holds an `admin:` or `biometric:` scope in its own right that the caller lacks, the request is refused with `403 cannot_administer` — otherwise adding the `client_credentials` grant and rotating its secret would be a way to borrow it.
+         *     Changing an application is a full administrator's action. Its redirect URIs, grants, secret and scopes decide who receives its tokens, so whoever controls them can act as anyone who signs in through it.
          */
         post: operations["rotate_secret_admin_clients__client_id__rotate_secret_post"];
         delete?: never;
@@ -6168,7 +6176,7 @@ export interface operations {
                     "application/json": components["schemas"]["ClientCreated"];
                 };
             };
-            /** @description Would confer a scope the caller does not hold */
+            /** @description The caller is not a full administrator */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6264,7 +6272,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description This application holds authority the caller does not */
+            /** @description The caller is not a full administrator */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6326,7 +6334,7 @@ export interface operations {
                     "application/json": components["schemas"]["ClientResponse"];
                 };
             };
-            /** @description This application holds authority the caller does not */
+            /** @description The caller is not a full administrator */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6379,7 +6387,7 @@ export interface operations {
                     "application/json": components["schemas"]["ClientResponse"];
                 };
             };
-            /** @description Would confer a scope the caller does not hold */
+            /** @description The caller is not a full administrator */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6397,13 +6405,13 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Validation Error */
+            /** @description A restricted scope on a developer's application */
             422: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
         };
@@ -6428,7 +6436,7 @@ export interface operations {
                     "application/json": components["schemas"]["SecretRotated"];
                 };
             };
-            /** @description This application holds authority the caller does not */
+            /** @description The caller is not a full administrator */
             403: {
                 headers: {
                     [name: string]: unknown;

@@ -218,8 +218,12 @@ async def main() -> None:
         scopes = await seed_catalogue(session)
         roles = await seed_roles(session, scopes)
 
+        # Biometric included: changing an OAuth client needs every restricted
+        # scope, and the dashboard is where administrators do it.
         dashboard_scopes = [
-            v for v in scopes if v.startswith(("admin:", "entity:", "developer:"))
+            v
+            for v in scopes
+            if v.startswith(("admin:", "entity:", "developer:", "biometric:"))
         ]
         biometric_scopes = [v for v in scopes if v.startswith("biometric:")]
 

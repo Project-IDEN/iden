@@ -4,13 +4,15 @@
 decides *which*. Two rules, and each is useless alone:
 
 - **granting** — you cannot confer a scope you lack (`refuse_undelegatable`)
-- **borrowing** — you cannot act on a principal holding more than you
-  (`refuse_if_outranked`, `refuse_if_client_outranks`). Otherwise resetting a
-  password and clearing an authenticator is a way to become somebody who already
-  has what you wanted.
+- **borrowing** — you cannot act on a person holding more than you
+  (`refuse_if_outranked`). Otherwise resetting a password and clearing an
+  authenticator is a way to become somebody who already has what you wanted.
 
 Both measure against the caller's *token*, not their account: stricter, and it
 makes them apply unchanged to `client_credentials`, where there is no person.
+
+OAuth clients are not covered here: changing one needs every restricted scope
+(`shared.scopes.FULL_ADMIN_SCOPES`), so there is nothing to borrow through them.
 
 Both cover `admin:` and `biometric:` only — see `shared.scopes.RESTRICTED_PREFIXES`.
 """
@@ -18,7 +20,7 @@ Both cover `admin:` and `biometric:` only — see `shared.scopes.RESTRICTED_PREF
 from collections.abc import Iterable
 
 from provider.core.errors import ForbiddenError
-from provider.shared.models import Client, Group, Role, Scope, User
+from provider.shared.models import Group, Role, Scope, User
 from provider.shared.scopes import RESTRICTED_PREFIXES
 
 
@@ -86,33 +88,6 @@ def refuse_if_outranked(caller_scopes: set[str], target: User) -> None:
     if beyond:
         raise CannotAdminister(
             "This account holds authority you do not: "
-            f"{', '.join(beyond)}. Ask somebody who holds it.",
-            scopes=beyond,
-        )
-
-
-def held_by_client(client: Client) -> list[Scope]:
-    """What a client holds in its own right — the `granted` half.
-
-    `grantable` is excluded: it reaches a token only through `/authorize`, where
-    it is intersected with what the signed-in person holds, so it cannot exceed
-    somebody's existing authority. `granted` goes into a `client_credentials`
-    token on request, with no person involved.
-    """
-    return [link.scope for link in client.scopes if link.granted]
-
-
-def refuse_if_client_outranks(caller_scopes: set[str], client: Client) -> None:
-    """Raise unless the caller holds everything restricted that `client` holds.
-
-    A scope a client holds is dormant only until somebody adds the
-    `client_credentials` grant and rotates its secret — both `admin:clients:write`,
-    neither a scope assignment.
-    """
-    beyond = sorted(_restricted(held_by_client(client)) - caller_scopes)
-    if beyond:
-        raise CannotAdminister(
-            "This application holds authority you do not: "
             f"{', '.join(beyond)}. Ask somebody who holds it.",
             scopes=beyond,
         )

@@ -24,8 +24,7 @@ Managing the deployment. The `administrator` role carries all of them.
 | `admin:apis:write` | Register, update, and delete resource APIs. |
 | `admin:scopes:read` | View the scopes defined under an API. |
 | `admin:scopes:write` | Define, update, and delete scopes under an API. |
-| `admin:clients:read` | View registered OAuth clients. |
-| `admin:clients:write` | Register clients and rotate their secrets. |
+| `admin:clients:read` | View registered OAuth clients. Changing one has no scope of its own — see [Applications](#applications). |
 | `admin:audit:read` | Read the audit log. |
 | `admin:profile-fields:read` | View the organization's profile schema. |
 | `admin:profile-fields:write` | Define the fields this organization collects about people. |
@@ -99,8 +98,6 @@ It covers every route a scope can travel, not only the obvious one:
 - creating a user that already holds either
 - giving a group a role, or adding somebody to a group that has one
 - changing what a role means, which promotes everyone already holding it
-- registering a client that holds it, or adding it to one — a confidential client holding a scope in
-  its own right is a `client_credentials` request away from using it
 
 **Your organization's own scopes are unrestricted**, and deliberately. An identity provider exists so
 that administrators can grant permissions they do not personally need; requiring a registrar to hold
@@ -114,22 +111,27 @@ nobody.
 The mirror of the same idea, and the half that is easy to miss. Stopping an administrator granting
 what they lack achieves nothing if they can take it from whoever already has it instead.
 
-**You may only administer people and applications that are not above you.** If the target holds an
-`admin:` or `biometric:` scope the caller does not, the request is refused with
-`403 cannot_administer`. It applies to every write:
+**You may only administer people who are not above you.** If the target holds an `admin:` or
+`biometric:` scope the caller does not, the request is refused with `403 cannot_administer`. It
+applies to every write: updating them, assigning their roles or scopes, resetting their password,
+clearing their authenticator, deleting them — because a password reset plus a cleared authenticator
+is a way to sign in as them.
 
-- a person: updating them, assigning their roles or scopes, resetting their password, clearing their
-  authenticator, deleting them — because a password reset plus a cleared authenticator is a way to
-  sign in as them
-- an application: changing it, rotating its secret, deleting it — because a scope a client holds in
-  its own right becomes usable as soon as somebody adds the `client_credentials` grant and takes the
-  secret, and neither of those is a scope assignment
+## Applications
 
-A client's `grantable` scopes do not count as authority it holds. Those reach a token only through
-`/authorize`, where they are intersected with what the signed-in person holds, so they can never
-exceed somebody's existing permissions — and counting them would leave a limited administrator
-unable to touch the deployment's own dashboard client, which is grantable for everything and holds
-nothing.
+**Changing an OAuth client needs every `admin:` scope** — and every `biometric:` scope when that
+module is enabled. Registering, updating, setting scopes, rotating a secret and deleting are all
+refused with `403 insufficient_scope` otherwise. Reading needs only `admin:clients:read`.
+
+There is no narrower permission because none can be safe. A client's redirect URIs, grants, secret
+and scopes decide who receives its tokens, so whoever controls them can act as anyone who signs in
+through it — repoint the dashboard, which skips consent, and the next administrator to follow a link
+hands over their token. Only somebody who already holds every restricted scope has nothing to gain.
+
+People who need to register their own application use [self-service
+registration](../guides/self-service-registration.md) instead. Those applications always show a
+consent screen, and they cannot be given an `admin:` or `biometric:` scope: their owner controls
+where the tokens go. An attempt is refused with `422 restricted_scope_on_owned_client`.
 
 ## Putting it together
 

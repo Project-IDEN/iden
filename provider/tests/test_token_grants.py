@@ -118,10 +118,10 @@ class TestRefreshRotation:
             await refresh(
                 client,
                 tokens["refresh_token"],
-                scope="openid offline_access admin:clients:write",
+                scope="openid offline_access admin:roles:write",
             )
         ).json()
-        assert "admin:clients:write" not in widened["scope"]
+        assert "admin:roles:write" not in widened["scope"]
 
     async def test_unknown_refresh_token_is_rejected(self, client):
         assert (await refresh(client, "not-a-token")).status_code == 400

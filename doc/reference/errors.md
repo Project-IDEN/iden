@@ -52,7 +52,7 @@ than redirecting somewhere it has not verified.
 |---|---|
 | `400` | Malformed, or an invalid grant. |
 | `401` | *Authenticate again* — missing, expired, revoked, or wrong-audience token. |
-| `403` | *Authenticating will not help* — a valid token without the permission. Also freshness refusals, and the delegation refusals `cannot_delegate` and `cannot_administer`. |
+| `403` | *Authenticating will not help* — a valid token without the permission. Also freshness refusals, the delegation refusals `cannot_delegate` and `cannot_administer`, and a client change by anyone short of a full administrator. |
 | `404` | No such thing. |
 | `409` | Conflicts with what exists — a name taken, or a system row that cannot be changed. |
 | `422` | The request was understood and is not acceptable. |

@@ -2,9 +2,11 @@
 
 `admin:grants:write` decides whether an account may assign permissions;
 `admin.delegation` decides which. The indirect paths are the interesting ones —
-a role, a group's roles, joining such a group, a role's meaning changing, a
-client holding a scope outright — because five closed doors and one open one is
-one open door.
+a role, a group's roles, joining such a group, a role's meaning changing —
+because four closed doors and one open one is one open door.
+
+OAuth clients are not here: changing one needs every restricted scope, so
+there is nothing to borrow through them. See `test_admin_clients.py`.
 """
 
 import pytest
@@ -22,7 +24,6 @@ LIMITED = (
     "admin:groups:read",
     "admin:groups:write",
     "admin:clients:read",
-    "admin:clients:write",
     "admin:scopes:read",
 )
 
@@ -254,56 +255,6 @@ class TestDelegationIsRefused:
         assert response.status_code == 403
         assert response.json()["code"] == "cannot_delegate"
 
-    async def test_by_registering_a_client_that_holds_it(
-        self, client, limited_headers, scope_id
-    ):
-        """The second complete escalation path, and the quieter one: a
-        confidential client holding a scope outright is one
-        `client_credentials` request away from using it, with a secret the
-        caller is shown once."""
-        response = await client.post(
-            "/admin/clients",
-            json={
-                "clientId": "backdoor",
-                "name": "Back Door",
-                "clientType": "confidential",
-                "allowedGrants": ["client_credentials"],
-                "grantedScopeIds": [await scope_id(WITHHELD)],
-            },
-            headers=limited_headers,
-        )
-
-        assert response.status_code == 403
-        assert response.json()["code"] == "cannot_delegate"
-
-    async def test_by_adding_it_to_an_existing_client(
-        self, client, limited_headers, scope_id
-    ):
-        created = (
-            await client.post(
-                "/admin/clients",
-                json={
-                    "clientId": "later",
-                    "name": "Later",
-                    "clientType": "confidential",
-                    "allowedGrants": ["client_credentials"],
-                },
-                headers=limited_headers,
-            )
-        ).json()
-
-        response = await client.put(
-            f"/admin/clients/{created['id']}/scopes",
-            json={
-                "grantableScopeIds": [],
-                "grantedScopeIds": [await scope_id(WITHHELD)],
-            },
-            headers=limited_headers,
-        )
-
-        assert response.status_code == 403
-        assert response.json()["code"] == "cannot_delegate"
-
 
 class TestDelegationIsAllowed:
     """The rule has to leave an administrator able to administer."""
@@ -352,41 +303,6 @@ class TestDelegationIsAllowed:
         )
 
         assert response.status_code == 200
-
-    async def test_a_client_that_already_holds_more_is_off_limits_entirely(
-        self, client, admin_headers, limited_headers, scope_id, unheld_scope
-    ):
-        """The whole client, not merely the scope that is beyond them.
-
-        What a client already holds becomes usable the moment somebody adds the
-        `client_credentials` grant and rotates the secret, and neither of those
-        is a scope assignment.
-        """
-        created = (
-            await client.post(
-                "/admin/clients",
-                json={
-                    "clientId": "existing",
-                    "name": "Existing",
-                    "clientType": "confidential",
-                    "allowedGrants": ["client_credentials"],
-                    "grantedScopeIds": [await scope_id(WITHHELD)],
-                },
-                headers=admin_headers,
-            )
-        ).json()
-
-        response = await client.put(
-            f"/admin/clients/{created['id']}/scopes",
-            json={
-                "grantableScopeIds": [str(unheld_scope.id)],
-                "grantedScopeIds": [await scope_id(WITHHELD)],
-            },
-            headers=limited_headers,
-        )
-
-        assert response.status_code == 403
-        assert response.json()["code"] == "cannot_administer"
 
     async def test_a_full_administrator_is_unaffected(
         self, client, admin_headers, target, scope_id
@@ -494,152 +410,6 @@ class TestActingOnSomebodyAboveYou:
             f"/admin/users/{admin_user.id}/reset-password",
             json={},
             headers=admin_headers,
-        )
-
-        assert response.status_code == 200
-
-
-class TestActingOnAClientAboveYou:
-    """A client is the other kind of principal, and the quieter one.
-
-    A scope it holds outright goes into a `client_credentials` token on request,
-    with no person involved, and everything needed to use one is
-    `admin:clients:write` — so the gate is on touching the client at all.
-    """
-
-    @pytest.fixture
-    async def elevated_client(self, client, admin_headers, scope_id):
-        """Holds the withheld scope outright, but cannot yet use it."""
-        return (
-            await client.post(
-                "/admin/clients",
-                json={
-                    "clientId": "dormant",
-                    "name": "Dormant",
-                    "clientType": "confidential",
-                    "allowedGrants": ["authorization_code"],
-                    "redirectUris": ["https://app.example.org/cb"],
-                    "grantedScopeIds": [await scope_id(WITHHELD)],
-                },
-                headers=admin_headers,
-            )
-        ).json()
-
-    async def test_the_grant_cannot_be_added(
-        self, client, limited_headers, elevated_client
-    ):
-        """Waking it up: `client_credentials` is what turns a held scope into a
-        token somebody can ask for."""
-        response = await client.patch(
-            f"/admin/clients/{elevated_client['id']}",
-            json={"allowedGrants": ["client_credentials"]},
-            headers=limited_headers,
-        )
-
-        assert response.status_code == 403
-        assert response.json()["code"] == "cannot_administer"
-
-    async def test_its_secret_cannot_be_rotated(
-        self, client, limited_headers, elevated_client
-    ):
-        """And taking the secret is how you would then use it."""
-        response = await client.post(
-            f"/admin/clients/{elevated_client['id']}/rotate-secret",
-            headers=limited_headers,
-        )
-
-        assert response.status_code == 403
-
-    async def test_it_cannot_be_deleted(self, client, limited_headers, elevated_client):
-        response = await client.delete(
-            f"/admin/clients/{elevated_client['id']}", headers=limited_headers
-        )
-
-        assert response.status_code == 403
-
-    async def test_grantable_cannot_be_promoted_to_granted(
-        self, client, admin_headers, limited_headers, scope_id
-    ):
-        """Not the same privilege: `grantable` is intersected with what the
-        signed-in person holds at `/authorize`, `granted` is not. Comparing only
-        which scope ids were attached treated the promotion as no change.
-        """
-        sid = await scope_id(WITHHELD)
-        made = (
-            await client.post(
-                "/admin/clients",
-                json={
-                    "clientId": "flip",
-                    "name": "Flip",
-                    "clientType": "confidential",
-                    "allowedGrants": ["client_credentials"],
-                    "grantableScopeIds": [sid],
-                },
-                headers=admin_headers,
-            )
-        ).json()
-
-        response = await client.put(
-            f"/admin/clients/{made['id']}/scopes",
-            json={"grantableScopeIds": [], "grantedScopeIds": [sid]},
-            headers=limited_headers,
-        )
-
-        assert response.status_code == 403
-        assert response.json()["code"] == "cannot_delegate"
-
-    async def test_an_ordinary_client_is_still_managed_normally(
-        self, client, limited_headers
-    ):
-        made = (
-            await client.post(
-                "/admin/clients",
-                json={
-                    "clientId": "ordinary",
-                    "name": "Ordinary",
-                    "clientType": "confidential",
-                    "allowedGrants": ["client_credentials"],
-                },
-                headers=limited_headers,
-            )
-        ).json()
-
-        renamed = await client.patch(
-            f"/admin/clients/{made['id']}",
-            json={"name": "Renamed"},
-            headers=limited_headers,
-        )
-        rotated = await client.post(
-            f"/admin/clients/{made['id']}/rotate-secret", headers=limited_headers
-        )
-
-        assert renamed.status_code == 200
-        assert rotated.status_code == 200
-
-    async def test_grantable_alone_does_not_lock_a_client(
-        self, client, admin_headers, limited_headers, scope_id
-    ):
-        """The dashboard is grantable for every admin scope and holds none of
-        them. Treating that as authority would leave a limited administrator
-        unable to touch the deployment's own client for no gain in safety."""
-        made = (
-            await client.post(
-                "/admin/clients",
-                json={
-                    "clientId": "broker",
-                    "name": "Broker",
-                    "clientType": "public",
-                    "redirectUris": ["https://app.example.org/cb"],
-                    "grantableScopeIds": [await scope_id(WITHHELD)],
-                },
-                headers=admin_headers,
-            )
-        ).json()
-
-        response = await client.patch(
-            f"/admin/clients/{made['id']}",
-            json={"name": "Renamed"},
-            headers=limited_headers,
         )
 
         assert response.status_code == 200

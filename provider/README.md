@@ -521,7 +521,7 @@ Seeded by `scripts/seed.py` from `shared/scopes.py`, all flagged `is_system`.
 | `admin:roles:read` / `admin:roles:write` | View / manage roles and their scope bundles |
 | `admin:apis:read` / `admin:apis:write` | View / manage registered resource APIs |
 | `admin:scopes:read` / `admin:scopes:write` | View / manage scopes under an API |
-| `admin:clients:read` / `admin:clients:write` | View / manage OAuth clients and their secrets |
+| `admin:clients:read` | View OAuth clients. Changing one needs every `admin:` scope (and `biometric:` when enabled) |
 | `admin:audit:read` | Read the audit log. No write scope exists — see below |
 | `admin:profile-fields:read` / `admin:profile-fields:write` | View / define the organization's profile fields |
 
@@ -853,10 +853,10 @@ and the browser reaches it again by following `resumeUrl`.
 | `PUT` | `/admin/users/{id}/scopes` | `admin:users:write` | 2 |
 | `POST` | `/admin/users/{id}/reset-password` | `admin:users:write` | 2 |
 | `GET` | `/admin/users/{id}/effective-scopes` | `admin:users:read` | 2 |
-| `GET` `POST` | `/admin/clients` | `admin:clients:read` / `:write` | 2 |
-| `GET` `PATCH` `DELETE` | `/admin/clients/{id}` | `admin:clients:read` / `:write` | 2 |
-| `POST` | `/admin/clients/{id}/rotate-secret` | `admin:clients:write` | 2 |
-| `PUT` | `/admin/clients/{id}/scopes` | `admin:clients:write` | 2 |
+| `GET` `POST` | `/admin/clients` | `admin:clients:read` / full administrator | 2 |
+| `GET` `PATCH` `DELETE` | `/admin/clients/{id}` | `admin:clients:read` / full administrator | 2 |
+| `POST` | `/admin/clients/{id}/rotate-secret` | full administrator | 2 |
+| `PUT` | `/admin/clients/{id}/scopes` | full administrator | 2 |
 | `GET` | `/admin/audit` | `admin:audit:read` | 2 |
 | `GET` `PATCH` | `/admin/users/{id}/profile` | `admin:users:read` / `:write` | 4 |
 | `GET` `POST` | `/admin/profile-fields` | `admin:profile-fields:read` / `:write` | 4 |
