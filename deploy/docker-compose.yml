@@ -34,6 +34,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   redis:
     image: redis:8-alpine
@@ -51,6 +52,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
 
   # Blob storage for profile photos. The provider speaks the S3 API and nothing
   # else, so MinIO, Garage or AWS S3 are drop-in replacements. SeaweedFS is the
@@ -77,6 +79,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
 
   # Runs to completion and exits. A separate service rather than an entrypoint
   # step so that scaling the provider to two replicas does not run the
@@ -172,6 +175,7 @@ services:
         condition: service_healthy
       seaweedfs:
         condition: service_healthy
+    restart: unless-stopped
 
   # Static builds. The issuer and branding are written into /config.js at
   # container start, so the same image serves any deployment.
@@ -188,6 +192,7 @@ services:
     depends_on:
       provider:
         condition: service_started
+    restart: unless-stopped
 
   dashboard:
     build:
@@ -203,6 +208,7 @@ services:
     depends_on:
       provider:
         condition: service_started
+    restart: unless-stopped
 
 volumes:
   postgres-data:
