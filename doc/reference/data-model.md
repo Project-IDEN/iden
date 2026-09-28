@@ -6,33 +6,7 @@ Sessions, pending sign-ins, the token denylist, and rate-limit counters are deli
 they live in Redis under a TTL, because they are ephemeral and expiry should be the storage layer's
 job rather than a cleanup job's.
 
-```mermaid
-erDiagram
-  USER ||--o{ USER_GROUP : "belongs to"
-  GROUP ||--o{ USER_GROUP : "has member"
-  USER ||--o{ USER_ROLE : "has"
-  ROLE ||--o{ USER_ROLE : ""
-  GROUP ||--o{ GROUP_ROLE : "has"
-  ROLE ||--o{ GROUP_ROLE : ""
-  ROLE ||--o{ ROLE_SCOPE : "bundles"
-  SCOPE ||--o{ ROLE_SCOPE : ""
-  USER ||--o{ USER_SCOPE : "direct grant"
-  SCOPE ||--o{ USER_SCOPE : ""
-  RESOURCE_API ||--o{ SCOPE : "defines"
-  CLIENT ||--o{ CLIENT_SCOPE : "may request / holds"
-  SCOPE ||--o{ CLIENT_SCOPE : ""
-  USER ||--o{ USER_PROFILE_VALUE : "has"
-  PROFILE_FIELD ||--o{ USER_PROFILE_VALUE : "defines"
-  GROUP ||--o{ PROFILE_FIELD : "scopes (optional)"
-  USER ||--o| TOTP_CREDENTIAL : "enrolls"
-  USER ||--o{ CONSENT_GRANT : "grants"
-  CLIENT ||--o{ CONSENT_GRANT : ""
-  CLIENT ||--o{ AUTHORIZATION_CODE : "issued"
-  USER ||--o{ AUTHORIZATION_CODE : ""
-  CLIENT ||--o{ REFRESH_TOKEN : "issued"
-  USER ||--o{ REFRESH_TOKEN : ""
-  USER ||--o{ AUDIT_EVENT : "acted (nulled on delete)"
-```
+![IDEN data model](https://raw.githubusercontent.com/Project-IDEN/iden/refs/heads/dev/assets/er_diagram.png)
 
 ## Tables
 
