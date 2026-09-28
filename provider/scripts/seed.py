@@ -17,6 +17,7 @@ import sys
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from provider.authz.services.token_service import now
 from provider.core.config import settings
 from provider.core.db import engine, session_factory
 from provider.core.security import hash_secret
@@ -192,6 +193,7 @@ async def seed_admin_user(session: AsyncSession, roles: dict[str, Role]) -> str 
         username="admin",
         display_name="Administrator",
         password_hash=hash_secret(password),
+        email_verified_at=now(),
     )
     user.roles = [roles["administrator"]]
     session.add(user)
