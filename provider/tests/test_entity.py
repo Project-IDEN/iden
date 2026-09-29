@@ -79,7 +79,7 @@ class TestPasswordChange:
             client=dashboard,
             user=member,
             scope="openid",
-            acr="iden:loa:1",
+            acr="urn:iden:acr:sfa",
             amr=["pwd"],
             authenticated_at=token_service.now(),
         )
@@ -245,7 +245,7 @@ class TestConnections:
             client=third_party,
             user=member,
             scope="openid",
-            acr="iden:loa:1",
+            acr="urn:iden:acr:sfa",
             amr=["pwd"],
             authenticated_at=token_service.now(),
         )

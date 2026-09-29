@@ -42,9 +42,9 @@ class AmrMethod(StrEnum):
 class AcrLevel(StrEnum):
     """Derived from the session's amr list at token-issuance time, never stored."""
 
-    LOA1 = "iden:loa:1"
-    LOA2 = "iden:loa:2"
-    LOA3 = "iden:loa:3"
+    SFA = "urn:iden:acr:sfa"
+    MFA = "urn:iden:acr:mfa"
+    MFA_FACE = "urn:iden:acr:mfa-face"
 
 
 class FieldType(StrEnum):

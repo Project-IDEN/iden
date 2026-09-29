@@ -146,7 +146,7 @@ class TestLogin:
 
         assert body["status"] == "complete"
         assert body["amr"] == ["pwd"]
-        assert body["acr"] == "iden:loa:1"
+        assert body["acr"] == "urn:iden:acr:sfa"
 
     async def test_session_cookie_is_httponly(self, client):
         _, challenge = pkce_pair()
@@ -197,13 +197,13 @@ class TestStepUp:
         await sign_in(client, challenge_id)
         await enrol(db, admin_user)
 
-        response = await start(client, challenge, acr_values="iden:loa:2")
+        response = await start(client, challenge, acr_values="urn:iden:acr:mfa")
 
         assert "/auth/login" in response.headers["location"]
 
     async def test_login_asks_for_the_code_when_acr_is_unmet(self, client, enrolled):
         _, challenge = pkce_pair()
-        response = await start(client, challenge, acr_values="iden:loa:2")
+        response = await start(client, challenge, acr_values="urn:iden:acr:mfa")
         challenge_id = query_of(response)["challenge"]
 
         body = (await sign_in(client, challenge_id)).json()
@@ -222,7 +222,7 @@ class TestStepUp:
         secret = await enrol(db, admin_user)
 
         verifier, challenge = pkce_pair()
-        response = await start(client, challenge, acr_values="iden:loa:2")
+        response = await start(client, challenge, acr_values="urn:iden:acr:mfa")
         challenge_id = query_of(response)["challenge"]
         page = (await client.get(f"/api/v1/auth/challenge/{challenge_id}")).json()
 
@@ -242,7 +242,7 @@ class TestStepUp:
 
         assert page["methods"] == ["otp"]
         assert step["status"] == "complete"
-        assert claims["acr"] == "iden:loa:2"
+        assert claims["acr"] == "urn:iden:acr:mfa"
         # A step-up adds to the sign-in; it is not a new one.
         assert claims["auth_time"] == decode(tokens["id_token"])["auth_time"]
 
@@ -258,7 +258,7 @@ class TestStepUp:
 
     async def test_met_acr_proceeds_normally(self, client):
         _, challenge = pkce_pair()
-        response = await start(client, challenge, acr_values="iden:loa:1")
+        response = await start(client, challenge, acr_values="urn:iden:acr:sfa")
         challenge_id = query_of(response)["challenge"]
 
         assert (await sign_in(client, challenge_id)).json()["status"] == "complete"
@@ -334,7 +334,7 @@ class TestTokenExchange:
     async def test_access_token_carries_the_authentication_context(self, client):
         claims = decode((await get_tokens(client))["access_token"])
 
-        assert claims["acr"] == "iden:loa:1"
+        assert claims["acr"] == "urn:iden:acr:sfa"
         assert claims["amr"] == ["pwd"]
         assert claims["jti"] and claims["client_id"] == "dashboard"
 
@@ -421,7 +421,7 @@ class TestAnUnreachableLevel:
 
     async def test_no_authenticator_means_no_code_form(self, client):
         _, challenge = pkce_pair()
-        response = await start(client, challenge, acr_values="iden:loa:2")
+        response = await start(client, challenge, acr_values="urn:iden:acr:mfa")
 
         step = (await sign_in(client, query_of(response)["challenge"])).json()
         back = query_of(await client.get(step["resumeUrl"]))
@@ -434,7 +434,7 @@ class TestAnUnreachableLevel:
         await get_tokens(client)
         _, challenge = pkce_pair()
 
-        response = await start(client, challenge, acr_values="iden:loa:2")
+        response = await start(client, challenge, acr_values="urn:iden:acr:mfa")
 
         assert query_of(response)["error"] == "unmet_authentication_requirements"
 
@@ -445,7 +445,7 @@ class TestAnUnreachableLevel:
         _, challenge = pkce_pair()
 
         response = await start(
-            client, challenge, acr_values="iden:loa:2", prompt="none"
+            client, challenge, acr_values="urn:iden:acr:mfa", prompt="none"
         )
 
         assert query_of(response)["error"] == "unmet_authentication_requirements"
@@ -453,10 +453,10 @@ class TestAnUnreachableLevel:
     async def test_a_level_no_method_reaches_ends_after_the_code(
         self, client, enrolled
     ):
-        """`iden:loa:3` needs a face. The code is still owed — this person has an
+        """`urn:iden:acr:mfa-face` needs a face. The code is still owed — this person has an
         authenticator — but after it there is nothing left to ask for."""
         _, challenge = pkce_pair()
-        response = await start(client, challenge, acr_values="iden:loa:3")
+        response = await start(client, challenge, acr_values="urn:iden:acr:mfa-face")
         challenge_id = query_of(response)["challenge"]
         await sign_in(client, challenge_id)
 
@@ -479,7 +479,7 @@ class TestAnUnreachableLevel:
         await db.execute(delete(TotpCredential))
         await db.commit()
 
-        response = await start(client, challenge, acr_values="iden:loa:2")
+        response = await start(client, challenge, acr_values="urn:iden:acr:mfa")
 
         assert "code" in query_of(response)
 
@@ -512,7 +512,7 @@ class TestEnrolledTotpIsMandatory:
         body = (await enter_code(client, challenge_id, enrolled)).json()
 
         assert body["status"] == "complete"
-        assert body["acr"] == "iden:loa:2"
+        assert body["acr"] == "urn:iden:acr:mfa"
         assert set(body["amr"]) == {"pwd", "otp", "mfa"}
 
     async def test_authorize_refuses_to_issue_a_code_to_a_password_only_session(

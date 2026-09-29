@@ -247,7 +247,7 @@ async def token_for(db, admin_user, dashboard):
             subject=str((user or admin_user).id),
             client=dashboard,
             scopes=set(scopes),
-            acr="iden:loa:1",
+            acr="urn:iden:acr:sfa",
             amr=["pwd"],
             # Freshly authenticated, so the token satisfies require_fresh_auth.
             # A test about staleness moves the clock instead.
@@ -406,7 +406,7 @@ async def stale_headers(db, member, dashboard, catalogue):
         subject=str(member.id),
         client=dashboard,
         scopes={v for v in catalogue["scopes"] if v.startswith("entity:")},
-        acr="iden:loa:1",
+        acr="urn:iden:acr:sfa",
         amr=["pwd"],
         authenticated_at=token_service.now() - timedelta(hours=1),
     )

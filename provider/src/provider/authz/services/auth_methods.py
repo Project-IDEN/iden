@@ -40,7 +40,7 @@ def normalized_amr(amr: list[str]) -> list[str]:
     return factors
 
 
-LEVELS = [AcrLevel.LOA1, AcrLevel.LOA2, AcrLevel.LOA3]
+LEVELS = [AcrLevel.SFA, AcrLevel.MFA, AcrLevel.MFA_FACE]
 
 
 def derive_acr(amr: list[str]) -> AcrLevel:
@@ -52,16 +52,16 @@ def derive_acr(amr: list[str]) -> AcrLevel:
     factors = {m for m in amr if m != AmrMethod.MFA}
 
     if AmrMethod.FACE in factors and len(factors) >= 2:
-        return AcrLevel.LOA3
+        return AcrLevel.MFA_FACE
     if len(factors) >= 2:
-        return AcrLevel.LOA2
-    return AcrLevel.LOA1
+        return AcrLevel.MFA
+    return AcrLevel.SFA
 
 
 def meets(acr: AcrLevel, required: str | None) -> bool:
     """Whether a session's level satisfies a client's `acr_values` request.
 
-    Levels are ordered, so loa3 satisfies a request for loa2.
+    Levels are ordered, so `mfa-face` satisfies a request for `mfa`.
     """
     if not required:
         return True
@@ -76,7 +76,7 @@ def meets(acr: AcrLevel, required: str | None) -> bool:
 def reachable_levels() -> list[str]:
     """The levels some combination of registered methods can reach.
 
-    What discovery may honestly advertise: `iden:loa:3` needs a face, so it is
+    What discovery may honestly advertise: `urn:iden:acr:mfa-face` needs a face, so it is
     listed once something registers one and not before.
     """
     top = derive_acr(supported())

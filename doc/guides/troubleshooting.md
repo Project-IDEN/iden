@@ -34,7 +34,7 @@ Symptom first, then what IDEN is actually telling you.
     would only show them the same form.
 
 ??? failure "`error=unmet_authentication_requirements`"
-    You sent an `acr_values` this person has no way to reach — usually `iden:loa:2` from someone who
+    You sent an `acr_values` this person has no way to reach — usually `urn:iden:acr:mfa` from someone who
     has not set up an authenticator. IDEN refuses rather than showing a code form they could not
     answer. Tell them what is needed, or send them to set one up and try again. See
     [Assurance and step-up](../concepts/assurance.md#a-level-they-cannot-reach).

@@ -14,12 +14,12 @@ from provider.shared.enums import AcrLevel
 @pytest.mark.parametrize(
     "amr,expected",
     [
-        (["pwd"], AcrLevel.LOA1),
-        (["face"], AcrLevel.LOA1),
-        (["pwd", "otp"], AcrLevel.LOA2),
-        (["pwd", "face"], AcrLevel.LOA3),
-        (["face", "otp"], AcrLevel.LOA3),
-        (["pwd", "otp", "face"], AcrLevel.LOA3),
+        (["pwd"], AcrLevel.SFA),
+        (["face"], AcrLevel.SFA),
+        (["pwd", "otp"], AcrLevel.MFA),
+        (["pwd", "face"], AcrLevel.MFA_FACE),
+        (["face", "otp"], AcrLevel.MFA_FACE),
+        (["pwd", "otp", "face"], AcrLevel.MFA_FACE),
     ],
 )
 def test_acr_is_derived_from_the_methods_used(amr, expected):
@@ -27,7 +27,7 @@ def test_acr_is_derived_from_the_methods_used(amr, expected):
 
 
 def test_repeated_method_is_still_one_factor():
-    assert derive_acr(["pwd", "pwd"]) == AcrLevel.LOA1
+    assert derive_acr(["pwd", "pwd"]) == AcrLevel.SFA
 
 
 def test_mfa_is_added_for_two_or_more_factors():
@@ -39,18 +39,18 @@ def test_mfa_is_absent_for_a_single_factor():
 
 
 def test_mfa_is_not_counted_as_a_factor_itself():
-    assert derive_acr(["pwd", "mfa"]) == AcrLevel.LOA1
+    assert derive_acr(["pwd", "mfa"]) == AcrLevel.SFA
 
 
 @pytest.mark.parametrize(
     "amr,required,expected",
     [
         (["pwd"], None, True),
-        (["pwd"], "iden:loa:1", True),
-        (["pwd"], "iden:loa:2", False),
-        (["pwd", "otp"], "iden:loa:2", True),
-        (["pwd", "face"], "iden:loa:2", True),
-        (["pwd", "otp"], "iden:loa:3", False),
+        (["pwd"], "urn:iden:acr:sfa", True),
+        (["pwd"], "urn:iden:acr:mfa", False),
+        (["pwd", "otp"], "urn:iden:acr:mfa", True),
+        (["pwd", "face"], "urn:iden:acr:mfa", True),
+        (["pwd", "otp"], "urn:iden:acr:mfa-face", False),
         (["pwd"], "nonsense", True),
     ],
 )
@@ -64,7 +64,7 @@ def test_face_is_not_registered_until_the_biometric_module_is_enabled():
 
 
 def test_only_reachable_levels_are_advertised():
-    assert reachable_levels() == ["iden:loa:1", "iden:loa:2"]
+    assert reachable_levels() == ["urn:iden:acr:sfa", "urn:iden:acr:mfa"]
 
 
 @pytest.mark.parametrize(
@@ -76,10 +76,10 @@ def test_only_reachable_levels_are_advertised():
         (["pwd"], {"pwd", "otp"}, None, ["otp"]),
         (["pwd", "otp"], {"pwd", "otp"}, None, []),
         # The client's rule, when the person can meet it.
-        (["pwd"], {"pwd", "otp"}, "iden:loa:2", ["otp"]),
+        (["pwd"], {"pwd", "otp"}, "urn:iden:acr:mfa", ["otp"]),
         # ...and when they cannot: nothing to ask for, so /authorize refuses.
-        (["pwd"], {"pwd"}, "iden:loa:2", []),
-        (["pwd", "otp"], {"pwd", "otp"}, "iden:loa:3", []),
+        (["pwd"], {"pwd"}, "urn:iden:acr:mfa", []),
+        (["pwd", "otp"], {"pwd", "otp"}, "urn:iden:acr:mfa-face", []),
     ],
 )
 def test_outstanding_asks_only_for_what_can_help(amr, enrolled, required, expected):

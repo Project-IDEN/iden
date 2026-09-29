@@ -69,7 +69,7 @@ class TestRefreshRotation:
         rotated = (await refresh(client, tokens["refresh_token"])).json()
         claims = decode(rotated["access_token"])
 
-        assert claims["acr"] == "iden:loa:1"
+        assert claims["acr"] == "urn:iden:acr:sfa"
         assert claims["amr"] == ["pwd"]
 
     async def test_permissions_are_re_resolved_on_refresh(self, client, db, admin_user):

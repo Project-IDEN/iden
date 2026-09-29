@@ -21,9 +21,9 @@ A single level, derived from `amr` at the moment a token is issued:
 
 | Level | Reached by |
 |---|---|
-| `iden:loa:1` | One factor |
-| `iden:loa:2` | Two or more factors |
-| `iden:loa:3` | Two or more, one of which is a face |
+| `urn:iden:acr:sfa` | One factor |
+| `urn:iden:acr:mfa` | Two or more factors |
+| `urn:iden:acr:mfa-face` | Two or more, one of which is a face |
 
 **Derived, never stored.** If someone adds a second factor mid-session, the next token they receive
 reports the higher level with no state anywhere to keep in sync.
@@ -48,7 +48,7 @@ Two details follow from it:
 
 ## Demanding more: `acr_values`
 
-An application asks by adding `acr_values=iden:loa:2` to its authorization request. If the session
+An application asks by adding `acr_values=urn:iden:acr:mfa` to its authorization request. If the session
 does not reach that level, IDEN sends the person through the missing step rather than refusing —
 they finish where they were going, having proved more on the way.
 
@@ -56,11 +56,11 @@ The missing step is only the method they still owe. Someone already signed in wi
 asked for the code from their authenticator, not for the password again; `auth_time` stays the time
 they signed in, because a step-up adds to a sign-in rather than starting a new one.
 
-Levels are ordered, so a request for `iden:loa:2` is satisfied by a session at `iden:loa:3`.
+Levels are ordered, so a request for `urn:iden:acr:mfa` is satisfied by a session at `urn:iden:acr:mfa-face`.
 
 ### A level they cannot reach
 
-If nothing this person has set up reaches the level — `iden:loa:2` from someone with no
+If nothing this person has set up reaches the level — `urn:iden:acr:mfa` from someone with no
 authenticator — there is no step to send them through. IDEN returns to your `redirect_uri` with:
 
 ```
@@ -73,14 +73,14 @@ leave them stuck on a page with no way off it. What to do instead is your applic
 explain what is needed, or send them to set up an authenticator.
 
 Discovery lists only the levels a registered method can reach, so `acr_values_supported` does not
-include `iden:loa:3` until something registers a face.
+include `urn:iden:acr:mfa-face` until something registers a face.
 
 ## Demanding freshness: `max_age`
 
 A different question. `acr_values` asks *how strongly* someone proved themselves; `max_age` asks
 *how recently*.
 
-They compose: a checkout page might ask for `acr_values=iden:loa:2&max_age=300` — two factors, within
+They compose: a checkout page might ask for `acr_values=urn:iden:acr:mfa&max_age=300` — two factors, within
 the last five minutes.
 
 ## Freshness inside IDEN

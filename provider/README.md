@@ -927,12 +927,12 @@ upgrades the next token, with no state to keep in sync.
 
 | `amr` | Method | | `acr` | Requires |
 |---|---|---|---|---|
-| `pwd` | Password | | `iden:loa:1` | Any single factor |
-| `otp` | TOTP | | `iden:loa:2` | Any two factors |
-| `face` | Liveness-verified face match | | `iden:loa:3` | `face` plus one more factor |
+| `pwd` | Password | | `urn:iden:acr:sfa` | Any single factor |
+| `otp` | TOTP | | `urn:iden:acr:mfa` | Any two factors |
+| `face` | Liveness-verified face match | | `urn:iden:acr:mfa-face` | `face` plus one more factor |
 | `mfa` | Added whenever two or more were used | | | |
 
-A client requests a minimum with `acr_values=iden:loa:2` at `/authorize`; if the session falls short,
+A client requests a minimum with `acr_values=urn:iden:acr:mfa` at `/authorize`; if the session falls short,
 IDEN forces a step-up before issuing the code.
 
 Each method is registered in `authz/services/auth_methods.py`. That registry is the seam that lets

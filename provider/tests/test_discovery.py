@@ -74,8 +74,8 @@ async def test_metadata_advertises_the_session_controls(client, catalogue):
 async def test_only_levels_a_registered_method_reaches_are_advertised(
     client, catalogue
 ):
-    """`iden:loa:3` needs a face, and nothing registers one yet. Advertising it
+    """`urn:iden:acr:mfa-face` needs a face, and nothing registers one yet. Advertising it
     invites a request that can only ever be refused."""
     body = (await client.get("/.well-known/openid-configuration")).json()
 
-    assert body["acr_values_supported"] == ["iden:loa:1", "iden:loa:2"]
+    assert body["acr_values_supported"] == ["urn:iden:acr:sfa", "urn:iden:acr:mfa"]

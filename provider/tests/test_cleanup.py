@@ -72,7 +72,7 @@ def _refresh_token(user, client, *, expires_in) -> RefreshToken:
         client_id=client.id,
         user_id=user.id,
         scope="openid",
-        acr="iden:loa:1",
+        acr="urn:iden:acr:sfa",
         amr=["pwd"],
         authenticated_at=now,
         family_id=uuid.uuid4(),

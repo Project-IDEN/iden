@@ -401,7 +401,7 @@ A representative access token payload:
   "aud": "https://api.example.org/attendance",
   "client_id": "dashboard",
   "scope": "attendance:records:read entity:profile:read",
-  "acr": "iden:loa:2",
+  "acr": "urn:iden:acr:mfa",
   "amr": ["pwd", "otp"],
   "jti": "01J…",
   "iat": 1750000000,
@@ -439,18 +439,18 @@ reports them to relying parties using the two standard OIDC id-token claims:
 
   | `acr` value | Requires |
   |---|---|
-  | `iden:loa:1` | Any single factor — `pwd`, or `face` with liveness |
-  | `iden:loa:2` | Two factors — e.g. `pwd + otp`, `pwd + face`, `face + otp` |
-  | `iden:loa:3` | Strong — `face` (liveness-verified) plus one additional factor |
+  | `urn:iden:acr:sfa` | Any single factor — `pwd`, or `face` with liveness |
+  | `urn:iden:acr:mfa` | Two factors — e.g. `pwd + otp`, `pwd + face`, `face + otp` |
+  | `urn:iden:acr:mfa-face` | Strong — `face` (liveness-verified) plus one additional factor |
 
 ### How it plays out in the protocol
 
-- Clients may request a minimum level at `/authorize` using `acr_values=iden:loa:2`.
+- Clients may request a minimum level at `/authorize` using `acr_values=urn:iden:acr:mfa`.
 - If the user's current session doesn't meet the requested level, the AuthZ module forces a step-up
   login (e.g. prompts for TOTP after a password-only login) before issuing the code.
 - The issued id_token contains both claims, e.g.:
   ```json
-  { "sub": "...", "acr": "iden:loa:2", "amr": ["pwd", "face"], ... }
+  { "sub": "...", "acr": "urn:iden:acr:mfa", "amr": ["pwd", "face"], ... }
   ```
 - Discovery (`/.well-known/openid-configuration`) advertises `acr_values_supported` and lists `acr`
   and `amr` under `claims_supported`.
@@ -606,7 +606,7 @@ network.
 | Service decomposition | One `provider` process with AuthZ + 3 RS modules | One port, one image, one deployable; modules are logical, not physical. The biometric engine is the only sidecar. |
 | Biometric extension | In-repo module behind `IDEN_BIOMETRIC_ENABLED` | IDEN runs and demos with zero biometric infrastructure, yet the module ships and integrates through the auth-method registry |
 | Hosted login UI | Separate `auth-ui` SPA, not embedded | Decouples credential capture from any product surface; only `/authorize` knows about it |
-| Assurance reporting | Standard `amr` + `acr` with IDEN-defined `iden:loa:{1,2,3}` | Relying parties request a minimum via `acr_values`; IDEN enforces step-up when the session falls short |
+| Assurance reporting | Standard `amr` + `acr` with IDEN-defined `urn:iden:acr:{sfa,mfa,mfa-face}` | Relying parties request a minimum via `acr_values`; IDEN enforces step-up when the session falls short |
 | Bootstrapped client | Dashboard SPA registered by the seed script on first start | Avoids the chicken-and-egg of needing an OIDC client to manage OIDC clients |
 | Password hashing | argon2id (time=1, mem=64MB, threads=4) | OWASP recommended, memory-hard |
 | Single sign-on | The browser session cookie; no extra protocol | SSO is what an OIDC provider *is* — a shared session plus per-client consent, not a feature layered on top |

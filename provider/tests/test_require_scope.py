@@ -46,7 +46,7 @@ async def mint(db, admin_user, dashboard):
             subject=str(admin_user.id),
             client=dashboard,
             scopes=set(scopes),
-            acr="iden:loa:1",
+            acr="urn:iden:acr:sfa",
             amr=["pwd"],
         )
         return token, jti

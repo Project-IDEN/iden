@@ -51,7 +51,7 @@ async def test_a_second_redemption_blocks_until_the_first_commits(
             scope="openid",
             code_challenge=create_challenge(VERIFIER),
             code_challenge_method="S256",
-            acr="iden:loa:1",
+            acr="urn:iden:acr:sfa",
             amr=["pwd"],
             sid="session-under-test",
             authenticated_at=tokens.now(),
@@ -93,7 +93,7 @@ async def test_a_second_refresh_blocks_until_the_first_commits(
         client=dashboard,
         user=admin_user,
         scope="openid",
-        acr="iden:loa:1",
+        acr="urn:iden:acr:sfa",
         amr=["pwd"],
         authenticated_at=tokens.now(),
     )
