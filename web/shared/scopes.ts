@@ -53,7 +53,6 @@ export const DEVELOPER_SCOPES = ["developer:clients:read", "developer:clients:wr
 export const BIOMETRIC_SCOPES = [
   "biometric:enroll",
   "biometric:verify",
-  "biometric:search",
   "biometric:liveness",
 ] as const;
 

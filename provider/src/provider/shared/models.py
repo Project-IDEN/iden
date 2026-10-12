@@ -244,7 +244,7 @@ class ClientScope(Base, TimestampMixin):
 
     `grantable` — may be requested on behalf of a user (authorization code).
     `granted`   — held by the client itself (client credentials).
-    The two are independent: a kiosk holds `biometric:search` outright while a
+    The two are independent: a kiosk holds `biometric:verify` outright while a
     dashboard may only request `admin:users:read` for whoever is logged in.
     """
 

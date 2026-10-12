@@ -300,7 +300,7 @@ async def totp(
         "authentication.\n\n"
         "Returns `501` unless `IDEN_BIOMETRIC_ENABLED` is set. The route exists "
         "while the module does not so the Auth UI contract is fixed from the "
-        "start; Phase 4 fills in the handler.\n\n"
+        "start; Phase 5 fills in the handler.\n\n"
         "**Required scope:** none — requires an existing session or challenge."
     ),
     responses={
@@ -313,4 +313,4 @@ async def biometric() -> AuthStepResponse:
             status_code=501,
             detail="The biometric module is not enabled on this deployment.",
         )
-    raise HTTPException(status_code=501, detail="Biometric login arrives in Phase 4.")
+    raise HTTPException(status_code=501, detail="Biometric login arrives in Phase 5.")

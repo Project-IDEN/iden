@@ -68,7 +68,6 @@ Seeded only when `IDEN_BIOMETRIC_ENABLED=true`. The module itself is not built y
 |---|---|
 | `biometric:enroll` | Enrol a face template. |
 | `biometric:verify` | Verify a face against a claimed identity. |
-| `biometric:search` | Identify a face against all enrolled templates. |
 | `biometric:liveness` | Check whether a captured face is live. |
 
 ## The OIDC scopes

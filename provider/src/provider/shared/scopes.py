@@ -99,7 +99,6 @@ DEVELOPER_SCOPES = (
 BIOMETRIC_SCOPES = (
     ScopeSpec("biometric:enroll", "Enrol a face template."),
     ScopeSpec("biometric:verify", "Verify a face against a claimed identity."),
-    ScopeSpec("biometric:search", "Identify a face against all enrolled templates."),
     ScopeSpec("biometric:liveness", "Check whether a captured face is live."),
 )
 
