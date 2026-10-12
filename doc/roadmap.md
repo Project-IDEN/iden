@@ -13,7 +13,7 @@ the summary.
 | 2 | Admin — users, groups, roles, APIs, scopes, clients | :material-check-circle-outline: Done |
 | 3 | SSO — `prompt`, `max_age`, `sid`, single sign-out | :material-check-circle-outline: Done |
 | 4 | Self-service — profile, org-defined fields, credentials, TOTP, recovery | :material-check-circle-outline: Done |
-| 5 | Biometrics — enrollment, verification, liveness | :material-pause-circle-outline: On hold |
+| 5 | Biometrics — 1:1 face verification, liveness, anti-spoofing | :material-circle-outline: Next |
 | 6 | Hardening — Docker, security headers, error contract, probes, coverage review | :material-check-circle-outline: Done |
 | 7 | Frontends — the sign-in UI and the dashboard | :material-check-circle-outline: Done |
 | 8 | Kiosk — device registration and enrollment | :material-circle-outline: Planned |
@@ -29,10 +29,10 @@ Migrations, the audit log, and rate limiting were all pulled forward out of Phas
 scheduled late and each got more expensive with every phase that passed — history not written is
 lost, and an unmigrated schema needs manual surgery.
 
-Phase 5 is on hold rather than next: the biometric module is the only part with an external
-dependency, and everything it plugs into already exists. Phase 7 was taken ahead of it for the same
-reason in reverse — the provider had no human-usable surface, and a system nobody can sign into is
-hard to evaluate.
+Phase 5 was held back while Phase 7 went ahead: the biometric module is the only part with an
+external dependency, and everything it plugs into already exists, whereas a provider nobody can sign
+into is hard to evaluate. With the frontends done, it is next. Faces are compared **1:1 only** — against
+the person who claimed an identity, never searched across everyone enrolled.
 
 ## Open issues
 

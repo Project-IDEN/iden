@@ -117,8 +117,7 @@ flowchart TB
 
   subgraph Extension["Extension — Biometric Credential"]
     direction TB
-    Engine["Biometric Engine :8000<br/>INTERNAL ONLY · FastAPI + ONNX"]
-    PgVector[("PostgreSQL + pgvector")]
+    Engine["Biometric Engine :8000<br/>INTERNAL ONLY · stateless · FastAPI + ONNX"]
   end
 
   Nginx -->|"/oauth2/*, /.well-known/*,<br/>/admin/*, /entity/*, /biometric/*"| Provider
@@ -126,8 +125,6 @@ flowchart TB
   Nginx -->|"/* (everything else)"| Dashboard
 
   Biometric --> Engine
-  Engine --> PgVector
-  Engine --> Blobs
 
   Provider --> Postgres
   Provider --> Redis
@@ -146,13 +143,13 @@ flowchart TB
 | Component | Tech Stack | Port | Purpose |
 |-----------|-----------|------|---------|
 | **provider** | Python 3.14, FastAPI, SQLAlchemy, asyncpg | 8000 | Single FastAPI app hosting four logical modules: AuthZ Server (`/oauth2/*`, `/.well-known/*`), Admin RS (`/admin/*`), Entity RS (`/entity/*`), Biometric RS (`/biometric/*`) |
-| **engine** | Python 3.14, FastAPI, InsightFace, ONNX | 8000 | Internal biometric engine — face detection, embedding, liveness (no external access) |
+| **engine** | Python 3.14, FastAPI, ONNX Runtime | 8000 | Internal, stateless biometric engine — face detection, quality checks, embedding, anti-spoofing. Models are pluggable; it holds no data and has no external access |
 | **dashboard** | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query | 3000 | Single-page app for both admin and end-user activities (bootstrapped OIDC client). Navigation renders from the token's scopes, so one build serves administrators and ordinary users. |
 | **auth-ui** | React 19, TypeScript, Vite, Tailwind CSS | 4000 | Login + consent pages — supports password, TOTP, and **biometric (face)** login paths. Hosted UI invoked by `/authorize`. |
 | **kiosk** | Hardware + Next.js / native | n/a | Biometric kiosk device — uses `client_credentials` to call the Biometric RS |
-| **postgres** | PostgreSQL 18 + pgvector | 5432 | Users, groups, roles, scopes, APIs, clients, tokens, embeddings |
+| **postgres** | PostgreSQL 18 | 5432 | Users, groups, roles, scopes, APIs, clients, tokens, encrypted face templates |
 | **redis** | Redis 8 | 6379 | Sessions, login/consent challenges, token denylist, rate limits |
-| **seaweedfs** | SeaweedFS (S3-compatible) | 8333 | Blob storage — profile photos, and enrollment/verification images once the biometric module lands. Keeps large binaries out of Postgres. Any S3 API answers: MinIO, Garage, or AWS S3. |
+| **seaweedfs** | SeaweedFS (S3-compatible) | 8333 | Blob storage — profile photos, and face enrolment images when a deployment chooses to keep them. Keeps large binaries out of Postgres. Any S3 API answers: MinIO, Garage, or AWS S3. |
 | **nginx** | Nginx Alpine | 80/443 | Reverse proxy, TLS termination, path-based routing |
 
 ---
@@ -519,7 +516,6 @@ flowchart TB
       BI1["/biometric/enroll"]
       BI2["/biometric/verify"]
       BI3["/biometric/liveness"]
-      BI4["/biometric/search"]
     end
   end
 
@@ -578,8 +574,6 @@ flowchart LR
     Provider --> PG
     Provider --> RD
     Provider --> MN
-    Engine --> PG
-    Engine --> MN
   end
 ```
 
@@ -618,7 +612,7 @@ network.
 | HTTP framework | FastAPI | Async-first, OpenAPI docs, Pydantic validation |
 | Kiosk auth | `client_credentials` against the AuthZ Server | Kiosks are first-class OAuth clients; no user impersonation |
 | Biometric engine | Internal-only Docker network | Face data is never directly reachable from the internet |
-| Vector search | pgvector | Face embedding similarity search without a separate vector DB |
+| Face matching | 1:1 verification only, no 1:N search | An identity provider only asks "are you who you claim to be?". Comparing against one person's templates keeps the false-match rate independent of how many people enrol, lets templates be encrypted at rest, and stays clear of biometric *identification* |
 | Object storage | Anything speaking S3 | Blobs live in object storage, Postgres keeps the row + object key. The provider targets the API, not an implementation, so the compose default (SeaweedFS, Apache-2.0) swaps for MinIO, Garage, S3, R2, or GCS by changing two environment variables. |
 
 ---
@@ -687,8 +681,8 @@ build plan in [provider/PLAN.md](provider/PLAN.md).
 | **Phase 3** | Provider SSO — `prompt`, `max_age`, `sid`, back-channel logout (single sign-*out*) | Done |
 | **Phase 4** | Provider Entity RS — self-service profile, org-defined fields, credentials, TOTP, recovery | Done |
 | **Phase 5** | Biometric module + Engine — enrollment, verification, liveness (feature-flagged) | Next |
-| **Phase 6** | Hardening — tests, Docker Compose, TLS (migrations, the audit log and rate limiting landed early) | Planned |
-| **Phase 7** | Frontends — auth-ui and dashboard SPAs | In progress |
+| **Phase 6** | Hardening — Docker, security headers, error contract, probes, coverage review | Done |
+| **Phase 7** | Frontends — auth-ui and dashboard SPAs | Done |
 | **Phase 8** | Kiosk systems — device registration, `client_credentials` enrollment flow | Planned |
 
 Phases 0–6 are broken down file-by-file in [provider/PLAN.md](provider/PLAN.md), and Phase 7 in

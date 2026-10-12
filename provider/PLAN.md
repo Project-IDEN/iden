@@ -271,7 +271,7 @@ A plain declarative structure — no logic — listing the APIs, scopes, and rol
 |---|---|---|
 | `admin` | `{issuer}/admin` | `admin:users:read/write`, `admin:groups:read/write`, `admin:roles:read/write`, `admin:apis:read/write`, `admin:scopes:read/write`, `admin:clients:read/write` |
 | `entity` | `{issuer}/entity` | `entity:profile:read/write`, `entity:credentials:write`, `entity:totp:read/enroll`, `entity:sessions:read/revoke`, `entity:permissions:read` |
-| `biometric` | `{issuer}/biometric` | `biometric:enroll`, `biometric:verify`, `biometric:liveness`, `biometric:search` |
+| `biometric` | `{issuer}/biometric` | `biometric:enroll`, `biometric:verify`, `biometric:liveness` |
 
 Seeded roles: **`administrator`** (every `admin:*` and `entity:*` scope) and **`member`** (every
 `entity:*` scope). Both `is_system`.
@@ -851,20 +851,26 @@ is deferred; the seams are not — they were built in Phases 0, 1, and 3.
 |---|---|---|
 | `iden_biometric_enabled` flag | Phase 0 | `core/app.py` mounts `biometric/` routes and seeds the `biometric` API + scopes only when true |
 | `auth_methods.py` registry | Phase 1 | Registers a `face` method; nothing in the AuthZ core changes |
-| `amr` / `acr` tables | Phase 1 | `face` and `iden:loa:3` are already defined and advertised |
+| `amr` / `acr` tables | Phase 1 | `face` and `urn:iden:acr:mfa-face` are already defined; discovery advertises `mfa-face` once `face` registers |
 | `POST /api/v1/auth/biometric` stub | Phase 1 | The `501` stub becomes a real handler; the Auth UI contract never changed |
 | `client_credentials` grant | Phase 1 | Kiosks authenticate as machine clients — no user impersonation |
 
 ### Work
 
+**1:1 only.** Every comparison is against the templates of one person who has already claimed an
+identity — by email at sign-in, by card or QR code at a kiosk. There is no 1:N "who is this?" search:
+an identity provider never needs one, its false-match rate grows with every enrolment, it forces
+templates to sit unencrypted where a vector index can read them, and it is the kind of biometric
+*identification* regulators treat most strictly. pgvector is therefore not needed; templates are
+encrypted at rest with the same key as TOTP secrets and compared in the engine.
+
 - `biometric/engine_client.py` — an async HTTP client for the internal `engine:8000`, with timeouts
-  and a typed response model. The engine is the only component that ever sees a raw image.
-- `biometric/enroll/` — `POST /biometric/enroll` (`biometric:enroll`): image → engine → embedding
-  stored via pgvector, original image to MinIO, Postgres keeps the row + object key.
+  and a typed response model. The engine is stateless — no database, no blob store — and is the only
+  component that ever sees a raw image.
+- `biometric/enroll/` — `POST /biometric/enroll` (`biometric:enroll`): images → engine → embeddings,
+  encrypted and stored per user. Whether the enrolment images are kept is a setting.
 - `biometric/verify/` — `POST /biometric/verify` (`biometric:verify`): 1:1 match against a claimed
   identity, returns match + liveness + confidence.
-- `biometric/search/` — `POST /biometric/search` (`biometric:search`): 1:N pgvector nearest-neighbour
-  lookup. This is the kiosk's "who is this person?" call.
 - `biometric/liveness/` — `POST /biometric/liveness` (`biometric:liveness`): liveness only.
 - Login path: `POST /api/v1/auth/biometric` appends `face` to the session `amr` **only** when the
   engine reports a liveness-verified match. A match without liveness is not an authentication.

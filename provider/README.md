@@ -317,7 +317,7 @@ provider/
     │   ├── deps.py             # CurrentUserDep — the subject comes from the token
     │   └── profile/ credentials/ totp/ sessions/ permissions/ connections/
     └── biometric/              # Phase 5 — not built yet
-        └── enroll/ verify/ liveness/ search/ · engine_client.py
+        └── enroll/ verify/ liveness/ · engine_client.py
 ```
 
 ### The feature-package rule
@@ -542,7 +542,6 @@ Seeded by `scripts/seed.py` from `shared/scopes.py`, all flagged `is_system`.
 |---|---|
 | `biometric:enroll` | Enrol a face template |
 | `biometric:verify` | 1:1 verification against a claimed identity |
-| `biometric:search` | 1:N identification (the kiosk's "who is this?") |
 | `biometric:liveness` | Liveness check only |
 
 **Seeded roles:** `administrator` (all `admin:*` and `entity:*`) and `member` (all `entity:*`).
@@ -892,7 +891,6 @@ token would otherwise take over the account outright. They must pass a login the
 |---|---|---|---|
 | `POST` | `/biometric/enroll` | `biometric:enroll` | 5 |
 | `POST` | `/biometric/verify` | `biometric:verify` | 5 |
-| `POST` | `/biometric/search` | `biometric:search` | 5 |
 | `POST` | `/biometric/liveness` | `biometric:liveness` | 5 |
 
 ---

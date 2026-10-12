@@ -5,7 +5,7 @@
 | Component | Why |
 |---|---|
 | **provider** | The application. One process, one port, all modules. |
-| **PostgreSQL 18** | With the `pgvector` extension, for the biometrics that come later. |
+| **PostgreSQL 18** | The initial migration still creates the `pgvector` extension, so use an image that ships it. Biometrics compare faces 1:1 and no longer need it; it is due to be dropped in Phase 5. |
 | **Redis 8** | Sessions, pending sign-ins, the denylist, rate limits. |
 | **An S3-compatible store** | Profile photos, and the biometric module's images later. Optional: leave `IDEN_S3_ENDPOINT_URL` empty and photos are unavailable, nothing else changes. |
 | **A reverse proxy** | Puts all three applications on one origin, limits floods, and tells the provider who the caller is. |
