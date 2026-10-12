@@ -18,9 +18,13 @@ dependencies = [
 
 # One of the two, never both: they install the same `onnxruntime` module. The
 # GPU build has no macOS wheels, so a laptop installs `cpu`.
+#
+# The GPU build is held at 1.26, the last built against CUDA 12. From 1.27 it
+# is CUDA 13, which dropped Maxwell, Pascal and Volta — a GTX 10-series card
+# included. Move it forward only on hardware from Turing (RTX 20) on.
 [project.optional-dependencies]
 cpu = ["onnxruntime>=1.31.0"]
-gpu = ["onnxruntime-gpu>=1.31.0"]
+gpu = ["onnxruntime-gpu>=1.26.0,<1.27"]
 
 [project.scripts]
 engine = "engine.app:main"

@@ -50,14 +50,19 @@ It is optional. Without it, and with `IDEN_BIOMETRIC_ENABLED=false`, IDEN is com
 On a GPU the engine checks a capture in a fraction of a second rather than a few seconds. The host
 needs:
 
-- the NVIDIA driver, **580 or newer** — the image carries CUDA 13 and cuDNN 9
+- an NVIDIA GPU from **Pascal (GTX 10-series) on**
+- the NVIDIA driver, **575 or newer** — the image carries CUDA 12.9 and cuDNN 9
 - the NVIDIA Container Toolkit
 
 Check both with:
 
 ```bash
-docker run --rm --gpus all nvidia/cuda:13.0.3-base-ubuntu24.04 nvidia-smi
+docker run --rm --gpus all nvidia/cuda:12.9.1-base-ubuntu24.04 nvidia-smi
 ```
+
+The image stays on CUDA 12 deliberately. CUDA 13 dropped Maxwell, Pascal and Volta, and onnxruntime
+moved to it from 1.27, so the GPU build is held at onnxruntime-gpu 1.26. On a Turing (RTX 20) card
+or newer it can move forward; see the note in `engine/pyproject.toml`.
 
 Then add the GPU overlay:
 

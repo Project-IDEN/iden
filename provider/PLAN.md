@@ -892,8 +892,9 @@ it does not protect against, is [doc/concepts/biometrics.md](../doc/concepts/bio
 
 - **The threshold ships uncalibrated.** `engine/eval` measures it on a deployment's own cameras;
   nobody has run it on the production hardware yet.
-- **The GPU image is unexercised.** It is written for CUDA 13 / cuDNN 9 and has not yet been built
-  or run on an NVIDIA host; the CPU image has.
+- **The GPU image is unexercised.** It targets CUDA 12.9 / cuDNN 9 — held there because the
+  deployment's GTX 1070 is Pascal, which CUDA 13 dropped — and has not yet been built or run on the
+  host; the CPU image has.
 - **No certified anti-spoofing.** The checks are not tested against ISO/IEC 30107-3 or CEN/TS 18099,
   and nothing server-side can prove a frame came from a real camera.
 

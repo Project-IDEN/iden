@@ -3,7 +3,7 @@
 # Two targets, one per onnxruntime build:
 #
 #     docker build --target cpu .   # any machine, including a laptop
-#     docker build --target gpu .   # NVIDIA host with driver >= 580 (CUDA 13)
+#     docker build --target gpu .   # NVIDIA host, Pascal (GTX 10) or newer
 #
 # Model files are not in either image. They are mounted read-only at
 # /app/models, fetched once with `python -m scripts.fetch_models`.
@@ -33,9 +33,10 @@ HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=3 \
 CMD ["engine"]
 
 
-# CUDA 13 and cuDNN 9 are what onnxruntime-gpu 1.31 is built against. The host
+# CUDA 12 and cuDNN 9, which onnxruntime-gpu 1.26 is built against. CUDA 12
+# rather than 13 because 13 cannot run on Pascal (GTX 10) or older. The host
 # needs only the NVIDIA driver and the container toolkit; the libraries are here.
-FROM nvidia/cuda:13.0.3-cudnn-runtime-ubuntu24.04 AS gpu
+FROM nvidia/cuda:12.9.1-cudnn-runtime-ubuntu24.04 AS gpu
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.1 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_INSTALL_DIR=/opt/python

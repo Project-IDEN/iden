@@ -3,10 +3,11 @@
 #   docker compose -f deploy/docker-compose.yml \
 #                  -f deploy/docker-compose.gpu.yml --profile biometric up -d
 #
-# The host needs the NVIDIA driver, 580 or newer (the image carries CUDA 13 and
-# cuDNN 9), and the NVIDIA Container Toolkit. Check with:
+# The host needs an NVIDIA GPU from Pascal (GTX 10) on, a driver new enough for
+# CUDA 12.9 (575 or later), and the NVIDIA Container Toolkit. The image carries
+# CUDA 12.9 and cuDNN 9. Check with:
 #
-#   docker run --rm --gpus all nvidia/cuda:13.0.3-base-ubuntu24.04 nvidia-smi
+#   docker run --rm --gpus all nvidia/cuda:12.9.1-base-ubuntu24.04 nvidia-smi
 #
 # ENGINE_DEVICE=cuda makes the engine refuse to start without a GPU rather than
 # fall back to the CPU and serve twenty times slower without anyone noticing.
