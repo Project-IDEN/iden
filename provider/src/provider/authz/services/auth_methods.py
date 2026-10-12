@@ -5,8 +5,10 @@ derivation and discovery; a new method also needs a check in
 `login.service.enrolled_methods` and a form in the Auth UI.
 """
 
+from collections.abc import Callable
 from dataclasses import dataclass
 
+from provider.core.config import settings
 from provider.shared.enums import AcrLevel, AmrMethod
 
 
@@ -14,6 +16,9 @@ from provider.shared.enums import AcrLevel, AmrMethod
 class MethodSpec:
     name: AmrMethod
     description: str
+    # Asked at each call rather than once at import, so a feature flag decides
+    # what discovery advertises without a restart in between mattering.
+    enabled: Callable[[], bool] = lambda: True
 
 
 _registry: dict[AmrMethod, MethodSpec] = {}
@@ -24,11 +29,22 @@ def register(spec: MethodSpec) -> None:
 
 
 def supported() -> list[str]:
-    return [name.value for name in _registry]
+    return [name.value for name, spec in _registry.items() if spec.enabled()]
 
 
 register(MethodSpec(AmrMethod.PWD, "Password"))
 register(MethodSpec(AmrMethod.OTP, "Time-based one-time code (RFC 6238)"))
+register(
+    MethodSpec(
+        AmrMethod.FACE,
+        "Facial match, liveness-verified",
+        enabled=lambda: settings.iden_biometric_enabled,
+    )
+)
+
+# What a person can offer after their password. Either one answers their own
+# rule that a password alone is not enough.
+SECOND_FACTORS = {AmrMethod.OTP.value, AmrMethod.FACE.value}
 
 
 def normalized_amr(amr: list[str]) -> list[str]:
@@ -93,13 +109,26 @@ def outstanding(amr: list[str], enrolled: set[str], required: str | None) -> lis
     this person's methods can reach it — a level they cannot reach is for
     /authorize to refuse, not a form nobody could get past.
 
-    The *person* demands a second factor by having set one up. A factor that
-    applied only when an application asked would protect nobody, since whoever
-    holds the password would use an application that does not ask.
+    The *person* demands a second factor by having set up an authenticator. A
+    factor that applied only when an application asked would protect nobody,
+    since whoever holds the password would use an application that does not
+    ask. Any second factor answers it — a face as well as a code. An enrolled
+    face alone does not create the demand: someone on a laptop without a camera
+    must still be able to sign in.
+
+    When a client's level is what is owed, only the methods that reach it are
+    offered: a code does nothing for a request for `mfa-face`.
     """
-    unused = sorted(enrolled - set(amr))
-    owes_second_factor = AmrMethod.OTP in unused
+    used = {m for m in amr if m != AmrMethod.MFA}
+    unused = sorted(enrolled - used)
+
+    owes_second_factor = AmrMethod.OTP in enrolled and len(used) < 2
     falls_short = not meets(derive_acr(amr), required) and meets(
         derive_acr(list(enrolled)), required
     )
-    return unused if owes_second_factor or falls_short else []
+    if falls_short:
+        reaching = [m for m in unused if meets(derive_acr([*amr, m]), required)]
+        return reaching or unused
+    if owes_second_factor:
+        return [m for m in unused if m in SECOND_FACTORS]
+    return []

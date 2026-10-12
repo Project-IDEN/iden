@@ -1,5 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from typing import Annotated
+
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    Response,
+    UploadFile,
+)
+from redis.asyncio import Redis
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.authz import session_cookie
 from provider.authz.deps import LoginSessionDep
@@ -15,6 +28,7 @@ from provider.authz.login.schemas import (
     AuthStepResponse,
     ChallengeResponse,
     ChallengeScope,
+    FaceChallengeRequest,
     LoginRequest,
     TotpRequest,
 )
@@ -26,6 +40,16 @@ from provider.authz.login.service import (
 from provider.authz.logout import service as logout_service
 from provider.authz.services import auth_methods, challenge_store, session_store
 from provider.authz.services.scope_resolver import OIDC_SCOPES, parse_scope
+from provider.biometric import challenges
+from provider.biometric import service as face
+from provider.biometric.deps import read_frames
+from provider.biometric.engine_client import EngineDep
+from provider.biometric.errors import (
+    FaceChallengeInvalid,
+    FaceNotEnrolled,
+    FaceRejected,
+)
+from provider.biometric.schemas import FaceChallengeResponse
 from provider.core import ratelimit
 from provider.core.audit import set_actor
 from provider.core.config import settings
@@ -290,27 +314,141 @@ async def totp(
     )
 
 
+FACE_DISABLED = "The biometric module is not enabled on this deployment."
+
+
+async def _face_step(
+    login_session: session_store.Session | None,
+    challenge_id: str,
+    session: AsyncSession,
+    redis: Redis,
+) -> tuple[session_store.Session, challenge_store.Challenge, User]:
+    """The person a face step is for — whoever this session already signed in
+    — and the authorization request it belongs to.
+
+    Face is a second factor only. Without a session there is no claimed
+    identity to compare against, and a face alone is not a way in.
+    """
+    if not settings.iden_biometric_enabled:
+        raise HTTPException(status_code=501, detail=FACE_DISABLED)
+    if login_session is None:
+        raise HTTPException(status_code=401, detail=NoSession())
+    challenge = await challenge_store.get(redis, challenge_id)
+    if challenge is None:
+        raise HTTPException(status_code=404, detail=ChallengeNotFound())
+    user = await session.get(User, login_session.user_id)
+    if user is None:
+        raise HTTPException(status_code=401, detail=NoSession())
+    return login_session, challenge, user
+
+
+@router.post(
+    "/biometric/challenge",
+    response_model=FaceChallengeResponse,
+    summary="Start a face check",
+    description=(
+        "Returns what the camera must capture for `POST /api/v1/auth/biometric`: "
+        "frames looking straight ahead, two head movements chosen at random, "
+        "and a sequence of screen colours. Valid for one attempt and two "
+        "minutes.\n\n"
+        "Face is offered only **after a password** — this needs the session "
+        "cookie the password step set.\n\n"
+        "**Required scope:** none — requires an existing session."
+    ),
+    responses={
+        401: {"model": ErrorResponse, "description": "No session"},
+        404: {
+            "model": ErrorResponse,
+            "description": "Challenge expired, or no face enrolled",
+        },
+        501: {"model": ErrorResponse, "description": "Biometric module not enabled"},
+    },
+    dependencies=[Depends(ratelimit.FACE_PER_IP)],
+)
+async def face_challenge(
+    body: FaceChallengeRequest,
+    login_session: LoginSessionDep,
+    session: DBSessionDep,
+    redis: RedisDep,
+) -> FaceChallengeResponse:
+    _, _, user = await _face_step(login_session, body.challenge_id, session, redis)
+    if not await face.is_enrolled(session, user.id):
+        raise HTTPException(status_code=404, detail=FaceNotEnrolled())
+    return FaceChallengeResponse.of(await challenges.issue(redis, user.id, "login"))
+
+
 @router.post(
     "/biometric",
     response_model=AuthStepResponse,
     summary="Sign in with a face",
     description=(
-        "Adds `face` to the session's `amr`, but only when the engine reports a "
-        "**liveness-verified** match — a match without liveness is not an "
-        "authentication.\n\n"
-        "Returns `501` unless `IDEN_BIOMETRIC_ENABLED` is set. The route exists "
-        "while the module does not so the Auth UI contract is fixed from the "
-        "start; Phase 5 fills in the handler.\n\n"
-        "**Required scope:** none — requires an existing session or challenge."
+        "Multipart: `challengeId`, `faceChallengeId`, and one `frames` part per "
+        "step of the face challenge, in order.\n\n"
+        "Adds `face` to the session's `amr` only when the capture is **live** — "
+        "it passes the anti-spoofing models, follows the requested head "
+        "movements, reflects the screen colours, and shows one face throughout "
+        "— **and** matches the face enrolled on this account. A match without "
+        "liveness is not an authentication.\n\n"
+        "`422 poor_capture` lists what to fix and does not count as a failed "
+        "attempt. `401 face_rejected` does, and deliberately does not say "
+        "whether the face did not match or was not live.\n\n"
+        "**Required scope:** none — requires an existing session."
     ),
     responses={
-        501: {"model": ErrorResponse, "description": "Biometric module not enabled"}
+        401: {"model": ErrorResponse, "description": "No session, or rejected"},
+        404: {
+            "model": ErrorResponse,
+            "description": "Challenge or face challenge expired, or no face enrolled",
+        },
+        409: {
+            "model": ErrorResponse,
+            "description": "Enrolled under an earlier model; enrol again",
+        },
+        422: {"model": ErrorResponse, "description": "Poor capture or bad frames"},
+        429: {"model": ErrorResponse, "description": "Too many attempts"},
+        501: {"model": ErrorResponse, "description": "Biometric module not enabled"},
+        503: {"model": ErrorResponse, "description": "The engine is unavailable"},
     },
+    dependencies=[Depends(ratelimit.FACE_PER_IP)],
 )
-async def biometric() -> AuthStepResponse:
-    if not settings.iden_biometric_enabled:
-        raise HTTPException(
-            status_code=501,
-            detail="The biometric module is not enabled on this deployment.",
+async def biometric(
+    request: Request,
+    challenge_id: Annotated[str, Form(alias="challengeId")],
+    face_challenge_id: Annotated[str, Form(alias="faceChallengeId")],
+    frames: Annotated[list[UploadFile], File()],
+    login_session: LoginSessionDep,
+    session: DBSessionDep,
+    redis: RedisDep,
+    engine: EngineDep,
+) -> AuthStepResponse:
+    login_session, challenge, user = await _face_step(
+        login_session, challenge_id, session, redis
+    )
+    set_actor(request, user_id=user.id)
+    await ratelimit.guard(redis, identity=str(user.id), **ratelimit.FACE_FAILURES)
+
+    face_challenge = await challenges.consume(
+        redis, face_challenge_id, user.id, "login"
+    )
+    if face_challenge is None:
+        raise HTTPException(status_code=404, detail=FaceChallengeInvalid())
+
+    try:
+        await face.verify(
+            session, engine, user.id, await read_frames(frames), face_challenge
         )
-    raise HTTPException(status_code=501, detail="Biometric login arrives in Phase 5.")
+    except FaceRejected as exc:
+        await ratelimit.record_failure(
+            redis,
+            ratelimit.FACE_FAILURES["bucket"],
+            str(user.id),
+            window=ratelimit.FACE_FAILURES["window"],
+        )
+        raise HTTPException(status_code=401, detail=exc) from exc
+
+    await ratelimit.clear(redis, ratelimit.FACE_FAILURES["bucket"], str(user.id))
+
+    login_session = await session_store.add_method(redis, login_session, AmrMethod.FACE)
+    return await _next_step(
+        login_session, challenge, await enrolled_methods(session, user.id)
+    )

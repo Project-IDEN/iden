@@ -169,3 +169,20 @@ def decrypt_secret(stored: str, *, context: str) -> str:
             "Stored secret does not decrypt under the current key: it was "
             "written under a different one, or the row was altered."
         ) from exc
+
+
+def encrypt_bytes(data: bytes, *, context: str) -> bytes:
+    """`encrypt_secret` for a blob — an enrolment photo — rather than a string."""
+    nonce = secrets.token_bytes(_NONCE_BYTES)
+    return nonce + _cipher().encrypt(nonce, data, context.encode())
+
+
+def decrypt_bytes(stored: bytes, *, context: str) -> bytes:
+    nonce, sealed = stored[:_NONCE_BYTES], stored[_NONCE_BYTES:]
+    try:
+        return _cipher().decrypt(nonce, sealed, context.encode())
+    except InvalidTag as exc:
+        raise EncryptionKeyError(
+            "Stored blob does not decrypt under the current key, or belongs to "
+            "someone else."
+        ) from exc

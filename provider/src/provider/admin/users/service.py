@@ -17,8 +17,10 @@ from provider.admin.users.errors import (
 from provider.admin.users.schemas import UserCreate, UserUpdate
 from provider.authz.logout import service as logout_service
 from provider.authz.services.token_service import now
+from provider.biometric import service as face
 from provider.core.config import settings
 from provider.core.security import hash_secret_async
+from provider.core.storage import Storage
 from provider.shared.models import (
     Group,
     RefreshToken,
@@ -225,6 +227,23 @@ async def set_direct_scopes(
     await lockout.refuse_if_last(session)
     await session.commit()
     return user
+
+
+async def clear_face(
+    session: AsyncSession,
+    storage: Storage | None,
+    user_id: UUID,
+    *,
+    caller_scopes: set[str],
+) -> None:
+    """Remove this person's enrolled face, and any photos kept with it.
+
+    Unlike an authenticator, a face is never owed at sign-in, so nobody is
+    locked out by one. This is for the other case: a face that should not be
+    there — enrolled by the wrong person at a kiosk, or by an attacker.
+    """
+    await get_user_to_modify(session, user_id, caller_scopes)
+    await face.remove(session, storage, user_id)
 
 
 async def clear_totp(

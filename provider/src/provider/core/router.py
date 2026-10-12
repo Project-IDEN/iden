@@ -31,6 +31,7 @@ from provider.authz.discovery.routes import router as discovery_router  # noqa: 
 from provider.authz.login.routes import router as login_router  # noqa: E402
 from provider.authz.oauth.routes import router as oauth_router  # noqa: E402
 from provider.authz.recovery.routes import router as recovery_router  # noqa: E402
+from provider.biometric.routes import router as biometric_router  # noqa: E402
 from provider.developer.clients.routes import (  # noqa: E402
     router as developer_clients_router,
 )
@@ -40,6 +41,7 @@ from provider.entity.connections.routes import (  # noqa: E402
 from provider.entity.credentials.routes import (  # noqa: E402
     router as entity_credentials_router,
 )
+from provider.entity.face.routes import router as entity_face_router  # noqa: E402
 from provider.entity.permissions.routes import (  # noqa: E402
     router as entity_permissions_router,
 )
@@ -68,11 +70,16 @@ router.include_router(admin_audit_router)
 router.include_router(entity_profile_router)
 router.include_router(entity_credentials_router)
 router.include_router(entity_totp_router)
+router.include_router(entity_face_router)
 router.include_router(entity_sessions_router)
 router.include_router(entity_connections_router)
 router.include_router(entity_permissions_router)
 
 router.include_router(developer_clients_router)
+
+# Mounted whatever the flag says, and answering 404 while it is off: the flag is
+# then a setting read per request rather than a decision frozen at import.
+router.include_router(biometric_router)
 
 router.include_router(media_router)
 

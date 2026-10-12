@@ -13,6 +13,10 @@ class LoginRequest(CamelCaseBaseModel):
     password: str
 
 
+class FaceChallengeRequest(CamelCaseBaseModel):
+    challenge_id: str
+
+
 class TotpRequest(CamelCaseBaseModel):
     challenge_id: str
     code: str = Field(

@@ -96,11 +96,24 @@ DEVELOPER_SCOPES = (
     ),
 )
 
-BIOMETRIC_SCOPES = (
-    ScopeSpec("biometric:enroll", "Enrol a face template."),
-    ScopeSpec("biometric:verify", "Verify a face against a claimed identity."),
-    ScopeSpec("biometric:liveness", "Check whether a captured face is live."),
+# Present only with the biometric module. Enrolling is not among them: it
+# happens at a kiosk, and these let a person prepare for it and undo it.
+FACE_SCOPES = (
+    ScopeSpec("entity:face:read", "See whether your face is enrolled."),
+    ScopeSpec("entity:face:write", "Let a kiosk enrol your face, or remove your face."),
 )
+
+# The kiosk's. Worth nothing without the enrolment ticket the person brings,
+# which is what names whose face it may enrol.
+BIOMETRIC_SCOPES = (
+    ScopeSpec(
+        "biometric:enroll", "Enrol a person's face, given the ticket they created."
+    ),
+)
+
+
+def entity_scopes() -> tuple[ScopeSpec, ...]:
+    return ENTITY_SCOPES + (FACE_SCOPES if settings.iden_biometric_enabled else ())
 
 
 def system_apis() -> tuple[ApiSpec, ...]:
@@ -115,7 +128,7 @@ def system_apis() -> tuple[ApiSpec, ...]:
             name="entity",
             audience=settings.entity_audience,
             description="Self-service for the signed-in person.",
-            scopes=ENTITY_SCOPES,
+            scopes=entity_scopes(),
         ),
         ApiSpec(
             name="developer",
@@ -162,7 +175,7 @@ FULL_ADMIN_SCOPES = tuple(
 
 def system_roles() -> tuple[RoleSpec, ...]:
     admin = tuple(s.value for s in ADMIN_SCOPES)
-    entity = tuple(s.value for s in ENTITY_SCOPES)
+    entity = tuple(s.value for s in entity_scopes())
     developer = tuple(s.value for s in DEVELOPER_SCOPES)
     # Held, not merely grantable: under `RESTRICTED_PREFIXES` an administrator who
     # lacked these could never assign them to the kiosk client that needs them.

@@ -14,6 +14,7 @@ Pure ASGI because the body must be measured as it streams, which a
 
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from provider.biometric.deps import MAX_FRAME_BYTES, MAX_FRAMES
 from provider.core.config import settings
 
 # Ample for any JSON this API accepts; the largest is a client registration with
@@ -25,9 +26,17 @@ MAX_BODY_BYTES = 64 * 1024
 MULTIPART_HEADROOM = 64 * 1024
 
 
+# A face capture: up to MAX_FRAMES frames of MAX_FRAME_BYTES, each checked again
+# once decoded.
+FACE_CAPTURE_BYTES = MAX_FRAMES * MAX_FRAME_BYTES + MULTIPART_HEADROOM
+FACE_CAPTURE_PATHS = ("/biometric/enroll", "/api/v1/auth/biometric")
+
+
 def _limit_for(path: str) -> int:
     if path.endswith("/entity/profile/photo"):
         return settings.iden_avatar_max_bytes + MULTIPART_HEADROOM
+    if path.endswith(FACE_CAPTURE_PATHS):
+        return FACE_CAPTURE_BYTES
     return MAX_BODY_BYTES
 
 

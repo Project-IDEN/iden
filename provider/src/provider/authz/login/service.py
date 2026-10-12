@@ -11,6 +11,8 @@ from provider.authz.login.errors import (
     InvalidTotpCode,
     TotpNotEnrolled,
 )
+from provider.biometric import service as face
+from provider.core.config import settings
 from provider.core.security import (
     decrypt_secret,
     hash_secret,
@@ -74,6 +76,8 @@ async def enrolled_methods(session: AsyncSession, user_id: UUID) -> set[str]:
     methods = {AmrMethod.PWD.value}
     if await has_confirmed_totp(session, user_id):
         methods.add(AmrMethod.OTP.value)
+    if settings.iden_biometric_enabled and await face.is_enrolled(session, user_id):
+        methods.add(AmrMethod.FACE.value)
     return methods
 
 

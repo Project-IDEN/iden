@@ -99,6 +99,9 @@ async def clear(redis, bucket: str, identity: str) -> None:
 # because an office or a campus is one address to us.
 LOGIN_PER_IP = limit_by_ip("login-ip", limit=30, window=300)
 TOTP_PER_IP = limit_by_ip("totp-ip", limit=20, window=300)
+# Each attempt is a dozen frames through the engine — real GPU time.
+FACE_PER_IP = limit_by_ip("face-ip", limit=20, window=300)
+KIOSK_PER_IP = limit_by_ip("kiosk-ip", limit=60, window=300)
 RESET_PER_IP = limit_by_ip("reset-ip", limit=10, window=3600)
 
 # The three endpoints that verify a client secret, which is argon2: 64 MiB and
@@ -118,6 +121,9 @@ AUTHORIZE_PER_IP = limit_by_ip("authorize-ip", limit=120, window=60)
 # stuffing, which rotates addresses and not the target.
 LOGIN_FAILURES = {"bucket": "login-fail", "limit": 8, "window": 900}
 TOTP_FAILURES = {"bucket": "totp-fail", "limit": 8, "window": 900}
+# Fewer than a code allows: a face that fails is a spoof being tuned at least as
+# often as a person in bad light, and bad light is a 422 that does not count.
+FACE_FAILURES = {"bucket": "face-fail", "limit": 5, "window": 900}
 
 # So the endpoint cannot be used to bury someone in mail they did not ask for.
 RESET_PER_ADDRESS = {"bucket": "reset-addr", "limit": 3, "window": 3600}

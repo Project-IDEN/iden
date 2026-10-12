@@ -20,7 +20,9 @@ from provider.admin.users.schemas import (
     UserUpdate,
 )
 from provider.authz.services.scope_resolver import scope_provenance
+from provider.biometric.deps import FaceStorageDep, require_biometric
 from provider.core.auth import AccessToken, require_scope
+from provider.core.config import settings
 from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse, Page, PageMeta, PaginationDep
@@ -329,6 +331,36 @@ async def reset_password(
         session, redis, user_id, body.password, caller_scopes=token.scopes
     )
     return PasswordResetResult(password=generated, sessions_revoked=True)
+
+
+@router.delete(
+    "/{user_id}/face",
+    status_code=204,
+    summary="Remove a user's enrolled face",
+    description=(
+        "Deletes every face sample on file for this person, and any enrolment "
+        "photos kept with them. For a face that should not be there — enrolled "
+        "by the wrong person at a kiosk, or by someone who should not have "
+        "been able to.\n\n"
+        "A face is never owed at sign-in, so removing one locks nobody out. "
+        "Returns `204` whether or not a face was enrolled.\n\n"
+        "**Required scope:** `admin:users:write`" + OUTRANK_NOTE
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "No such user"},
+        403: {
+            "model": ErrorResponse,
+            "description": "This account holds authority the caller does not",
+        },
+    },
+    dependencies=[Depends(require_biometric)],
+    include_in_schema=settings.iden_biometric_enabled,
+)
+async def clear_face(
+    user_id: UUID, session: DBSessionDep, storage: FaceStorageDep, token: WriteToken
+) -> Response:
+    await service.clear_face(session, storage, user_id, caller_scopes=token.scopes)
+    return Response(status_code=204)
 
 
 @router.delete(

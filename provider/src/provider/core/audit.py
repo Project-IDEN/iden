@@ -28,6 +28,7 @@ AUDITED_PREFIXES = (
     "/admin",
     "/entity",
     "/developer",
+    "/biometric",
     "/api/v1/auth",
     "/oauth2/revoke",
 )
@@ -52,6 +53,8 @@ SECRET_KEYS = frozenset(
         "accesstoken",
         "code",
         "codeverifier",
+        # An enrolment ticket names a person to a kiosk until it is used.
+        "ticket",
     }
 )
 
@@ -94,6 +97,15 @@ def set_actor(
     before any token exists.
     """
     request.state.audit_actor = Actor(user_id=user_id, client_id=client_id)
+
+
+def set_target(request: Request, target: str) -> None:
+    """Name what the request acted on, when no path parameter does.
+
+    A kiosk enrolling a face names the person in its body — a ticket, which is
+    redacted — so the route says whose face it was.
+    """
+    request.state.audit_target = target
 
 
 def _normalise(key: str) -> str:
@@ -225,7 +237,9 @@ async def _write(scope: Scope, body: bytes, status_code: int) -> None:
                     # The last path parameter is the object being acted on:
                     # `/admin/apis/{api_id}/scopes/{scope_id}` is about the scope.
                     target=_clip_optional(
-                        str(list(params.values())[-1]) if params else None, TARGET_LIMIT
+                        scope.get("state", {}).get("audit_target")
+                        or (str(list(params.values())[-1]) if params else None),
+                        TARGET_LIMIT,
                     ),
                     actor_user_id=actor.user_id,
                     actor_label=_clip_optional(label, ACTOR_LABEL_LIMIT),

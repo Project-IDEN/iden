@@ -8,6 +8,7 @@ from provider.authz.services.auth_methods import (
     reachable_levels,
     supported,
 )
+from provider.core.config import settings
 from provider.shared.enums import AcrLevel
 
 
@@ -59,8 +60,12 @@ def test_meets_compares_levels_in_order(amr, required, expected):
     assert meets(derive_acr(amr), required) is expected
 
 
-def test_face_is_not_registered_until_the_biometric_module_is_enabled():
+def test_face_is_not_registered_until_the_biometric_module_is_enabled(monkeypatch):
     assert supported() == ["pwd", "otp"]
+
+    monkeypatch.setattr(settings, "iden_biometric_enabled", True)
+    assert supported() == ["pwd", "otp", "face"]
+    assert reachable_levels()[-1] == "urn:iden:acr:mfa-face"
 
 
 def test_only_reachable_levels_are_advertised():
@@ -80,6 +85,15 @@ def test_only_reachable_levels_are_advertised():
         # ...and when they cannot: nothing to ask for, so /authorize refuses.
         (["pwd"], {"pwd"}, "urn:iden:acr:mfa", []),
         (["pwd", "otp"], {"pwd", "otp"}, "urn:iden:acr:mfa-face", []),
+        # A face answers the second factor an authenticator demands...
+        (["pwd"], {"pwd", "otp", "face"}, None, ["face", "otp"]),
+        (["pwd", "face"], {"pwd", "otp", "face"}, None, []),
+        # ...but does not demand one itself: no camera must not mean no way in.
+        (["pwd"], {"pwd", "face"}, None, []),
+        # A request for mfa-face is met only by a face, so only a face is offered.
+        (["pwd"], {"pwd", "face"}, "urn:iden:acr:mfa-face", ["face"]),
+        (["pwd"], {"pwd", "otp", "face"}, "urn:iden:acr:mfa-face", ["face"]),
+        (["pwd", "otp"], {"pwd", "otp", "face"}, "urn:iden:acr:mfa-face", ["face"]),
     ],
 )
 def test_outstanding_asks_only_for_what_can_help(amr, enrolled, required, expected):
