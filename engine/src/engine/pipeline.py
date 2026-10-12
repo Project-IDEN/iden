@@ -12,7 +12,7 @@ from engine.embed import embed, normalise
 from engine.pad import live_probability
 from engine.pose import Pose, estimate
 from engine.runtime import Models
-from engine.schemas import Checks, EnrollResult, VerifyResult
+from engine.schemas import Checks, EmbedResult, EnrollResult, VerifyResult
 from engine.steps import CENTRE, flash_colour, is_frontal
 
 # Fewer than this many good frontal frames and nothing is decided.
@@ -171,17 +171,47 @@ def enroll(models: Models, images: list[np.ndarray], steps: list[str]) -> Enroll
     if not analysis.live:
         return result
 
+    index = {id(frame): i for i, frame in enumerate(analysis.frames)}
     best = sorted(
         (
-            (quality.score(s.aligned, s.pose), s.embedding)
-            for _, s in _centre(analysis.frames)
+            (quality.score(s.aligned, s.pose), s.embedding, index[id(f)])
+            for f, s in _centre(analysis.frames)
         ),
-        key=lambda pair: pair[0],
+        key=lambda entry: entry[0],
         reverse=True,
     )[:MAX_TEMPLATES]
-    result.embeddings = [vector.tolist() for _, vector in best]
-    result.qualities = [score for score, _ in best]
+    result.embeddings = [vector.tolist() for _, vector, _ in best]
+    result.qualities = [score for score, _, _ in best]
+    result.sources = [source for _, _, source in best]
     return result
+
+
+def embed_stills(models: Models, images: list[np.ndarray]) -> EmbedResult:
+    """Embeddings of photos already accepted at enrolment, for a new model.
+
+    No liveness: these are the provider's own stored enrolment photos, which
+    passed it when they were taken. Never reachable with a fresh capture.
+    """
+    manifest = models.manifest
+    frames = [inspect(models, CENTRE, image) for image in images]
+    seen = [f.seen for f in frames if f.seen is not None]
+    vectors = (
+        embed(
+            models.recognizer,
+            [s.aligned for s in seen],
+            manifest.recognizer.mean,
+            manifest.recognizer.std,
+        )
+        if seen
+        else []
+    )
+    found = iter(vectors)
+    return EmbedResult(
+        model_version=manifest.version,
+        embeddings=[
+            next(found).tolist() if f.seen is not None else None for f in frames
+        ],
+    )
 
 
 def similarity(probe: np.ndarray, templates: np.ndarray) -> float:

@@ -34,6 +34,16 @@ class EnrollResult(Capture):
         default_factory=list, description="Best frames first; empty unless live."
     )
     qualities: list[float] = Field(default_factory=list)
+    sources: list[int] = Field(
+        default_factory=list, description="The frame each embedding came from."
+    )
+
+
+class EmbedResult(BaseModel):
+    model_version: str
+    embeddings: list[list[float] | None] = Field(
+        description="One per photo, null where no single face was found."
+    )
 
 
 class VerifyResult(Capture):

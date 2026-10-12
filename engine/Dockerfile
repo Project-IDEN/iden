@@ -39,7 +39,8 @@ FROM nvidia/cuda:13.0.3-cudnn-runtime-ubuntu24.04 AS gpu
 
 COPY --from=ghcr.io/astral-sh/uv:0.12.1 /uv /bin/uv
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy UV_PYTHON_INSTALL_DIR=/opt/python
-RUN useradd --create-home --uid 1001 iden
+# The base image ships a user at uid 1000; the key files are owned by that uid.
+RUN userdel --remove ubuntu && useradd --create-home --uid 1000 iden
 WORKDIR /app
 COPY pyproject.toml uv.lock .python-version ./
 RUN --mount=type=cache,target=/root/.cache/uv \

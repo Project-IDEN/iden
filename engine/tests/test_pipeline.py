@@ -64,3 +64,12 @@ def test_an_empty_frame_asks_for_a_face(models):
     result = pipeline.enroll(models, [blank] * 3, ["center"] * 3)
     assert not result.usable
     assert result.reasons == ["no_face"]
+
+
+@needs_models
+def test_stored_photos_can_be_embedded_again(models, face_image):
+    blank = np.full((480, 640, 3), 90, dtype=np.uint8)
+    result = pipeline.embed_stills(models, [face_image, blank])
+    first, second = result.embeddings
+    assert first is not None and len(first) == 512
+    assert second is None

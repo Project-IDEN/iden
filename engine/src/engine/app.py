@@ -19,7 +19,14 @@ from engine import pipeline, runtime
 from engine.config import settings
 from engine.imaging import InvalidImage, decode
 from engine.log import configure_logging, logger
-from engine.schemas import EnrollResult, Info, Meta, VerifyMeta, VerifyResult
+from engine.schemas import (
+    EmbedResult,
+    EnrollResult,
+    Info,
+    Meta,
+    VerifyMeta,
+    VerifyResult,
+)
 from engine.steps import is_valid
 
 configure_logging()
@@ -131,6 +138,12 @@ def verify(
     return pipeline.verify(
         models(), _frames(frames, parsed.steps), parsed.steps, parsed.templates
     )
+
+
+@app.post("/embed", response_model=EmbedResult, dependencies=AUTH)
+def embed_stills(frames: Annotated[list[UploadFile], File()]) -> EmbedResult:
+    """Re-embed stored enrolment photos after a model change. No liveness."""
+    return pipeline.embed_stills(models(), _frames(frames, ["center"] * len(frames)))
 
 
 @app.get("/info", response_model=Info, dependencies=AUTH)
