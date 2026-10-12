@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+# Downloaded by scripts/fetch_models.py; never committed.
+models/*
+!models/.gitkeep
+reports/

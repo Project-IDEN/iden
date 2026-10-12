@@ -1,0 +1,60 @@
+[project]
+name = "engine"
+version = "0.0.1"
+description = "IDEN biometric engine — face detection, quality, anti-spoofing and 1:1 matching"
+readme = "README.md"
+authors = [
+    { name = "yephonekyaw", email = "yephonekyaw231202@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi[standard]>=0.141.1",
+    "numpy>=2.5.4",
+    "opencv-python-headless>=5.0.0.93",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.15.0",
+    "structlog>=26.1.0",
+]
+
+# One of the two, never both: they install the same `onnxruntime` module. The
+# GPU build has no macOS wheels, so a laptop installs `cpu`.
+[project.optional-dependencies]
+cpu = ["onnxruntime>=1.31.0"]
+gpu = ["onnxruntime-gpu>=1.31.0"]
+
+[project.scripts]
+engine = "engine.app:main"
+
+[build-system]
+requires = ["uv_build>=0.12.1,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv]
+conflicts = [[{ extra = "cpu" }, { extra = "gpu" }]]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.411",
+    "pytest>=9.1.1",
+    "ruff>=0.16.4",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    # The formatter owns line length. It will not split a long string or
+    # comment, so E501 only ever reports lines ruff itself chose to leave.
+    "E501",
+    # `File(...)` and `Form(...)` in a parameter default are the FastAPI idiom.
+    "B008",
+]
+
+[tool.pyright]
+include = ["src", "tests", "scripts", "eval"]
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

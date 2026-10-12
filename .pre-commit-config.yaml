@@ -7,7 +7,7 @@
 # people to pass --no-verify, and a hook everyone bypasses is worse than none.
 # Tests belong to CI, or to `pre-commit install --hook-type pre-push`.
 #
-# Scoped to provider/ because it is the only package with a lint and type
+# Scoped to provider/ and engine/, the packages with a lint and type
 # configuration. kiosk/server is still a skeleton; extend `files:` when it is not.
 repos:
   - repo: local
@@ -36,6 +36,31 @@ repos:
         language: system
         types_or: [python, pyi]
         files: ^provider/
+        pass_filenames: false
+        require_serial: true
+
+      - id: engine-ruff-format
+        name: ruff format (engine)
+        entry: uv run --project engine ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        files: ^engine/
+        require_serial: true
+
+      - id: engine-ruff-check
+        name: ruff check (engine)
+        entry: uv run --project engine ruff check --force-exclude --fix
+        language: system
+        types_or: [python, pyi]
+        files: ^engine/
+        require_serial: true
+
+      - id: engine-pyright
+        name: pyright (engine)
+        entry: bash -c 'cd engine && uv run pyright'
+        language: system
+        types_or: [python, pyi]
+        files: ^engine/
         pass_filenames: false
         require_serial: true
 
