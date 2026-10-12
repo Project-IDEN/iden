@@ -95,6 +95,8 @@ export { DataTable, Pagination, type Column } from "./data-table";
 export { DateRangePicker } from "./calendar";
 export type { DateRange } from "react-day-picker";
 export { EmptyState, ErrorState, Spinner } from "./feedback";
+export { FaceCapture, type FaceCaptureChallenge } from "./face-capture";
+export { describeCaptureProblems } from "./capture-problems";
 export { Field, SearchInput } from "./field";
 export { StatusDot } from "./status-dot";
 export { RowCard, Row, ROW_CARD } from "./rows";

@@ -1,11 +1,28 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Button, ErrorState, Field, IdenError, Input, Spinner } from "@iden/shared";
+import {
+  Button,
+  ErrorState,
+  FaceCapture,
+  Field,
+  IdenError,
+  Input,
+  Spinner,
+  describeCaptureProblems,
+} from "@iden/shared";
+import { KeyRound, ScanFace } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, useSearchParams } from "react-router";
 import { z } from "zod";
-import { readChallenge, signIn, submitTotp, type AuthStep } from "../api";
+import {
+  readChallenge,
+  signIn,
+  startFaceCheck,
+  submitFace,
+  submitTotp,
+  type AuthStep,
+} from "../api";
 import { AuthLayout } from "../AuthLayout";
 
 const credentials = z.object({
@@ -37,8 +54,17 @@ export function LoginRoute() {
   return <LoginFlow challengeId={challengeId} isStepUp={isStepUp} />;
 }
 
+type Step = "credentials" | "choose" | "otp" | "face";
+
+/** Where to go for the methods still owed: straight to one, or a choice. */
+function stepFor(methods: string[]): Step {
+  if (methods.length > 1) return "choose";
+  return methods[0] === "face" ? "face" : "otp";
+}
+
 function LoginFlow({ challengeId, isStepUp }: { challengeId: string; isStepUp: boolean }) {
-  const [step, setStep] = useState<"credentials" | "totp">();
+  const [step, setStep] = useState<Step>();
+  const [owedMethods, setOwedMethods] = useState<string[]>();
 
   const challenge = useQuery({
     queryKey: ["challenge", challengeId],
@@ -48,12 +74,14 @@ function LoginFlow({ challengeId, isStepUp }: { challengeId: string; isStepUp: b
 
   /**
    * `complete` hands the request back to the provider, which decides what
-   * happens next. A code is the only method this page can ask for; face will
-   * be a second form, chosen from `methods`.
+   * happens next. `method_required` names what is still owed — a code, a face,
+   * or either.
    */
   function advance(result: AuthStep) {
     if (result.status === "method_required") {
-      setStep("totp");
+      const methods = result.methods ?? [];
+      setOwedMethods(methods);
+      setStep(stepFor(methods));
       return;
     }
     if (result.resumeUrl) window.location.assign(result.resumeUrl);
@@ -85,13 +113,31 @@ function LoginFlow({ challengeId, isStepUp }: { challengeId: string; isStepUp: b
 
   const client = challenge.data.clientName;
   // A step-up on a browser that is already signed in owes a method, not the
-  // password it gave earlier, so it starts at the code.
+  // password it gave earlier, so it starts at that method.
+  const methods = owedMethods ?? challenge.data.methods ?? [];
   const owed = (challenge.data.methods ?? []).length > 0;
-  const current = step ?? (owed ? "totp" : "credentials");
+  const current = step ?? (owed ? stepFor(methods) : "credentials");
+  const choose = methods.length > 1 ? () => setStep("choose") : undefined;
 
-  if (current === "totp") {
+  if (current === "choose") {
+    return <MethodChoice clientName={client} methods={methods} onChoose={setStep} />;
+  }
+
+  if (current === "otp") {
     return (
-      <TotpStep challengeId={challengeId} clientName={client} isStepUp={owed} onDone={advance} />
+      <TotpStep
+        challengeId={challengeId}
+        clientName={client}
+        isStepUp={owed}
+        onDone={advance}
+        onSwitch={choose}
+      />
+    );
+  }
+
+  if (current === "face") {
+    return (
+      <FaceStep challengeId={challengeId} clientName={client} onDone={advance} onSwitch={choose} />
     );
   }
 
@@ -217,16 +263,167 @@ function SignInProblem({ problem }: { problem: IdenError | null }) {
   );
 }
 
+function MethodChoice({
+  clientName,
+  methods,
+  onChoose,
+}: {
+  clientName: string;
+  methods: string[];
+  onChoose: (step: Step) => void;
+}) {
+  return (
+    <AuthLayout
+      eyebrow={clientName}
+      step="choose"
+      title="One more step"
+      lede="Confirm it's you with a second method."
+    >
+      <div className="flex flex-col gap-3">
+        {methods.includes("face") ? (
+          <Button variant="default" onClick={() => onChoose("face")}>
+            <ScanFace /> Use your face
+          </Button>
+        ) : null}
+        {methods.includes("otp") ? (
+          <Button variant="outline" onClick={() => onChoose("otp")}>
+            <KeyRound /> Enter a code from your authenticator app
+          </Button>
+        ) : null}
+      </div>
+    </AuthLayout>
+  );
+}
+
+function SwitchMethod({ onSwitch }: { onSwitch?: () => void }) {
+  if (!onSwitch) return null;
+  return (
+    <button
+      type="button"
+      className="text-primary underline-offset-2 hover:underline"
+      onClick={onSwitch}
+    >
+      Use another method
+    </button>
+  );
+}
+
+/**
+ * The face step. Each attempt fetches a fresh challenge — the movements and
+ * colours change every time, and a challenge is good for one capture.
+ */
+function FaceStep({
+  challengeId,
+  clientName,
+  onDone,
+  onSwitch,
+}: {
+  challengeId: string;
+  clientName: string;
+  onDone: (result: AuthStep) => void;
+  onSwitch?: () => void;
+}) {
+  const [attempt, setAttempt] = useState(0);
+
+  const faceChallenge = useQuery({
+    queryKey: ["face-challenge", challengeId, attempt],
+    queryFn: () => startFaceCheck(challengeId),
+    retry: false,
+    staleTime: Infinity,
+    gcTime: 0,
+  });
+
+  const submit = useMutation({
+    mutationFn: (frames: Blob[]) =>
+      submitFace({
+        challengeId,
+        faceChallengeId: faceChallenge.data?.faceChallengeId ?? "",
+        frames,
+      }),
+    onSuccess: onDone,
+  });
+
+  const problem =
+    submit.error instanceof IdenError
+      ? submit.error
+      : faceChallenge.error instanceof IdenError
+        ? faceChallenge.error
+        : null;
+  const tips =
+    problem?.code === "poor_capture" ? describeCaptureProblems(problem.details.reasons) : [];
+  const message =
+    problem?.code === "poor_capture"
+      ? "We couldn't see you clearly enough."
+      : problem?.code === "face_rejected"
+        ? "That didn't match. Try again, or use another method."
+        : problem?.code === "face_enrolment_outdated"
+          ? "Your face enrolment is out of date. Enrol again at a kiosk, and use another method for now."
+          : problem?.code === "engine_unavailable"
+            ? "Face checks are unavailable right now. Use another method."
+            : problem?.status === 429
+              ? `Too many attempts. Try again in ${problem.retryAfter ?? 60} seconds, or use another method.`
+              : problem?.status === 401
+                ? "Your sign-in timed out. Return to the application and start again."
+                : problem?.message;
+
+  function retry() {
+    submit.reset();
+    setAttempt((value) => value + 1);
+  }
+
+  return (
+    <AuthLayout
+      eyebrow={clientName}
+      step="face"
+      title="Confirm it's you"
+      lede="Look at the camera and follow the prompts."
+      footer={<SwitchMethod onSwitch={onSwitch} />}
+    >
+      {problem ? (
+        <div role="alert" className="flex flex-col gap-4">
+          <p className="text-body-sm text-error">{message}</p>
+          {tips.length ? (
+            <ul className="list-disc pl-5 text-body-sm text-body">
+              {tips.map((tip) => (
+                <li key={tip}>{tip}</li>
+              ))}
+            </ul>
+          ) : null}
+          {problem.status !== 429 &&
+          problem.status !== 401 &&
+          problem.code !== "face_enrolment_outdated" ? (
+            <Button variant="default" onClick={retry}>
+              Try again
+            </Button>
+          ) : null}
+        </div>
+      ) : submit.isPending ? (
+        <Spinner label="Checking it's you" />
+      ) : faceChallenge.data ? (
+        <FaceCapture
+          key={faceChallenge.data.faceChallengeId}
+          challenge={faceChallenge.data}
+          onCaptured={(frames) => submit.mutate(frames)}
+        />
+      ) : (
+        <Spinner label="Preparing the camera" />
+      )}
+    </AuthLayout>
+  );
+}
+
 function TotpStep({
   challengeId,
   clientName,
   isStepUp,
   onDone,
+  onSwitch,
 }: {
   challengeId: string;
   clientName: string;
   isStepUp: boolean;
   onDone: (result: AuthStep) => void;
+  onSwitch?: () => void;
 }) {
   const form = useForm({ resolver: zodResolver(totp), defaultValues: { code: "" } });
 
@@ -248,7 +445,8 @@ function TotpStep({
   return (
     <AuthLayout
       eyebrow={clientName}
-      step="totp"
+      step="otp"
+      footer={<SwitchMethod onSwitch={onSwitch} />}
       title={isStepUp ? "Confirm it's you" : "Enter your code"}
       lede={
         isStepUp

@@ -12,7 +12,9 @@ out="$here/../shared/api/schema.d.ts"
 tmp="$(mktemp -t iden-openapi)"
 trap 'rm -f "$tmp"' EXIT
 
-uv run --project "$provider" python -c \
+# With the biometric module on, so its routes are typed: a deployment without
+# it answers 404 there, which the screens that use them already handle.
+IDEN_BIOMETRIC_ENABLED=true uv run --project "$provider" python -c \
   'import json; from provider.core.app import app; print(json.dumps(app.openapi()))' > "$tmp"
 
 pnpm exec openapi-typescript "$tmp" -o "$out"

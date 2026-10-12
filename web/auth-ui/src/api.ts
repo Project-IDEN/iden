@@ -32,6 +32,29 @@ export async function submitTotp(body: { challengeId: string; code: string }): P
   return response.data;
 }
 
+export type FaceChallenge = components["schemas"]["FaceChallengeResponse"];
+
+export async function startFaceCheck(challengeId: string): Promise<FaceChallenge> {
+  const response = await client.post<FaceChallenge>("/api/v1/auth/biometric/challenge", {
+    challengeId,
+  });
+  return response.data;
+}
+
+/** Multipart: the frames go to the provider, which forwards them to the engine. */
+export async function submitFace(body: {
+  challengeId: string;
+  faceChallengeId: string;
+  frames: Blob[];
+}): Promise<AuthStep> {
+  const form = new FormData();
+  form.append("challengeId", body.challengeId);
+  form.append("faceChallengeId", body.faceChallengeId);
+  body.frames.forEach((frame, index) => form.append("frames", frame, `${index}.jpg`));
+  const response = await client.post<AuthStep>("/api/v1/auth/biometric", form);
+  return response.data;
+}
+
 export async function decideConsent(body: {
   challengeId: string;
   approved: boolean;
@@ -49,17 +72,4 @@ export async function confirmPasswordReset(body: {
   newPassword: string;
 }): Promise<void> {
   await client.post("/api/v1/auth/password-reset/confirm", body);
-}
-
-/**
- * Whether this deployment offers face as a sign-in method. The biometric module
- * is feature-flagged, and its login endpoint answers 501 when it is off — so the
- * picker asks discovery rather than offering an option that cannot work.
- */
-export async function biometricAvailable(): Promise<boolean> {
-  const config = await get<{ amr_values_supported?: string[] }>(
-    client,
-    "/.well-known/openid-configuration",
-  );
-  return config.amr_values_supported?.includes("face") ?? false;
 }

@@ -331,6 +331,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/auth/biometric/challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a face check
+         * @description Returns what the camera must capture for `POST /api/v1/auth/biometric`: frames looking straight ahead, two head movements chosen at random, and a sequence of screen colours. Valid for one attempt and two minutes.
+         *
+         *     Face is offered only **after a password** — this needs the session cookie the password step set.
+         *
+         *     **Required scope:** none — requires an existing session.
+         */
+        post: operations["face_challenge_api_v1_auth_biometric_challenge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/auth/biometric": {
         parameters: {
             query?: never;
@@ -342,11 +366,13 @@ export interface paths {
         put?: never;
         /**
          * Sign in with a face
-         * @description Adds `face` to the session's `amr`, but only when the engine reports a **liveness-verified** match — a match without liveness is not an authentication.
+         * @description Multipart: `challengeId`, `faceChallengeId`, and one `frames` part per step of the face challenge, in order.
          *
-         *     Returns `501` unless `IDEN_BIOMETRIC_ENABLED` is set. The route exists while the module does not so the Auth UI contract is fixed from the start; Phase 4 fills in the handler.
+         *     Adds `face` to the session's `amr` only when the capture is **live** — it passes the anti-spoofing models, follows the requested head movements, reflects the screen colours, and shows one face throughout — **and** matches the face enrolled on this account. A match without liveness is not an authentication.
          *
-         *     **Required scope:** none — requires an existing session or challenge.
+         *     `422 poor_capture` lists what to fix and does not count as a failed attempt. `401 face_rejected` does, and deliberately does not say whether the face did not match or was not live.
+         *
+         *     **Required scope:** none — requires an existing session.
          */
         post: operations["biometric_api_v1_auth_biometric_post"];
         delete?: never;
@@ -939,6 +965,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/{user_id}/face": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a user's enrolled face
+         * @description Deletes every face sample on file for this person, and any enrolment photos kept with them. For a face that should not be there — enrolled by the wrong person at a kiosk, or by someone who should not have been able to.
+         *
+         *     A face is never owed at sign-in, so removing one locks nobody out. Returns `204` whether or not a face was enrolled.
+         *
+         *     **Required scope:** `admin:users:write`
+         *
+         *     **You cannot act on an account above your own.** If the target holds an `admin:` or `biometric:` scope the caller does not, the request is refused with `403 cannot_administer` — otherwise resetting a password and clearing an authenticator would together be a way to become somebody more privileged than you.
+         */
+        delete: operations["clear_face_admin_users__user_id__face_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/admin/users/{user_id}/totp": {
         parameters: {
             query?: never;
@@ -1421,6 +1473,60 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/entity/face": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Is a face enrolled?
+         * @description Whether a face is on file, when and where it was enrolled.
+         *
+         *     **Required scope:** `entity:face:read`
+         */
+        get: operations["read_status_entity_face_get"];
+        put?: never;
+        post?: never;
+        /**
+         * Remove your face
+         * @description Deletes every face sample on file, and any enrolment photos kept with them. Face is no longer offered when you sign in.
+         *
+         *     **Needs a recent sign-in.** An enrolled face is a way to sign in as you, so somebody holding a stolen access token must not be able to let a kiosk add theirs — nor to remove yours. The refusal is RFC 9470's `insufficient_user_authentication`.
+         *
+         *     **Required scope:** `entity:face:write`
+         */
+        delete: operations["remove_entity_face_delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/entity/face/ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Let a kiosk enrol your face
+         * @description Returns a single-use ticket to show the kiosk as a QR code. It names you to the kiosk, which otherwise has nobody it may enrol. Expires in 15 minutes, allows 5 capture attempts, and replaces any ticket you asked for earlier. Enrolling replaces a face already on file.
+         *
+         *     **Needs a recent sign-in.** An enrolled face is a way to sign in as you, so somebody holding a stolen access token must not be able to let a kiosk add theirs — nor to remove yours. The refusal is RFC 9470's `insufficient_user_authentication`.
+         *
+         *     **Required scope:** `entity:face:write`
+         */
+        post: operations["create_ticket_entity_face_ticket_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/entity/sessions": {
         parameters: {
             query?: never;
@@ -1625,6 +1731,56 @@ export interface paths {
          *     **Required scope:** `developer:clients:write`
          */
         post: operations["rotate_secret_developer_clients__application_id__rotate_secret_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/biometric/enroll/challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start a face capture for the person holding a ticket
+         * @description Reads the enrolment ticket from the person's QR code and returns what to capture: a few frames looking straight ahead, two head movements chosen at random, and a sequence of screen colours.
+         *
+         *     Every call counts one attempt against the ticket; a ticket allows 5.
+         *
+         *     **Required scope:** `biometric:enroll`
+         */
+        post: operations["start_enrolment_biometric_enroll_challenge_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/biometric/enroll": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Enrol the face in a capture
+         * @description Multipart: `ticket`, `faceChallengeId`, and one `frames` part per step of the challenge, in order (JPEG or PNG).
+         *
+         *     The capture must pass every liveness check: the anti-spoofing models, the head movements, the screen-colour reflections, and the same face throughout. Any face already enrolled on the account is replaced, and the person is told by email.
+         *
+         *     A `422 poor_capture` lists what to fix (`too_dark`, `too_small`, `blurred`, …) and a `422 not_live` the checks that failed; both leave the ticket usable for another attempt.
+         *
+         *     **Required scope:** `biometric:enroll`
+         */
+        post: operations["enrol_biometric_enroll_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2017,6 +2173,24 @@ export interface components {
              */
             amr: string[];
         };
+        /** Body_biometric_api_v1_auth_biometric_post */
+        Body_biometric_api_v1_auth_biometric_post: {
+            /** Challengeid */
+            challengeId: string;
+            /** Facechallengeid */
+            faceChallengeId: string;
+            /** Frames */
+            frames: string[];
+        };
+        /** Body_enrol_biometric_enroll_post */
+        Body_enrol_biometric_enroll_post: {
+            /** Ticket */
+            ticket: string;
+            /** Facechallengeid */
+            faceChallengeId: string;
+            /** Frames */
+            frames: string[];
+        };
         /** Body_introspect_oauth2_introspect_post */
         Body_introspect_oauth2_introspect_post: {
             /** Token */
@@ -2366,6 +2540,19 @@ export interface components {
             /** Scopes */
             scopes: components["schemas"]["ScopeSource"][];
         };
+        /** EnrolmentTicket */
+        EnrolmentTicket: {
+            /**
+             * Ticket
+             * @description Show as a QR code for a kiosk to scan. Single use; asking for a new one retires this one.
+             */
+            ticket: string;
+            /**
+             * Expiresat
+             * Format: date-time
+             */
+            expiresAt: string;
+        };
         /**
          * ErrorResponse
          * @description The JSON error shape returned everywhere except the OAuth endpoints,
@@ -2389,6 +2576,52 @@ export interface components {
             details?: {
                 [key: string]: unknown;
             };
+        };
+        /** FaceChallengeRequest */
+        FaceChallengeRequest: {
+            /** Challengeid */
+            challengeId: string;
+        };
+        /** FaceChallengeResponse */
+        FaceChallengeResponse: {
+            /**
+             * Facechallengeid
+             * @description Send back with the frames. Good for one capture.
+             */
+            faceChallengeId: string;
+            /**
+             * Steps
+             * @description One entry per frame to capture, in order. `center`: look straight at the camera. `turn_left` / `turn_right`: turn your head to *your* left or right. `look_up` / `look_down`. `flash:<colour>`: fill the screen with that colour, then capture.
+             */
+            steps: ("center" | "turn_left" | "turn_right" | "look_up" | "look_down" | "flash:red" | "flash:green" | "flash:blue")[];
+            /**
+             * Flashslotms
+             * @description How long to show each flash colour before capturing under it.
+             */
+            flashSlotMs: number;
+            /**
+             * Expiresat
+             * Format: date-time
+             */
+            expiresAt: string;
+        };
+        /** FaceStatus */
+        FaceStatus: {
+            /** Enrolled */
+            enrolled: boolean;
+            /** Enrolledat */
+            enrolledAt?: string | null;
+            /**
+             * Enrolledby
+             * @description The kiosk the face was enrolled at.
+             */
+            enrolledBy?: string | null;
+            /**
+             * Samples
+             * @description Face samples on file.
+             * @default 0
+             */
+            samples: number;
         };
         /** FieldPresetList */
         FieldPresetList: {
@@ -2569,6 +2802,55 @@ export interface components {
             keys: {
                 [key: string]: unknown;
             }[];
+        };
+        /** KioskChallengeRequest */
+        KioskChallengeRequest: {
+            /**
+             * Ticket
+             * @description Read from the QR code the person shows.
+             */
+            ticket: string;
+        };
+        /** KioskChallengeResponse */
+        KioskChallengeResponse: {
+            /**
+             * Facechallengeid
+             * @description Send back with the frames. Good for one capture.
+             */
+            faceChallengeId: string;
+            /**
+             * Steps
+             * @description One entry per frame to capture, in order. `center`: look straight at the camera. `turn_left` / `turn_right`: turn your head to *your* left or right. `look_up` / `look_down`. `flash:<colour>`: fill the screen with that colour, then capture.
+             */
+            steps: ("center" | "turn_left" | "turn_right" | "look_up" | "look_down" | "flash:red" | "flash:green" | "flash:blue")[];
+            /**
+             * Flashslotms
+             * @description How long to show each flash colour before capturing under it.
+             */
+            flashSlotMs: number;
+            /**
+             * Expiresat
+             * Format: date-time
+             */
+            expiresAt: string;
+            /**
+             * Displayname
+             * @description Show it, so the person can confirm it is their account.
+             */
+            displayName: string;
+        };
+        /** KioskEnrolment */
+        KioskEnrolment: {
+            /**
+             * Enrolled
+             * @constant
+             */
+            enrolled: true;
+            /**
+             * Samples
+             * @description How many face samples were stored.
+             */
+            samples: number;
         };
         /** LivenessResponse */
         LivenessResponse: {
@@ -4181,6 +4463,66 @@ export interface operations {
             };
         };
     };
+    face_challenge_api_v1_auth_biometric_challenge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FaceChallengeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceChallengeResponse"];
+                };
+            };
+            /** @description No session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Challenge expired, or no face enrolled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Biometric module not enabled */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     biometric_api_v1_auth_biometric_post: {
         parameters: {
             query?: never;
@@ -4188,7 +4530,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_biometric_api_v1_auth_biometric_post"];
+            };
+        };
         responses: {
             /** @description Successful Response */
             200: {
@@ -4199,8 +4545,62 @@ export interface operations {
                     "application/json": components["schemas"]["AuthStepResponse"];
                 };
             };
+            /** @description No session, or rejected */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Challenge or face challenge expired, or no face enrolled */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Enrolled under an earlier model; enrol again */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Poor capture or bad frames */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too many attempts */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Biometric module not enabled */
             501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The engine is unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -5980,6 +6380,53 @@ export interface operations {
             };
         };
     };
+    clear_face_admin_users__user_id__face_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This account holds authority the caller does not */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     clear_totp_admin_users__user_id__totp_delete: {
         parameters: {
             query?: never;
@@ -7092,6 +7539,82 @@ export interface operations {
             };
         };
     };
+    read_status_entity_face_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FaceStatus"];
+                };
+            };
+        };
+    };
+    remove_entity_face_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sign-in is not recent enough */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    create_ticket_entity_face_ticket_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnrolmentTicket"];
+                };
+            };
+            /** @description Sign-in is not recent enough */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_sessions_entity_sessions_get: {
         parameters: {
             query?: never;
@@ -7434,6 +7957,135 @@ export interface operations {
             };
             /** @description Public applications have no secret */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    start_enrolment_biometric_enroll_challenge_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KioskChallengeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KioskChallengeResponse"];
+                };
+            };
+            /** @description No valid kiosk token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Token lacks `biometric:enroll` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ticket expired, used, or out of attempts */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enrol_biometric_enroll_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_enrol_biometric_enroll_post"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KioskEnrolment"];
+                };
+            };
+            /** @description No valid kiosk token */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Token lacks `biometric:enroll` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Ticket expired, used, or out of attempts */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Poor capture, failed liveness, or frames that do not match the challenge */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The engine is unavailable */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -7,6 +7,8 @@ export type ProfileSchema = components["schemas"]["ProfileSchemaResponse"];
 export type FieldSchema = components["schemas"]["FieldSchema"];
 export type TotpStatus = components["schemas"]["TotpStatus"];
 export type TotpEnrollment = components["schemas"]["TotpEnrollment"];
+export type FaceStatus = components["schemas"]["FaceStatus"];
+export type EnrolmentTicket = components["schemas"]["EnrolmentTicket"];
 export type Sessions = components["schemas"]["SessionListResponse"];
 export type Connections = components["schemas"]["ConnectionListResponse"];
 export type Permissions = components["schemas"]["PermissionsResponse"];
@@ -63,6 +65,16 @@ export function useRemovePhoto(api: AxiosInstance) {
 
 export function useTotpStatus(api: AxiosInstance) {
   return useQuery({ queryKey: ["totp"], queryFn: () => get<TotpStatus>(api, "/entity/totp") });
+}
+
+/** `poll` while a kiosk ticket is on screen, so the page notices the enrolment. */
+export function useFaceStatus(api: AxiosInstance, enabled: boolean, poll: boolean) {
+  return useQuery({
+    queryKey: ["face"],
+    queryFn: () => get<FaceStatus>(api, "/entity/face"),
+    enabled,
+    refetchInterval: poll ? 3000 : false,
+  });
 }
 
 export function useSessions(api: AxiosInstance) {

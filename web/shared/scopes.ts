@@ -46,15 +46,17 @@ export const ENTITY_SCOPES = [
 export const DEVELOPER_SCOPES = ["developer:clients:read", "developer:clients:write"] as const;
 
 /**
- * Present only when the provider runs with `IDEN_BIOMETRIC_ENABLED`. Requested
- * regardless — an unknown scope is pruned — because changing an OAuth client
- * needs every restricted scope the deployment defines, these included.
+ * Present only when the provider runs with `IDEN_BIOMETRIC_ENABLED`, and
+ * requested regardless: an unknown scope is pruned.
+ *
+ * `entity:face:*` lets a person see their face enrolment, create the ticket a
+ * kiosk needs, and remove it. `biometric:enroll` is the kiosk's own; the
+ * dashboard asks for it because changing an OAuth client needs every restricted
+ * scope the deployment defines.
  */
-export const BIOMETRIC_SCOPES = [
-  "biometric:enroll",
-  "biometric:verify",
-  "biometric:liveness",
-] as const;
+export const FACE_SCOPES = ["entity:face:read", "entity:face:write"] as const;
+
+export const BIOMETRIC_SCOPES = ["biometric:enroll"] as const;
 
 /**
  * Not in the DB and never carry an audience — see `scope_resolver.OIDC_SCOPES`.
@@ -76,6 +78,7 @@ export const DASHBOARD_SCOPE = [
   ...OIDC_SCOPES,
   ...ADMIN_SCOPES,
   ...ENTITY_SCOPES,
+  ...FACE_SCOPES,
   ...DEVELOPER_SCOPES,
   ...BIOMETRIC_SCOPES,
 ].join(" ");

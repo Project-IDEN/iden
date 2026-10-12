@@ -11,23 +11,31 @@ import {
 } from "@iden/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useApi } from "../../app/api";
-import { useStepUp } from "../../app/session";
+import { useHasScope, useStepUp } from "../../app/session";
 import { PageHeader } from "../../app/shell";
-import { useProfile, useTotpStatus, type TotpEnrollment, type TotpStatus } from "./api";
+import {
+  useFaceStatus,
+  useProfile,
+  useTotpStatus,
+  type EnrolmentTicket,
+  type TotpEnrollment,
+  type TotpStatus,
+} from "./api";
 
 export function SecurityRoute() {
   return (
     <>
       <PageHeader
         title="Security"
-        lede="Your password, the address you sign in with, and your authenticator app."
+        lede="Your password, the address you sign in with, and your second factors."
       />
       <RowCard className="max-w-3xl">
         <PasswordSetting />
         <EmailSetting />
         <TotpSetting />
+        <FaceSetting />
       </RowCard>
     </>
   );
@@ -385,6 +393,173 @@ function TotpSetting() {
           >
             {confirm.isPending ? "Checking…" : "Turn on"}
           </Button>
+        </div>
+      ) : null}
+    </Setting>
+  );
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+
+/** Minutes and seconds until `iso`, ticking, and zero once it has passed. */
+function useCountdown(iso: string | undefined): string | null {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!iso) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [iso]);
+  if (!iso) return null;
+  const left = Math.max(0, Math.round((new Date(iso).getTime() - now) / 1000));
+  return `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
+}
+
+/**
+ * A face is enrolled at a kiosk, never here. What this page offers is the
+ * ticket that lets a kiosk do it — a QR code naming you, good once and for a
+ * few minutes — and the way to remove a face that is on file.
+ *
+ * Absent when the deployment has no biometric module: the token then carries
+ * no `entity:face:read`.
+ */
+function FaceSetting() {
+  const api = useApi();
+  const visible = useHasScope("entity:face:read");
+  const [ticket, setTicket] = useState<(EnrolmentTicket & { issuedAt: number }) | null>(null);
+  const status = useFaceStatus(api, visible, ticket !== null);
+  const queryClient = useQueryClient();
+  const [removing, setRemoving] = useState(false);
+  const remaining = useCountdown(ticket?.expiresAt);
+
+  const create = useMutation({
+    mutationFn: async () => (await api.post<EnrolmentTicket>("/entity/face/ticket")).data,
+    onSuccess: (issued) => setTicket({ ...issued, issuedAt: Date.now() }),
+  });
+
+  const remove = useMutation({
+    mutationFn: () => api.delete("/entity/face"),
+    onSuccess: () => {
+      setRemoving(false);
+      void queryClient.invalidateQueries({ queryKey: ["face"] });
+    },
+    onError: () => setRemoving(false),
+  });
+
+  if (!visible) return null;
+
+  if (!status.data) {
+    return (
+      <Setting
+        title="Face"
+        status={status.isError ? "Could not check whether a face is enrolled." : "Checking…"}
+        action={
+          status.isError ? (
+            <Button size="sm" onClick={() => void status.refetch()}>
+              Try again
+            </Button>
+          ) : null
+        }
+      />
+    );
+  }
+
+  const problem =
+    create.error instanceof IdenError
+      ? create.error
+      : remove.error instanceof IdenError
+        ? remove.error
+        : null;
+  const expired = remaining === "0:00";
+  const face = status.data;
+  // The kiosk has used the ticket, so the code has done its job. Set during
+  // render, React's pattern for state derived from a query.
+  if (ticket && face.enrolledAt && Date.parse(face.enrolledAt) >= ticket.issuedAt - 5000) {
+    setTicket(null);
+  }
+  const showTicket = ticket !== null;
+
+  return (
+    <Setting
+      title="Face"
+      status={
+        face.enrolled && face.enrolledAt ? (
+          <span className="flex flex-wrap items-center gap-x-2">
+            <StatusDot tone="success" label="On" />
+            Enrolled at {face.enrolledBy} on {formatDate(face.enrolledAt)}. Offered when an
+            application asks for a second factor.
+          </span>
+        ) : (
+          <span className="flex flex-wrap items-center gap-x-2">
+            <StatusDot tone="muted" label="Off" />
+            Enrol your face at a kiosk to use it as a second factor.
+          </span>
+        )
+      }
+      action={
+        showTicket ? (
+          <Button size="sm" variant="ghost" onClick={() => setTicket(null)}>
+            Done
+          </Button>
+        ) : (
+          <>
+            <Button size="sm" disabled={create.isPending} onClick={() => create.mutate()}>
+              {create.isPending ? "Preparing…" : face.enrolled ? "Enrol again" : "Enrol at a kiosk"}
+            </Button>
+            {face.enrolled ? (
+              <>
+                <Button size="sm" variant="ghost" onClick={() => setRemoving(true)}>
+                  Remove
+                </Button>
+                <ConfirmDialog
+                  open={removing}
+                  onOpenChange={setRemoving}
+                  title="Remove your face?"
+                  body="Face will no longer be offered when you sign in. You can enrol again at a kiosk."
+                  confirmLabel="Remove face"
+                  pending={remove.isPending}
+                  onConfirm={() => remove.mutate()}
+                />
+              </>
+            ) : null}
+          </>
+        )
+      }
+    >
+      {problem ? (
+        problem.stepUpMaxAge ? (
+          <StepUpNotice problem={problem} />
+        ) : (
+          <p role="alert" className="text-body-sm text-error">
+            {problem.message}
+          </p>
+        )
+      ) : null}
+
+      {showTicket ? (
+        <div className="flex flex-col gap-4">
+          <p className="text-body-sm text-body">
+            Show this code to the kiosk camera. It names you to the kiosk, works once, and only for
+            a few minutes. {face.enrolled ? "Enrolling replaces the face on file." : null}
+          </p>
+          {expired ? (
+            <div className="flex flex-col items-start gap-3">
+              <p className="text-body-sm text-error">This code has expired.</p>
+              <Button size="sm" onClick={() => create.mutate()}>
+                Get a new code
+              </Button>
+            </div>
+          ) : (
+            <>
+              <div className="w-fit rounded-lg bg-canvas p-4 ring-1 ring-hairline">
+                <QRCodeSVG value={ticket.ticket} size={200} bgColor="#faf9f5" fgColor="#141413" />
+              </div>
+              <p className="text-caption text-muted-foreground" aria-live="polite">
+                Expires in {remaining}
+              </p>
+            </>
+          )}
         </div>
       ) : null}
     </Setting>
