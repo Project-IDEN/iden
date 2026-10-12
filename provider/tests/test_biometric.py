@@ -13,6 +13,7 @@ from provider.biometric import challenges, service
 from provider.biometric.engine_client import (
     Checks,
     EmbedResult,
+    EngineInfo,
     EnrollResult,
     VerifyResult,
     get_engine,
@@ -76,8 +77,17 @@ class FakeEngine:
         self.templates_seen = templates
         return self.verify_result
 
+    async def info(self):
+        return EngineInfo(model_version=VERSION, device="cpu", calibrated=False)
+
     async def embed(self, frames):
-        return EmbedResult(model_version=VERSION, embeddings=[])
+        self.calls.append(("embed", len(frames), []))
+        return EmbedResult(
+            model_version=VERSION,
+            embeddings=[
+                None if b"blank" in f else [0.9, 0.1, 0.0, 0.0] for f in frames
+            ],
+        )
 
 
 @pytest.fixture
@@ -645,4 +655,39 @@ class TestChallenges:
         assert await challenges.consume(redis, first.id, member.id, "login") is None
         assert (
             await challenges.consume(redis, second.id, admin_user.id, "enrol") is None
+        )
+
+
+class TestReembed:
+    async def test_kept_photos_move_to_the_new_model_and_others_are_reported(
+        self, db, storage, admin_user, member
+    ):
+        from provider.core.security import encrypt_bytes
+        from scripts.reembed_faces import reembed
+
+        def template(user, key):
+            return FaceTemplate(
+                user_id=user.id,
+                model_version="old-model",
+                embedding_encrypted=service.pack([0.0, 1.0, 0.0, 0.0], user.id),
+                quality=1.0,
+                enrolled_by="kiosk",
+                image_key=key,
+            )
+
+        await storage.put(
+            "faces/a", encrypt_bytes(b"photo", context=str(admin_user.id)), "x"
+        )
+        db.add_all([template(admin_user, "faces/a"), template(member, None)])
+        await db.commit()
+
+        report = await reembed(db, FakeEngine(), storage)
+
+        assert (report.moved, report.without_photos) == (1, 1)
+        moved = await db.scalar(
+            select(FaceTemplate).where(FaceTemplate.user_id == admin_user.id)
+        )
+        assert moved is not None and moved.model_version == VERSION
+        assert service.unpack(moved.embedding_encrypted, admin_user.id) == (
+            pytest.approx([0.9, 0.1, 0.0, 0.0])
         )

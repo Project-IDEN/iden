@@ -67,7 +67,15 @@ class EmbedResult(BaseModel):
     embeddings: list[list[float] | None]
 
 
+class EngineInfo(BaseModel):
+    model_version: str
+    device: str
+    calibrated: bool
+
+
 class Engine(Protocol):
+    async def info(self) -> EngineInfo: ...
+
     async def enroll(self, frames: list[bytes], steps: list[str]) -> EnrollResult: ...
 
     async def verify(
@@ -84,13 +92,18 @@ def _token() -> str | None:
 
 
 class HttpEngine:
-    async def _post[R: BaseModel](
-        self, path: str, kind: type[R], frames: list[bytes], meta: dict | None
+    async def _request[R: BaseModel](
+        self,
+        method: str,
+        path: str,
+        kind: type[R],
+        frames: list[bytes] | None = None,
+        meta: dict | None = None,
     ) -> R:
         token = _token()
         files = [
             ("frames", (f"{i}.jpg", frame, "image/jpeg"))
-            for i, frame in enumerate(frames)
+            for i, frame in enumerate(frames or [])
         ]
         try:
             async with httpx.AsyncClient(
@@ -98,9 +111,10 @@ class HttpEngine:
                 timeout=settings.iden_engine_timeout,
                 headers={"Authorization": f"Bearer {token}"} if token else {},
             ) as client:
-                response = await client.post(
+                response = await client.request(
+                    method,
                     path,
-                    files=files,
+                    files=files or None,
                     data={"meta": json.dumps(meta)} if meta is not None else None,
                 )
         except httpx.HTTPError as exc:
@@ -116,18 +130,27 @@ class HttpEngine:
             raise EngineUnavailable
         return kind.model_validate(response.json())
 
+    async def info(self) -> EngineInfo:
+        return await self._request("GET", "/info", EngineInfo)
+
     async def enroll(self, frames: list[bytes], steps: list[str]) -> EnrollResult:
-        return await self._post("/enroll", EnrollResult, frames, {"steps": steps})
+        return await self._request(
+            "POST", "/enroll", EnrollResult, frames, {"steps": steps}
+        )
 
     async def verify(
         self, frames: list[bytes], steps: list[str], templates: list[list[float]]
     ) -> VerifyResult:
-        return await self._post(
-            "/verify", VerifyResult, frames, {"steps": steps, "templates": templates}
+        return await self._request(
+            "POST",
+            "/verify",
+            VerifyResult,
+            frames,
+            {"steps": steps, "templates": templates},
         )
 
     async def embed(self, frames: list[bytes]) -> EmbedResult:
-        return await self._post("/embed", EmbedResult, frames, None)
+        return await self._request("POST", "/embed", EmbedResult, frames)
 
 
 def get_engine() -> Engine:
