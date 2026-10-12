@@ -101,12 +101,23 @@ class Settings(BaseSettings):
     # Biometric extension
     iden_biometric_enabled: bool = False
     iden_engine_base_url: str = "http://engine:8000"
+    # The secret the engine expects in `Authorization`. Defaults to
+    # `engine.token` beside the signing keys, written by `scripts.gen_keys`.
+    iden_engine_token_file: Path | None = None
+    # Face analysis on a CPU takes a few seconds; on a GPU, a fraction of one.
+    iden_engine_timeout: float = 20.0
+    # Off: only encrypted embeddings are kept, and a model upgrade means
+    # everyone enrols again. On: enrolment photos are kept, encrypted, in blob
+    # storage so a new model can re-embed them without anyone coming back.
+    iden_biometric_keep_images: bool = False
+    # How long the QR code that lets a kiosk enrol your face stays usable.
+    iden_face_ticket_ttl: int = 900
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )
 
-    @field_validator("iden_totp_key_file", mode="before")
+    @field_validator("iden_totp_key_file", "iden_engine_token_file", mode="before")
     @classmethod
     def blank_means_unset(cls, value: object) -> object:
         """An empty value is no value.
@@ -162,6 +173,11 @@ class Settings(BaseSettings):
         ):
             problems.append("IDEN_S3_SECRET_KEY needs a value of its own.")
 
+        if self.iden_biometric_keep_images and not self.blob_storage_configured:
+            problems.append(
+                "IDEN_BIOMETRIC_KEEP_IMAGES needs blob storage (IDEN_S3_ENDPOINT_URL)."
+            )
+
         if self.iden_forwarded_allow_ips.strip() == "*":
             problems.append(
                 "IDEN_FORWARDED_ALLOW_IPS must name the proxy's network, not '*'."
@@ -179,6 +195,10 @@ class Settings(BaseSettings):
     @property
     def totp_key_path(self) -> Path:
         return self.iden_totp_key_file or self.iden_signing_key_dir / "totp.key"
+
+    @property
+    def engine_token_path(self) -> Path:
+        return self.iden_engine_token_file or self.iden_signing_key_dir / "engine.token"
 
     @property
     def blob_storage_configured(self) -> bool:

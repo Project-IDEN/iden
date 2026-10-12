@@ -1,4 +1,5 @@
-"""Generate the key material IDEN needs: a signing keypair and a secret key.
+"""Generate the key material IDEN needs: a signing keypair, a secret key, and
+the token the provider presents to the biometric engine.
 
 Production deployments should mount keys from a secret store instead.
 
@@ -8,6 +9,7 @@ touches the missing one.
 """
 
 import base64
+import secrets
 import sys
 from datetime import UTC, datetime
 
@@ -62,9 +64,29 @@ def secret_key() -> None:
     print(f"Wrote secret-encryption key: {path}")
 
 
+def engine_token() -> None:
+    """The secret the provider presents to the biometric engine.
+
+    Unlike the secret key, losing this costs nothing: write a new one and
+    restart both services.
+    """
+    path = settings.engine_token_path
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    if path.exists():
+        print(f"Engine token already exists: {path}")
+        return
+
+    path.write_text(secrets.token_hex(32))
+    path.chmod(0o600)
+
+    print(f"Wrote engine token: {path}")
+
+
 def main() -> None:
     signing_key()
     secret_key()
+    engine_token()
 
 
 if __name__ == "__main__":

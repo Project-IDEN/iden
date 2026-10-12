@@ -24,10 +24,10 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    # Needed by the biometric embeddings in Phase 4, and cheap to have earlier:
-    # creating it here means no deployment has to remember a manual step.
-    # Requires a superuser, which the bundled compose file's role is.
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
+    # This once created the pgvector extension for biometric embeddings. Faces
+    # are compared 1:1 in the engine, so nothing needs it; a later revision
+    # drops it where this created it, and fresh installs never get it, which is
+    # what lets IDEN run on a PostgreSQL without the extension installed.
 
     op.create_table(
         "clients",

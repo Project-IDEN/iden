@@ -98,3 +98,21 @@ class TestUnsafeDeployment:
         )
 
         assert settings.iden_env == "dev"
+
+
+class TestBiometricSettings:
+    def test_the_engine_token_lives_beside_the_signing_keys_by_default(self):
+        settings = Settings(
+            iden_signing_key_dir=Path("/keys"),
+            iden_engine_token_file="",  # pyright: ignore[reportArgumentType]
+        )
+
+        assert settings.engine_token_path == Path("/keys/engine.token")
+
+    def test_keeping_enrolment_photos_needs_somewhere_to_keep_them(self):
+        """Otherwise the setting reads as on while every photo is dropped."""
+        with pytest.raises(ValidationError, match="IDEN_BIOMETRIC_KEEP_IMAGES"):
+            Settings(
+                **SAFE_PROD
+                | {"iden_s3_endpoint_url": "", "iden_biometric_keep_images": True}
+            )

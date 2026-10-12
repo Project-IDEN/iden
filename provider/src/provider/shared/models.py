@@ -12,6 +12,7 @@ from sqlalchemy import (
     Boolean,
     Column,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     String,
@@ -144,6 +145,34 @@ class TotpCredential(Base, TimestampMixin):
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     user: Mapped[User] = relationship(back_populates="totp")
+
+
+class FaceTemplate(Base, TimestampMixin):
+    """One enrolment sample of a person's face: an embedding, never a photo.
+
+    A person has several, all from one capture at one kiosk; enrolling again
+    replaces every row. Only rows from the engine's current `model_version`
+    count — an embedding from another model cannot be compared.
+    """
+
+    __tablename__ = "face_templates"
+
+    id: Mapped[uuid.UUID] = _pk()
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    model_version: Mapped[str] = mapped_column(String(64))
+    # The float32 vector, base64 and then encrypted bound to `user_id` like a
+    # TOTP secret: a database dump alone yields no biometric data, and a row
+    # copied onto another account does not decrypt.
+    embedding_encrypted: Mapped[str] = mapped_column(Text)
+    quality: Mapped[float] = mapped_column(Float)
+    # The kiosk that enrolled it — the person is told, and sees it on their
+    # security page.
+    enrolled_by: Mapped[str] = mapped_column(String(255))
+    # The enrolment photo in blob storage, encrypted, kept only when
+    # IDEN_BIOMETRIC_KEEP_IMAGES is on.
+    image_key: Mapped[str | None] = mapped_column(String(64))
 
 
 # --------------------------------------------------------------------------
