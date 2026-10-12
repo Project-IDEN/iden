@@ -1,4 +1,5 @@
-# The IDEN provider, the two stores it needs, and the two browser frontends.
+# The IDEN provider, the stores it needs, and the two browser frontends — plus
+# the biometric engine, which starts only with `--profile biometric`.
 #
 # `docker compose -f deploy/docker-compose.yml up --build` brings up a working
 # deployment: migrations run to completion, then the provider starts.
@@ -16,7 +17,10 @@ name: iden-dev
 
 services:
   postgres:
-    image: pgvector/pgvector:pg18
+    # Bookworm on purpose. Deployments before Phase 5 ran pgvector/pgvector:pg18,
+    # which is bookworm too; moving an existing data volume to a newer glibc
+    # changes how text sorts and quietly invalidates every text index.
+    image: postgres:18-bookworm
     environment:
       POSTGRES_USER: iden
       # Defaulted so `up` with no .env still works on a laptop, and named here so
@@ -152,6 +156,11 @@ services:
       IDEN_DEVELOPER_MAX_CLIENTS: ${IDEN_DEVELOPER_MAX_CLIENTS:-5}
       IDEN_BIOMETRIC_ENABLED: ${IDEN_BIOMETRIC_ENABLED:-false}
       IDEN_ENGINE_BASE_URL: ${IDEN_ENGINE_BASE_URL:-http://engine:8000}
+      # Empty means `engine.token` beside the signing keys, which is /keys above.
+      IDEN_ENGINE_TOKEN_FILE: ${IDEN_ENGINE_TOKEN_FILE:-}
+      IDEN_ENGINE_TIMEOUT: ${IDEN_ENGINE_TIMEOUT:-20}
+      IDEN_BIOMETRIC_KEEP_IMAGES: ${IDEN_BIOMETRIC_KEEP_IMAGES:-false}
+      IDEN_FACE_TICKET_TTL: ${IDEN_FACE_TICKET_TTL:-900}
     volumes: &provider-volumes
       # Written by `uv run python -m scripts.gen_keys`, read-only inside. The
       # whole directory: `totp.key` lives here too, and it is what makes a stolen
@@ -175,6 +184,30 @@ services:
         condition: service_healthy
       seaweedfs:
         condition: service_healthy
+    restart: unless-stopped
+
+  # The biometric engine. Absent unless asked for:
+  #
+  #   docker compose -f deploy/docker-compose.yml --profile biometric up -d
+  #
+  # with IDEN_BIOMETRIC_ENABLED=true in deploy/.env. No published port: only the
+  # provider reaches it, over this network, presenting the token from
+  # provider/keys. Models are fetched once into engine/models — see
+  # doc/operations/biometric-engine.md. On an NVIDIA host, add
+  # deploy/docker-compose.gpu.yml.
+  engine:
+    profiles: ["biometric"]
+    build:
+      context: ../engine
+      target: cpu
+    environment:
+      ENGINE_ENV: ${IDEN_ENV:-dev}
+      ENGINE_TOKEN_FILE: /keys/engine.token
+      ENGINE_MODEL_DIR: /app/models
+      ENGINE_WORKERS: ${IDEN_ENGINE_WORKERS:-1}
+    volumes:
+      - ../provider/keys/engine.token:/keys/engine.token:ro
+      - ../engine/models:/app/models:ro
     restart: unless-stopped
 
   # Static builds. The issuer and branding are written into /config.js at
