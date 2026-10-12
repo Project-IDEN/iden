@@ -24,7 +24,7 @@ docker compose -f deploy/docker-compose.yml up -d postgres redis seaweedfs
 
 | Service | Holds |
 |---|---|
-| **PostgreSQL 18** with pgvector, on 5432 | People, permissions, clients, tokens |
+| **PostgreSQL 18**, on 5432 | People, permissions, clients, tokens |
 | **Redis 8**, on 6379 | Sessions, pending sign-ins, the denylist, rate limits |
 | **SeaweedFS**, on 8333 | Profile photos, over the S3 API. Optional — leave `IDEN_S3_ENDPOINT_URL` empty to skip it |
 

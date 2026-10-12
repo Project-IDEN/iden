@@ -58,7 +58,8 @@ than redirecting somewhere it has not verified.
 | `422` | The request was understood and is not acceptable. |
 | `413` | The request body is larger than the endpoint accepts — `payload_too_large`. |
 | `429` | Rate limited. `Retry-After` says how long. |
-| `503` | PostgreSQL or Redis is unreachable. `Retry-After` says when to try again; the request itself was fine. |
+| `501` | Face sign-in on a deployment without the biometric module. |
+| `503` | PostgreSQL or Redis is unreachable, or — `engine_unavailable` — the biometric engine. `Retry-After` says when to try again; the request itself was fine. |
 
 The `401`/`403` distinction is deliberate everywhere. Collapsing them tells a client to retry a
 sign-in that cannot fix anything.
@@ -83,3 +84,18 @@ Send the person through `/oauth2/authorize` with that `max_age` and retry.
 | `consent_required` | Signed in, has not agreed to these permissions |
 | `account_selection_required` | Needs to pick an account |
 | `interaction_required` | Anything else needing a human |
+
+## Face captures
+
+What the face routes answer, and what a screen should do about each.
+
+| Code | Status | Means |
+|---|---|---|
+| `poor_capture` | 422 | Nothing was decided: the picture was not good enough to judge. `details.reasons` says what to fix — `no_face`, `multiple_faces`, `too_small`, `blurred`, `too_dark`, `too_bright`, `off_angle`. Not a failed attempt. |
+| `face_rejected` | 401 | At sign-in: not live, or not this person. Deliberately not said which. Counts toward a lockout. |
+| `not_live` | 422 | At a kiosk: the capture failed liveness. `details.failed` names the checks. The kiosk is supervised, so it is told. |
+| `invalid_frames` | 422 | The frames do not match the challenge — wrong count, not images, or too large. |
+| `face_challenge_invalid` | 404 | The capture's challenge expired or was used. Fetch a new one. |
+| `enrolment_ticket_invalid` | 404 | The kiosk ticket expired, was used, was replaced, or ran out of attempts. |
+| `face_not_enrolled` | 404 | There is no face on this account to compare against. |
+| `face_enrolment_outdated` | 409 | The face was enrolled under an earlier model. Enrol again, or an administrator re-embeds. |

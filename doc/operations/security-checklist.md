@@ -78,7 +78,9 @@ Honest rather than reassuring. Each is tracked on the [roadmap](../roadmap.md).
 | Gap | Consequence |
 |---|---|
 | **An audit row is written just after the change** | If the database becomes unreachable in between, the change stands and the record is lost. Logged loudly, but lost. |
-| **Biometrics are unbuilt** | The permissions exist; the module does not. `IDEN_BIOMETRIC_ENABLED` should stay `false`. |
+| **Face liveness is not certified** | The anti-spoofing checks are not tested by an accredited lab, and no check on IDEN's side can prove a frame came from a real camera. Faces are a second factor for that reason. See [what it does not stop](../concepts/biometrics.md#what-it-does-not-stop). |
+| **The default face recogniser is for research only** | Its licence forbids commercial use. Replace it in `engine/models.toml` before a deployment that is not research. |
+| **The face threshold ships uncalibrated** | Measure on your own cameras before relying on it — see [Calibrate the threshold](biometric-engine.md#calibrate-the-threshold). |
 | **No transport for outbound mail** | `core/notifier.py` logs instead of sending, and outside development it withholds the message body rather than writing a reset link to the log. Password recovery therefore does not work until a real transport replaces that function; the endpoint still answers `202`, because saying otherwise would tell a caller which addresses exist. |
 | **RP-initiated logout accepts `GET`** | So a third-party page can end someone's IDEN session by loading a URL. The specification requires the `GET` form, and the cost is a sign-out rather than anything an attacker gains; `POST` is what the frontends use. |
 

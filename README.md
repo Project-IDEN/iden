@@ -145,8 +145,8 @@ flowchart TB
 | **provider** | Python 3.14, FastAPI, SQLAlchemy, asyncpg | 8000 | Single FastAPI app hosting four logical modules: AuthZ Server (`/oauth2/*`, `/.well-known/*`), Admin RS (`/admin/*`), Entity RS (`/entity/*`), Biometric RS (`/biometric/*`) |
 | **engine** | Python 3.14, FastAPI, ONNX Runtime | 8000 | Internal, stateless biometric engine — face detection, quality checks, embedding, anti-spoofing. Models are pluggable; it holds no data and has no external access |
 | **dashboard** | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query | 3000 | Single-page app for both admin and end-user activities (bootstrapped OIDC client). Navigation renders from the token's scopes, so one build serves administrators and ordinary users. |
-| **auth-ui** | React 19, TypeScript, Vite, Tailwind CSS | 4000 | Login + consent pages — supports password, TOTP, and **biometric (face)** login paths. Hosted UI invoked by `/authorize`. |
-| **kiosk** | Hardware + Next.js / native | n/a | Biometric kiosk device — uses `client_credentials` to call the Biometric RS |
+| **auth-ui** | React 19, TypeScript, Vite, Tailwind CSS | 4000 | Login + consent pages — password, then a code or a **face** as the second factor. Hosted UI invoked by `/authorize`. |
+| **kiosk** | Hardware + Next.js / native | n/a | Biometric kiosk device — where faces are enrolled. Authenticates with `client_credentials`; the person shows a single-use ticket from the dashboard, which is what names them |
 | **postgres** | PostgreSQL 18 | 5432 | Users, groups, roles, scopes, APIs, clients, tokens, encrypted face templates |
 | **redis** | Redis 8 | 6379 | Sessions, login/consent challenges, token denylist, rate limits |
 | **seaweedfs** | SeaweedFS (S3-compatible) | 8333 | Blob storage — profile photos, and face enrolment images when a deployment chooses to keep them. Keeps large binaries out of Postgres. Any S3 API answers: MinIO, Garage, or AWS S3. |
@@ -429,16 +429,19 @@ reports them to relying parties using the two standard OIDC id-token claims:
   |---|---|
   | `pwd` | Password |
   | `otp` | TOTP (RFC 6238) |
-  | `face` | Facial biometric match (liveness-verified) |
+  | `face` | Facial match, 1:1 and liveness-verified — a second factor only |
   | `mfa` | Present whenever two or more of the above were used |
 
 - **`acr`** (Authentication Context Class Reference) — a single string naming the assurance *level*. IDEN defines its own taxonomy:
 
   | `acr` value | Requires |
   |---|---|
-  | `urn:iden:acr:sfa` | Any single factor — `pwd`, or `face` with liveness |
-  | `urn:iden:acr:mfa` | Two factors — e.g. `pwd + otp`, `pwd + face`, `face + otp` |
-  | `urn:iden:acr:mfa-face` | Strong — `face` (liveness-verified) plus one additional factor |
+  | `urn:iden:acr:sfa` | One factor — `pwd` |
+  | `urn:iden:acr:mfa` | Two factors — `pwd + otp` or `pwd + face` |
+  | `urn:iden:acr:mfa-face` | Two factors, one a liveness-verified `face` — `pwd + face` |
+
+  A face is never accepted on its own: there must be a signed-in session to compare it with, so it
+  always follows a password.
 
 ### How it plays out in the protocol
 
@@ -454,14 +457,15 @@ reports them to relying parties using the two standard OIDC id-token claims:
 
 ### How methods map to the login UI
 
-The Auth UI offers a method picker on the login page. Each choice resolves to a distinct AuthZ
-endpoint that appends its method to the session's `amr` list:
+The Auth UI starts at the password, then offers whatever is still owed — a code, a face, or a choice
+between them. Each resolves to a distinct AuthZ endpoint that appends its method to the session's
+`amr` list:
 
 | Method | Endpoint | Session gets |
 |---|---|---|
 | Password | `POST /api/v1/auth/login` | `amr += ["pwd"]` |
 | TOTP (step-up) | `POST /api/v1/auth/totp` | `amr += ["otp"]` |
-| Biometric (face) | `POST /api/v1/auth/biometric` | `amr += ["face"]` (only if the engine reports a liveness-verified match) |
+| Face (after a password) | `POST /api/v1/auth/biometric` | `amr += ["face"]` (only for a capture that is live — anti-spoofing models, random head movements, random screen colours, one face throughout — and matches) |
 
 `acr` is never stored — it is **derived from `amr` at token-issuance time** using the table above.
 Keeping one source of truth means a step-up midway through a session automatically upgrades the next
@@ -513,9 +517,8 @@ flowchart TB
     end
 
     subgraph BioMod["Biometric RS Module ⟮feature-flagged⟯"]
-      BI1["/biometric/enroll"]
-      BI2["/biometric/verify"]
-      BI3["/biometric/liveness"]
+      BI1["/biometric/enroll · kiosk + ticket"]
+      BI2["/entity/face · status, ticket, remove"]
     end
   end
 
@@ -680,7 +683,7 @@ build plan in [provider/PLAN.md](provider/PLAN.md).
 | **Phase 2** | Provider Admin RS — users, groups, roles, APIs, scopes, clients (the access-control surface) | Done |
 | **Phase 3** | Provider SSO — `prompt`, `max_age`, `sid`, back-channel logout (single sign-*out*) | Done |
 | **Phase 4** | Provider Entity RS — self-service profile, org-defined fields, credentials, TOTP, recovery | Done |
-| **Phase 5** | Biometric module + Engine — enrollment, verification, liveness (feature-flagged) | Next |
+| **Phase 5** | Biometric module + Engine — kiosk enrolment, face as a second factor, liveness (feature-flagged) | Done |
 | **Phase 6** | Hardening — Docker, security headers, error contract, probes, coverage review | Done |
 | **Phase 7** | Frontends — auth-ui and dashboard SPAs | Done |
 | **Phase 8** | Kiosk systems — device registration, `client_credentials` enrollment flow | Planned |
@@ -775,9 +778,13 @@ than the argument for having written the list.
   about themselves that does not change what they are allowed to do; profile fields are defined by
   administrators at runtime, with per-field read/write permissions deciding what self-service means.
   See [provider/PLAN.md — Phase 4](provider/PLAN.md#phase-4--entity-rs-self-service).
-- **Biometric kiosk handoff** — how a kiosk-enrolled person is later prompted (and authenticated) to
-  complete their profile via the Dashboard SPA.
-- **Biometric engine** — model selection, GPU vs CPU deployment, accuracy/latency targets.
+- ~~**Biometric kiosk handoff** — how a kiosk knows whose face it is enrolling.~~ **Settled:** the
+  person signs in to the dashboard and creates a single-use ticket, shown as a QR code; the kiosk's
+  own credential names nobody. See [Faces](doc/concepts/biometrics.md).
+- ~~**Biometric engine** — model selection, GPU vs CPU deployment, accuracy/latency targets.~~
+  **Settled:** open models pinned in `engine/models.toml` (the recogniser's licence is
+  research-only), CUDA when a GPU is present, and a threshold each deployment calibrates on its own
+  cameras. See [The biometric engine](doc/operations/biometric-engine.md).
 - **Multi-valued profile fields** — a person with two phone numbers. Deferred: single-valued covers
   the cases that motivated the feature, and `UNIQUE (user_id, field_id)` is what makes uniqueness
   simple.

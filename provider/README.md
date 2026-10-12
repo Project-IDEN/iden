@@ -45,10 +45,10 @@ same guarantee by validating against the published JWKS.
 
 ## Local Development
 
-Python 3.14+, managed by [uv](https://docs.astral.sh/uv/), plus PostgreSQL with `pgvector` and Redis:
+Python 3.14+, managed by [uv](https://docs.astral.sh/uv/), plus PostgreSQL and Redis:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d    # postgres:18 + pgvector, redis:8
+docker compose -f deploy/docker-compose.yml up -d    # postgres:18, redis:8
 ```
 
 Then, from the repository root:
@@ -59,7 +59,7 @@ uv sync                              # install dependencies into .venv
 cp .env.example .env                 # then fill it in
 
 uv run python -m scripts.gen_keys    # RSA signing keypair for local dev
-uv run alembic upgrade head          # pgvector extension + every table
+uv run alembic upgrade head          # every table
 uv run python -m scripts.seed        # system catalogue, bootstrap admin and clients
 
 uv run provider                      # uvicorn on :8000, reload enabled
@@ -272,8 +272,12 @@ All settings are environment variables prefixed `IDEN_`, loaded by `core/config.
 |---|---|---|
 | `IDEN_BOOTSTRAP_ADMIN_EMAIL` | `admin@localhost` | Seeded administrator. |
 | `IDEN_BOOTSTRAP_ADMIN_PASSWORD` | *(generated)* | Generated and printed once if unset. |
-| `IDEN_BIOMETRIC_ENABLED` | `false` | Mounts `/biometric/*`, seeds the biometric API and scopes, and registers the `face` auth method. |
+| `IDEN_BIOMETRIC_ENABLED` | `false` | Opens `/biometric/*` and `/entity/face*`, seeds the biometric API and face scopes, and registers the `face` auth method. |
 | `IDEN_ENGINE_BASE_URL` | `http://engine:8000` | Internal biometric engine. Only read when biometric is enabled. |
+| `IDEN_ENGINE_TOKEN_FILE` | `<keys>/engine.token` | The secret presented to the engine, written by `scripts.gen_keys`. |
+| `IDEN_ENGINE_TIMEOUT` | `20` | Seconds to wait for the engine. |
+| `IDEN_BIOMETRIC_KEEP_IMAGES` | `false` | Keep enrolment photos, encrypted, so `scripts.reembed_faces` can move faces to a new model. |
+| `IDEN_FACE_TICKET_TTL` | `900` | Seconds a kiosk enrolment ticket stays usable. |
 
 ---
 
@@ -315,9 +319,12 @@ provider/
     │   └── users/ groups/ roles/ apis/ scopes/ clients/ audit/ profile_fields/
     ├── entity/
     │   ├── deps.py             # CurrentUserDep — the subject comes from the token
-    │   └── profile/ credentials/ totp/ sessions/ permissions/ connections/
-    └── biometric/              # Phase 5 — not built yet
-        └── enroll/ verify/ liveness/ · engine_client.py
+    │   └── profile/ credentials/ totp/ face/ sessions/ permissions/ connections/
+    └── biometric/              # kiosk enrolment API, and what face sign-in uses
+        ├── engine_client.py    # the engine's wire format
+        ├── challenges.py       # random movements + colours, one capture each
+        ├── tickets.py          # how a kiosk learns whose face it is
+        └── service.py          # enrol · verify · remove; encrypted embeddings
 ```
 
 ### The feature-package rule
@@ -535,14 +542,13 @@ Seeded by `scripts/seed.py` from `shared/scopes.py`, all flagged `is_system`.
 | `entity:sessions:read` / `entity:sessions:revoke` | List / revoke my active sessions |
 | `entity:connections:read` / `entity:connections:revoke` | See / withdraw the applications I have granted access to |
 | `entity:permissions:read` | See my own roles, groups, and effective scopes |
+| `entity:face:read` / `entity:face:write` | See my face enrolment / create a kiosk ticket, remove my face — only with `IDEN_BIOMETRIC_ENABLED` |
 
 **API `biometric`** — audience `{IDEN_ISSUER}/biometric`, seeded only when `IDEN_BIOMETRIC_ENABLED`
 
 | Scope | Allows |
 |---|---|
-| `biometric:enroll` | Enrol a face template |
-| `biometric:verify` | 1:1 verification against a claimed identity |
-| `biometric:liveness` | Liveness check only |
+| `biometric:enroll` | The kiosk's: enrol a face, given the ticket its owner created |
 
 **Seeded roles:** `administrator` (all `admin:*` and `entity:*`) and `member` (all `entity:*`).
 
@@ -885,13 +891,18 @@ Sensitive routes are additionally gated by `require_fresh_auth(max_age=300)`: a 
 not enough to change a password or remove a second factor, because an attacker holding a stolen
 token would otherwise take over the account outright. They must pass a login they cannot complete.
 
-### Biometric RS — mounted only when `IDEN_BIOMETRIC_ENABLED=true`
+### Biometric — 404 unless `IDEN_BIOMETRIC_ENABLED=true`
 
 | Method | Path | Scope | Phase |
 |---|---|---|---|
-| `POST` | `/biometric/enroll` | `biometric:enroll` | 5 |
-| `POST` | `/biometric/verify` | `biometric:verify` | 5 |
-| `POST` | `/biometric/liveness` | `biometric:liveness` | 5 |
+| `POST` | `/biometric/enroll/challenge` | `biometric:enroll` + ticket | 5 |
+| `POST` | `/biometric/enroll` | `biometric:enroll` + ticket | 5 |
+| `GET` | `/entity/face` | `entity:face:read` | 5 |
+| `POST` | `/entity/face/ticket` | `entity:face:write` + fresh auth | 5 |
+| `DELETE` | `/entity/face` | `entity:face:write` + fresh auth | 5 |
+| `DELETE` | `/admin/users/{id}/face` | `admin:users:write` | 5 |
+| `POST` | `/api/v1/auth/biometric/challenge` | session (after a password) | 5 |
+| `POST` | `/api/v1/auth/biometric` | session (after a password) | 5 |
 
 ---
 

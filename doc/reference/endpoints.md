@@ -3,7 +3,7 @@
 Generated from the running application. The interactive version, with request and response bodies,
 is at `/docs` on any deployment — it is the same data, and it is always current.
 
-Every `/admin/*`, `/entity/*` and `/developer/*` route is gated by a permission named in its description there.
+Every `/admin/*`, `/entity/*`, `/developer/*` and `/biometric/*` route is gated by a permission named in its description there. The face routes exist only with `IDEN_BIOMETRIC_ENABLED`.
 
 ### Admin — apis
 
@@ -95,6 +95,14 @@ Every `/admin/*`, `/entity/*` and `/developer/*` route is gated by a permission 
 | `PUT` | `/admin/users/{user_id}/roles` | Set a user's roles |
 | `PUT` | `/admin/users/{user_id}/scopes` | Set a user's direct scope grants |
 | `DELETE` | `/admin/users/{user_id}/totp` | Clear a user's authenticator |
+| `DELETE` | `/admin/users/{user_id}/face` | Remove a user's enrolled face |
+
+### Biometric — kiosk
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/biometric/enroll/challenge` | Start a face capture for the person holding a ticket |
+| `POST` | `/biometric/enroll` | Enrol the face in a capture |
 
 ### Developer — clients
 
@@ -115,6 +123,7 @@ only the applications they registered.
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/api/v1/auth/biometric` | Sign in with a face |
+| `POST` | `/api/v1/auth/biometric/challenge` | Start a face check |
 | `GET` | `/api/v1/auth/challenge/{challenge_id}` | Read a pending login or consent challenge |
 | `POST` | `/api/v1/auth/consent` | Approve or deny a consent request |
 | `POST` | `/api/v1/auth/login` | Sign in with a password |
@@ -134,6 +143,14 @@ only the applications they registered.
 | Method | Path | Purpose |
 |---|---|---|
 | `POST` | `/entity/credentials/password` | Change your password |
+
+### Entity — face
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/entity/face` | Is a face enrolled? |
+| `DELETE` | `/entity/face` | Remove your face |
+| `POST` | `/entity/face/ticket` | Let a kiosk enrol your face |
 
 ### Entity — permissions
 

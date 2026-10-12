@@ -5,9 +5,10 @@
 | Component | Why |
 |---|---|
 | **provider** | The application. One process, one port, all modules. |
-| **PostgreSQL 18** | The initial migration still creates the `pgvector` extension, so use an image that ships it. Biometrics compare faces 1:1 and no longer need it; it is due to be dropped in Phase 5. |
+| **PostgreSQL 18** | Any build; no extensions. Moving an existing data volume to another image? Keep the same glibc — see the note in `deploy/docker-compose.yml`. |
 | **Redis 8** | Sessions, pending sign-ins, the denylist, rate limits. |
-| **An S3-compatible store** | Profile photos, and the biometric module's images later. Optional: leave `IDEN_S3_ENDPOINT_URL` empty and photos are unavailable, nothing else changes. |
+| **An S3-compatible store** | Profile photos, and face enrolment photos when they are kept. Optional: leave `IDEN_S3_ENDPOINT_URL` empty and photos are unavailable, nothing else changes. |
+| **The biometric engine** | Only with `IDEN_BIOMETRIC_ENABLED`. Internal, stateless, best on an NVIDIA GPU — see [The biometric engine](biometric-engine.md). |
 | **A reverse proxy** | Puts all three applications on one origin, limits floods, and tells the provider who the caller is. |
 
 `provider/Dockerfile` and `deploy/docker-compose.yml` build and wire the first four;
@@ -32,7 +33,9 @@ speaks the S3 API and nothing else, so MinIO, Garage, or AWS S3 need only differ
 `IDEN_S3_ENDPOINT_URL` and the two credentials.
 
 The provider is a single deployable. The admin, entity, and biometric modules are logical
-boundaries, not separate services — one image, one port, one thing to run.
+boundaries, not separate services — one image, one port, one thing to run. The engine is the one
+exception: it is where faces are analysed, it needs a GPU to be fast, and it is never reachable from
+outside.
 
 ## Order of operations
 

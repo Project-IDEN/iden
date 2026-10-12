@@ -62,13 +62,20 @@ scope, so putting them there would make every account a developer.
 
 ## Biometrics
 
-Seeded only when `IDEN_BIOMETRIC_ENABLED=true`. The module itself is not built yet.
+Seeded only when `IDEN_BIOMETRIC_ENABLED=true`. See [Faces](../concepts/biometrics.md).
+
+Two more `entity:` scopes, which `member` and `administrator` receive with the rest:
 
 | Scope | Grants |
 |---|---|
-| `biometric:enroll` | Enrol a face template. |
-| `biometric:verify` | Verify a face against a claimed identity. |
-| `biometric:liveness` | Check whether a captured face is live. |
+| `entity:face:read` | See whether your face is enrolled. |
+| `entity:face:write` | Let a kiosk enrol your face, or remove your face. |
+
+And the kiosk's own, under the `biometric` API:
+
+| Scope | Grants |
+|---|---|
+| `biometric:enroll` | Enrol a person's face, given the ticket they created. Worth nothing without one: the ticket is what names the person. |
 
 ## The OIDC scopes
 

@@ -13,7 +13,7 @@ the summary.
 | 2 | Admin — users, groups, roles, APIs, scopes, clients | :material-check-circle-outline: Done |
 | 3 | SSO — `prompt`, `max_age`, `sid`, single sign-out | :material-check-circle-outline: Done |
 | 4 | Self-service — profile, org-defined fields, credentials, TOTP, recovery | :material-check-circle-outline: Done |
-| 5 | Biometrics — 1:1 face verification, liveness, anti-spoofing | :material-circle-outline: Next |
+| 5 | Biometrics — kiosk enrolment, face as a second factor, liveness | :material-check-circle-outline: Done |
 | 6 | Hardening — Docker, security headers, error contract, probes, coverage review | :material-check-circle-outline: Done |
 | 7 | Frontends — the sign-in UI and the dashboard | :material-check-circle-outline: Done |
 | 8 | Kiosk — device registration and enrollment | :material-circle-outline: Planned |
@@ -29,10 +29,11 @@ Migrations, the audit log, and rate limiting were all pulled forward out of Phas
 scheduled late and each got more expensive with every phase that passed — history not written is
 lost, and an unmigrated schema needs manual surgery.
 
-Phase 5 was held back while Phase 7 went ahead: the biometric module is the only part with an
-external dependency, and everything it plugs into already exists, whereas a provider nobody can sign
-into is hard to evaluate. With the frontends done, it is next. Faces are compared **1:1 only** — against
-the person who claimed an identity, never searched across everyone enrolled.
+Phase 5 was held back while Phase 7 went ahead — the biometric module is the only part with an
+external dependency — and is now done: faces enrolled at a kiosk with a ticket the person creates,
+compared **1:1 only**, and offered as a second factor after a password. The kiosk app that captures
+them is Phase 8; until then `kiosk/scripts/enrol_from_files.py` stands in. Before relying on faces,
+read [what the liveness checks do not stop](concepts/biometrics.md#what-it-does-not-stop).
 
 ## Open issues
 

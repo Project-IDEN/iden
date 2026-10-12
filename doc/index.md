@@ -17,7 +17,7 @@ any change.
 
 | | |
 |---|---|
-| **You own the data** | Password hashes, audit trails, and — later — face embeddings never leave infrastructure you control. |
+| **You own the data** | Password hashes, audit trails, and face embeddings never leave infrastructure you control. |
 | **Your staff are the administrators** | The `admin:*` permissions are unrestricted. There is no higher authority. |
 | **No tenant column, anywhere** | Every query is simpler for it, and there is no class of bug where one organization sees another's data, because there is no other organization. |
 
@@ -53,7 +53,7 @@ The trade is that IDEN cannot host two organizations. If you need that, run two 
 
 | Capability | Where it stands |
 |---|---|
-| **Sign-in** | Password, and TOTP as a second factor. Face recognition is designed for and not yet built. |
+| **Sign-in** | Password, with an authenticator app or a face as a second factor. Faces are enrolled at a kiosk and checked for liveness. |
 | **OAuth flows** | Authorization code with PKCE, and client credentials. Nothing else — see [Tokens](concepts/tokens.md#why-only-two-flows). |
 | **Single sign-on** | One session across every application, with silent checks, forced re-authentication, and freshness requirements. |
 | **Single sign-out** | Ending a session ends it everywhere, via back-channel logout. |

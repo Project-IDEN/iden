@@ -12,7 +12,7 @@ The methods used, as a list. IDEN emits:
 |---|---|
 | `pwd` | A password |
 | `otp` | A time-based code from an authenticator app |
-| `face` | Facial recognition — designed for, not yet built |
+| `face` | A face, matched 1:1 and liveness-checked — see [Faces](biometrics.md) |
 | `mfa` | Added automatically when two or more distinct factors were used |
 
 ## `acr` — how strong that adds up to
@@ -37,6 +37,10 @@ client requested.
 This is what enrolling means. A second factor that applied only when an application asked for it
 would protect nobody — whoever holds the password would simply use an application that does not ask,
 and every deployment has one.
+
+Any second factor answers it. Someone with an authenticator **and** an enrolled face is offered
+either, and the face satisfies the rule as well as a code does. An enrolled face alone does not
+create the rule: someone at a laptop without a camera must still be able to sign in.
 
 Two details follow from it:
 
@@ -72,8 +76,10 @@ for exactly this case. The alternative — a code form they have no authenticato
 leave them stuck on a page with no way off it. What to do instead is your application's decision:
 explain what is needed, or send them to set up an authenticator.
 
-Discovery lists only the levels a registered method can reach, so `acr_values_supported` does not
-include `urn:iden:acr:mfa-face` until something registers a face.
+Discovery lists only the levels a registered method can reach, so `acr_values_supported` includes
+`urn:iden:acr:mfa-face` only when the biometric module is on. A request for it is offered only the
+face step — a code does nothing towards that level — and someone with no face enrolled gets
+`unmet_authentication_requirements`.
 
 ## Demanding freshness: `max_age`
 

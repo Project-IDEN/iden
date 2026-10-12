@@ -7,6 +7,8 @@ Running IDEN somewhere real.
   signed-in administrator, with nginx in front, no inbound port, and one origin.
 - **[Backup and restore](backup-and-restore.md)** — what to keep, how to put it back, and how to
   prove the backup works before you need it.
+- **[The biometric engine](biometric-engine.md)** — turning faces on, running the engine on a GPU,
+  and calibrating it on your own cameras.
 - **[Before you expose it](security-checklist.md)** — what must be true before anyone outside your
   machine can reach it.
 

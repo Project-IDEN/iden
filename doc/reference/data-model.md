@@ -22,6 +22,7 @@ job rather than a cleanup job's.
 | `refresh_tokens` | Rotating, with lineage for reuse detection. |
 | `consent_grants` | What each person agreed to give each application. |
 | `totp_credentials` | Authenticator secrets. Unconfirmed until a code is verified. |
+| `face_templates` | Enrolled faces, a few samples each: encrypted embeddings, never photos. Stamped with the model that made them. |
 | `profile_fields`, `user_profile_values` | The organization's own schema, and the answers. |
 | `audit_events` | Append-only. |
 
@@ -35,6 +36,7 @@ job rather than a cleanup job's.
 | `sid` is a hash of the session id | The id itself is the cookie. Publishing it would let any application become the user. |
 | `AuthorizationCode.authenticated_at` is the *session's*, not the code's | `auth_time` is what `max_age` is measured against. Taking it from the code would make every SSO session look freshly authenticated. |
 | A profile value copies its field's `unique` flag | An index predicate cannot reach into another table, so the partial unique index needs the flag on the row it indexes. |
+| Face embeddings are encrypted and bound to their owner | A database dump yields no biometric data, and a row copied onto another account does not decrypt. |
 | `AuditEvent.actor_user_id` is nulled on delete, not cascaded | Deleting a user must not erase what they did. Their email is copied onto the row for the same reason. |
 | Groups do not nest | Recursive resolution is hard to explain, hard to audit, and hard to make fast. Flat membership covers the real cases. |
 | No `tenant_id` on any table | IDEN is single-organization by design. |
@@ -49,4 +51,6 @@ job rather than a cleanup job's.
 | `denylist:{jti}` | Until the access token would have expired |
 | `refresh_replay:{hash}` | 30 seconds — see [refresh rotation](../concepts/tokens.md#the-honest-double-use-problem) |
 | `password_reset:{hash}` | 15 minutes, single use |
+| `face-ticket:{hash}` | 15 minutes — lets a kiosk enrol one person's face, until used |
+| `face-challenge:{hash}` | 2 minutes, single use — the movements and colours asked of one capture |
 | `ratelimit:{bucket}:{identity}` | The window |

@@ -14,10 +14,12 @@ Read them in order the first time.
    application, and how signing out reaches all of them.
 4. **[Assurance and step-up](assurance.md)** — how strongly someone proved who they are, and how an
    application demands more.
-5. **[Consent](consent.md)** — what an application is allowed to ask for on someone's behalf.
-6. **[Profile fields](profile-fields.md)** — how an organization defines what it collects about
+5. **[Faces](biometrics.md)** — a face as a second factor: enrolled at a kiosk, checked for
+   liveness, compared one to one.
+6. **[Consent](consent.md)** — what an application is allowed to ask for on someone's behalf.
+7. **[Profile fields](profile-fields.md)** — how an organization defines what it collects about
    people.
-7. **[The audit log](audit.md)** — what is recorded, and what that record is for.
+8. **[The audit log](audit.md)** — what is recorded, and what that record is for.
 
 ## The shortest possible summary
 

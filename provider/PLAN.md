@@ -141,9 +141,9 @@ provider/
     │   ├── deps.py                 # CurrentUserDep — subject from the token
     │   ├── profile/  credentials/  totp/  sessions/  permissions/
     │   └── connections/
-    └── biometric/                  # Phase 5, not built yet
-        ├── enroll/  verify/  liveness/  search/
-        └── engine_client.py
+    └── biometric/                  # Phase 5: kiosk API, challenges, tickets
+        ├── engine_client.py  challenges.py  tickets.py
+        └── service.py  routes.py
 ```
 
 Each leaf directory under `admin/`, `entity/`, and `biometric/` is a feature package with the four
@@ -271,7 +271,7 @@ A plain declarative structure — no logic — listing the APIs, scopes, and rol
 |---|---|---|
 | `admin` | `{issuer}/admin` | `admin:users:read/write`, `admin:groups:read/write`, `admin:roles:read/write`, `admin:apis:read/write`, `admin:scopes:read/write`, `admin:clients:read/write` |
 | `entity` | `{issuer}/entity` | `entity:profile:read/write`, `entity:credentials:write`, `entity:totp:read/enroll`, `entity:sessions:read/revoke`, `entity:permissions:read` |
-| `biometric` | `{issuer}/biometric` | `biometric:enroll`, `biometric:verify`, `biometric:liveness` |
+| `biometric` | `{issuer}/biometric` | `biometric:enroll` |
 
 Seeded roles: **`administrator`** (every `admin:*` and `entity:*` scope) and **`member`** (every
 `entity:*` scope). Both `is_system`.
@@ -842,44 +842,60 @@ tests for the schema endpoint, the writability rejection, claim release, and fre
 
 ## Phase 5 — Biometric module
 
-**Goal:** facial enrollment and verification, shipped in-repo but **inert unless enabled**. The work
-is deferred; the seams are not — they were built in Phases 0, 1, and 3.
+**Goal:** a face as a second factor, enrolled at a kiosk, shipped in-repo but **inert unless
+enabled**.
 
-### What makes this additive rather than invasive
+**Status: done.** The engine (`engine/`), the provider module (`biometric/`, `entity/face/`, the face
+step in `authz/login/`), the auth-ui face step and the dashboard's kiosk tickets shipped;
+`tests/test_biometric.py` pins the provider side with a fake engine, `engine/tests/` the engine
+against the real models. The kiosk app that captures faces is Phase 8. What a face is for, and what
+it does not protect against, is [doc/concepts/biometrics.md](../doc/concepts/biometrics.md).
+
+### What made this additive rather than invasive
 
 | Seam | Built in | Used here |
 |---|---|---|
-| `iden_biometric_enabled` flag | Phase 0 | `core/app.py` mounts `biometric/` routes and seeds the `biometric` API + scopes only when true |
-| `auth_methods.py` registry | Phase 1 | Registers a `face` method; nothing in the AuthZ core changes |
-| `amr` / `acr` tables | Phase 1 | `face` and `urn:iden:acr:mfa-face` are already defined; discovery advertises `mfa-face` once `face` registers |
-| `POST /api/v1/auth/biometric` stub | Phase 1 | The `501` stub becomes a real handler; the Auth UI contract never changed |
-| `client_credentials` grant | Phase 1 | Kiosks authenticate as machine clients — no user impersonation |
+| `iden_biometric_enabled` flag | Phase 0 | Read per request: the routes are mounted always, answer 404 while it is off, and are left out of `/docs`. The biometric API and face scopes are seeded only when it is on |
+| `auth_methods.py` registry | Phase 1 | Registers `face`, enabled by the flag; discovery then advertises `urn:iden:acr:mfa-face` |
+| `POST /api/v1/auth/biometric` stub | Phase 1 | The `501` stub became the handler; it still answers `501` with the flag off |
+| `client_credentials` grant | Phase 1 | The kiosk authenticates as itself |
 
-### Work
+### Decisions
 
-**1:1 only.** Every comparison is against the templates of one person who has already claimed an
-identity — by email at sign-in, by card or QR code at a kiosk. There is no 1:N "who is this?" search:
-an identity provider never needs one, its false-match rate grows with every enrolment, it forces
-templates to sit unencrypted where a vector index can read them, and it is the kind of biometric
-*identification* regulators treat most strictly. pgvector is therefore not needed; templates are
-encrypted at rest with the same key as TOTP secrets and compared in the engine.
+- **1:1 only.** Every comparison is against the face on the account that already signed in with a
+  password. No 1:N search: an identity provider never asks *who is this?*, a search's false-match
+  rate grows with every enrolment, its templates would have to sit unencrypted where an index can
+  read them, and it is the biometric processing regulators treat most strictly. So no pgvector:
+  the migration drops it, and embeddings are encrypted with the TOTP key and bound to their owner.
+- **A second factor only.** The face endpoints need a session the password step created. A face is
+  never a way in on its own.
+- **Enrolment only at a kiosk, named by a ticket.** The kiosk's credential (`biometric:enroll`)
+  names nobody. The person creates a single-use ticket in the dashboard after a fresh sign-in and
+  shows it as a QR code; that is what says whose face it is. A stolen kiosk secret enrols no one.
+  The person is emailed when a face is enrolled.
+- **Liveness is four checks, each against a different attack.** Anti-spoofing models (prints,
+  screens), two random head movements (photos, earlier recordings), four random screen colours the
+  face must reflect (replays), one face throughout (swaps). The movements and colours are a
+  single-use challenge per capture.
+- **An enrolled face alone owes nothing.** An authenticator makes a second factor owed at every
+  sign-in; a face answers that as well as a code, but does not create it — no camera must not mean
+  no way in. A client asking for `mfa-face` is offered only the face.
+- **The engine is stateless and holds the face maths.** The provider sends frames and, to verify,
+  the decrypted templates; thresholds live beside each model in `engine/models.toml`, with a
+  `version` stamped on every template so a model change never compares across models.
+- **Photos kept only on request** (`IDEN_BIOMETRIC_KEEP_IMAGES`), encrypted, so
+  `scripts.reembed_faces` can move faces to a new model.
+- **Open research weights by default**, pinned by checksum; the recogniser's licence is
+  non-commercial and the docs say so. CUDA when a GPU is present.
 
-- `biometric/engine_client.py` — an async HTTP client for the internal `engine:8000`, with timeouts
-  and a typed response model. The engine is stateless — no database, no blob store — and is the only
-  component that ever sees a raw image.
-- `biometric/enroll/` — `POST /biometric/enroll` (`biometric:enroll`): images → engine → embeddings,
-  encrypted and stored per user. Whether the enrolment images are kept is a setting.
-- `biometric/verify/` — `POST /biometric/verify` (`biometric:verify`): 1:1 match against a claimed
-  identity, returns match + liveness + confidence.
-- `biometric/liveness/` — `POST /biometric/liveness` (`biometric:liveness`): liveness only.
-- Login path: `POST /api/v1/auth/biometric` appends `face` to the session `amr` **only** when the
-  engine reports a liveness-verified match. A match without liveness is not an authentication.
+### Open
 
-### Done when
-
-With the flag off, the app starts, `/docs` shows no `/biometric/*` routes, and the biometric scopes
-are absent — proving the module carries no cost when disabled. With the flag on and an engine
-running, a user can enrol a face and then log in with `amr: ["face"]`.
+- **The threshold ships uncalibrated.** `engine/eval` measures it on a deployment's own cameras;
+  nobody has run it on the production hardware yet.
+- **The GPU image is unexercised.** It is written for CUDA 13 / cuDNN 9 and has not yet been built
+  or run on an NVIDIA host; the CPU image has.
+- **No certified anti-spoofing.** The checks are not tested against ISO/IEC 30107-3 or CEN/TS 18099,
+  and nothing server-side can prove a frame came from a real camera.
 
 ---
 
