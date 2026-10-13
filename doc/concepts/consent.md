@@ -12,7 +12,7 @@ IDEN asks the first time an application requests permissions the person has not 
 give it, and records the answer so they are not asked again.
 
 Applications marked `skipConsent` never ask. That flag is for **first-party** applications — your own
-dashboard, your own kiosk. Asking your own staff to consent to your own dashboard is noise that
+dashboard, your own intranet. Asking your own staff to consent to your own dashboard is noise that
 teaches people to click through prompts without reading them, which is the exact habit consent
 screens depend on not existing.
 

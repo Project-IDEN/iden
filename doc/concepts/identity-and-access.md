@@ -98,8 +98,8 @@ mean an application asking for one optional extra permission locks out everyone 
 
 ## System permissions are protected
 
-IDEN's own permissions — everything under `admin:` and `entity:` — are marked as system-defined and
-cannot be renamed or deleted through the API.
+IDEN's own permissions — everything under `admin:`, `entity:` and `developer:`, and `biometric:`
+when faces are on — are marked as system-defined and cannot be renamed or deleted through the API.
 
 Without that guard, an administrator could delete `admin:roles:write` and lock the organization out
 of its own deployment permanently, with no way back in short of editing the database by hand.

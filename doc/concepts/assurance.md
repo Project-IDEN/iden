@@ -91,9 +91,13 @@ the last five minutes.
 
 ## Freshness inside IDEN
 
-IDEN applies this to itself. Changing a password, changing an email address, removing an
-authenticator, and signing out another session all require a sign-in within the last five minutes —
-not merely a valid token.
+IDEN applies this to itself. A sign-in within the last five minutes — not merely a valid token — is
+required to:
+
+- change a password;
+- set up or remove an authenticator;
+- sign out one of your sessions;
+- let a kiosk enrol your face, or remove the face on file.
 
 The reasoning: someone holding a stolen access token can read a profile, and that is bad. Without
 this rule they could also change the password and remove the second factor, and that is

@@ -9,14 +9,17 @@ writes to it: the request being recorded is its only author.
 
 ## What counts as state-changing
 
-Any non-`GET` request to `/admin/*`, `/entity/*`, `/api/v1/auth/*`, or `/oauth2/revoke` — plus
-`GET /oauth2/logout`, which is a `GET` by specification and still destroys a session.
+Any non-`GET` request to `/admin/*`, `/entity/*`, `/developer/*`, `/biometric/*`, `/api/v1/auth/*`,
+or `/oauth2/revoke` — plus `GET /oauth2/logout`, which is a `GET` by specification and still destroys
+a session.
 
 Reads are not recorded. An audit log nobody can read through is one nobody reads, and `GET` volume
 would bury the writes.
 
-`POST /oauth2/token` is deliberately excluded: a refresh happens every few minutes for every active
-session, and the sign-in that authorised it is already in the log.
+Two writes are deliberately excluded because they are routine. `POST /oauth2/token`: a refresh
+happens every few minutes for every active session, and the sign-in that authorised it is already in
+the log. And a kiosk's heartbeat, sent every minute; its last report is on the kiosk's page in the
+dashboard.
 
 ## What a row holds
 
@@ -36,7 +39,7 @@ and their email is copied onto each row at the time it is written. After the acc
 label is all that is left of who this was — and it is enough.
 
 **Secrets never reach a row.** Keys named `password`, `clientSecret`, `token`, `code`,
-`codeVerifier` and their relatives are replaced before the row is built, compared with punctuation
+`codeVerifier`, a face enrolment `ticket`, and their relatives are replaced before the row is built, compared with punctuation
 stripped so `client_secret` and `clientSecret` are the same key.
 
 ## Reading it
