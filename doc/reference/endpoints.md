@@ -1,7 +1,8 @@
 # Endpoints
 
 Generated from the running application. The interactive version, with request and response bodies,
-is at `/docs` on any deployment — it is the same data, and it is always current.
+is at `/docs` on any deployment running with `IDEN_ENV=dev` — it is the same data, and it is always
+current. Production withholds it.
 
 Every `/admin/*`, `/entity/*`, `/developer/*` and `/biometric/*` route is gated by a permission named in its description there. The face routes exist only with `IDEN_BIOMETRIC_ENABLED`.
 

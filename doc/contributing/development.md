@@ -43,7 +43,7 @@ It checks **staged content only** — unstaged work is stashed first — so what
 being committed. A hook that rewrites a file fails the commit: stage the result and commit again.
 
 `pytest` is deliberately **not** in the hook. It needs PostgreSQL and Redis running and takes about
-twenty seconds; a gate that fails because Docker is down teaches people to reach for `--no-verify`,
+a minute; a gate that fails because Docker is down teaches people to reach for `--no-verify`,
 and a hook everyone bypasses is worse than no hook.
 
 The other packages have their own checks, run from their own directories:
@@ -53,6 +53,7 @@ The other packages have their own checks, run from their own directories:
 | `engine/`, `kiosk/server/` | The same four. Their format, lint and type checks are in the hook too, each scoped to its own files. The engine's model-dependent tests skip until `uv run python -m scripts.fetch_models` has run. |
 | `web/` | `pnpm typecheck && pnpm lint && pnpm build` — see [Develop the frontends](../guides/run-the-frontends.md). |
 | `kiosk/client/` | The same three, in its own pnpm project. |
+| `kiosk/build.sh`, `kiosk/deploy/` | ShellCheck, from `kiosk/`: `docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:v0.10.0 build.sh deploy/*.sh deploy/iden-kiosk`. |
 
 ## Two disabled lint rules
 

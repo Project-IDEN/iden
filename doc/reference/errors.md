@@ -55,11 +55,11 @@ than redirecting somewhere it has not verified.
 | `403` | *Authenticating will not help* — a valid token without the permission. Also freshness refusals, the delegation refusals `cannot_delegate` and `cannot_administer`, and a client change by anyone short of a full administrator. |
 | `404` | No such thing. |
 | `409` | Conflicts with what exists — a name taken, or a system row that cannot be changed. |
-| `422` | The request was understood and is not acceptable. |
 | `413` | The request body is larger than the endpoint accepts — `payload_too_large`. |
+| `422` | The request was understood and is not acceptable. |
 | `429` | Rate limited. `Retry-After` says how long. |
 | `501` | Face sign-in on a deployment without the biometric module. |
-| `503` | PostgreSQL or Redis is unreachable, or — `engine_unavailable` — the biometric engine. `Retry-After` says when to try again; the request itself was fine. |
+| `503` | The request itself was fine, and something it needs is not there. PostgreSQL or Redis is unreachable — then `Retry-After` says when to try again. Or the deployment cannot reach, or does not have, what this feature needs: the biometric engine (`engine_unavailable`), or file storage for photos and logos. |
 
 The `401`/`403` distinction is deliberate everywhere. Collapsing them tells a client to retry a
 sign-in that cannot fix anything.

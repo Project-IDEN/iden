@@ -37,9 +37,9 @@ Work through this before anyone outside your own machine can reach the deploymen
       `deploy/docker-compose.yml`. Redis matters as much as PostgreSQL here and is easy to
       overlook: a session id *is* the cookie, so read access to Redis is read access to every
       signed-in account. The tunnel overlay will not start while one is empty, and the provider
-      will not start in `prod` on a published one — but a value you generated is what protects you. Set them before the first `up` — PostgreSQL and the blob store keep
-      whatever credential they were initialised with, so changing the value later does not re-key
-      an existing volume.
+      will not start in `prod` on a published one — but a value you generated is what protects
+      you. Set them before the first `up`: PostgreSQL and the blob store keep whatever credential
+      they were initialised with, so changing the value later does not re-key an existing volume.
 - [ ] **The proxy does not strip or rewrite IDEN's response headers.** The application sets
       `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy`, and — when
       `IDEN_ENV=prod` — `Strict-Transport-Security`. A proxy that adds its own copy of any of these
@@ -71,6 +71,15 @@ Work through this before anyone outside your own machine can reach the deploymen
       callbacks only when `IDEN_ENV=dev`. It is a first-party client that skips consent and may
       request every admin scope, so anything left over from testing is worth removing.
 
+## With faces on
+
+- [ ] **The engine is reachable only by the provider** — on the provider's Docker network, or on a
+      private address. See [The biometric engine](biometric-engine.md).
+- [ ] **Each kiosk's camera is tuned** in the light it stands in, and someone has enrolled at it end
+      to end. See [Tuning the kiosk camera](kiosk-camera.md).
+- [ ] **Every kiosk in the dashboard is one you can point to.** Revoke any that was lost or replaced,
+      and take out of service any that stands unattended outside opening hours.
+
 ## Known gaps
 
 Honest rather than reassuring. Each is tracked on the [roadmap](../roadmap.md).
@@ -82,7 +91,7 @@ Honest rather than reassuring. Each is tracked on the [roadmap](../roadmap.md).
 | **The default face recogniser is for research only** | Its licence forbids commercial use. Replace it in `engine/models.toml` before a deployment that is not research. |
 | **An engine on another machine is reached over plain HTTP** | Faces cross the network between the two unencrypted, and the engine's port answers whatever can reach it — refusing any caller without the engine token. Keep both machines on a network you trust and let only the provider's reach that port. See [On another machine](biometric-engine.md#on-another-machine). |
 | **The face threshold ships uncalibrated** | Measure on your own cameras before relying on it — see [Calibrate the threshold](biometric-engine.md#calibrate-the-threshold). |
-| **No transport for outbound mail** | `core/notifier.py` logs instead of sending, and outside development it withholds the message body rather than writing a reset link to the log. Password recovery therefore does not work until a real transport replaces that function; the endpoint still answers `202`, because saying otherwise would tell a caller which addresses exist. |
+| **No transport for outbound mail** | `core/notifier.py` logs instead of sending, and outside development it withholds the message body rather than writing a reset link to the log. Password recovery therefore does not work until a real transport replaces that function; the endpoint still answers `202`, because saying otherwise would tell a caller which addresses exist. Nor is the email a person gets when a face is enrolled on their account delivered, though the kiosk tells them to expect it. |
 | **RP-initiated logout accepts `GET`** | So a third-party page can end someone's IDEN session by loading a URL. The specification requires the `GET` form, and the cost is a sign-out rather than anything an attacker gains; `POST` is what the frontends use. |
 
 ## Not gaps, though they look like it

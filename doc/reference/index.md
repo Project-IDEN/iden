@@ -10,6 +10,6 @@ Lookup material. Nothing here explains *why* — that is [Concepts](../concepts/
 - **[Errors](errors.md)** — the error shapes and what each status means.
 
 !!! tip "The live version is better"
-    Any running deployment serves interactive API documentation at `/docs`, generated from the same
-    code. It has request and response bodies, required permissions, and a working "try it" button.
+    A deployment running with `IDEN_ENV=dev` — a laptop, or the provider from source — serves
+    interactive API documentation at `/docs`, generated from the same code. Production withholds it. It has request and response bodies, required permissions, and a working "try it" button.
     Use it when you are actually integrating; use these pages when you are reading.

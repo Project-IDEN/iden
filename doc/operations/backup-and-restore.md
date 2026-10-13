@@ -11,9 +11,10 @@ matters — a backup nobody has restored is a hope, not a backup.
 | **PostgreSQL** | **Yes.** This is the deployment. | People, permissions, clients, roles, and the audit log are gone. Unrecoverable. |
 | **Signing keys** (`provider/keys/*.pem`) | **Yes**, separately, with different access. | Every token in circulation becomes unverifiable. Recoverable — generate a new key and everyone signs in again — but noisy. |
 | **Secret key** (`provider/keys/totp.key`) | **Yes**, with the signing keys. | Every enrolled authenticator stops verifying, and those people cannot sign in: they owe a second factor nobody can check. Recovering means an administrator clearing each enrolment so they can set one up again. Enrolled faces stop decrypting too, and everyone enrols again at a kiosk. |
-| **Engine token** (`provider/keys/engine.token`) | No. | Write a new one with `scripts.gen_keys` and restart the provider and the engine. |
+| **Engine token** (`provider/keys/engine.token`) | No. | [Generate a new one](biometric-engine.md#on-the-providers-host) and restart the provider and the engine. |
 | **Engine models** (`engine/models`) | No. | Fetch them again; they are checked against `engine/models.toml`. |
-| **Object store** (profile photos) | Optional. | Photos 404 and people re-upload them. `pictureUrl` still points at the missing object, so the row is stale rather than broken. |
+| **Object store** (profile photos, application logos, kept face photos) | Optional. | Photos and logos 404 and are uploaded again. `pictureUrl` still points at the missing object, so the row is stale rather than broken. Without kept face photos, a [model change](biometric-engine.md#change-the-model) means everyone enrols again. |
+| **Kiosk credentials** (on each kiosk) | No. | The kiosk shows *Set up this kiosk*; [pair it again](kiosks.md#replace-or-revoke) from the dashboard. |
 | **Redis** | **No.** | Everyone signs in again. Nothing permanent is lost — it holds sessions, pending sign-ins, the denylist and rate-limit counters. |
 
 Keep the database and the keys in **different places with different access**. Together they are the
