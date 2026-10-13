@@ -81,6 +81,10 @@ Work in this order, so you don't have to redo anything:
 6. **[Your applications](register-a-client.md).** Register each one and choose what it may request.
    To let teams register their own, give them the `developer` role. See
    [Let people register their own](self-service-registration.md).
+7. **Faces, if you want them.** Turn on [the biometric engine](../operations/biometric-engine.md),
+   set up a [kiosk](../operations/kiosks.md) where people enrol, and
+   [tune its camera](../operations/kiosk-camera.md). Faces are a second factor, so everything above
+   works without them.
 
 ## Before you let anyone else in
 

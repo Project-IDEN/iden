@@ -3,6 +3,11 @@
 The fields your organization actually collects. See [Profile fields](../concepts/profile-fields.md)
 for why this is defined at runtime rather than shipped.
 
+!!! tip "Prefer the dashboard?"
+    Everything here is also in the dashboard, under **Administration → Profile fields**.
+    `$ADMIN_TOKEN` in the examples is an administrator's access token — [how to get
+    one](index.md#calling-the-admin-api-yourself).
+
 ## Start from a preset
 
 IDEN ships no profile fields, but it does ship a catalogue of the ones most
@@ -11,7 +16,7 @@ decided.
 
 ```bash
 curl http://localhost:8000/admin/profile-fields/presets \
-  -H "Authorization: Bearer $TOKEN"
+  -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 
 Nothing there exists until you create it. Each entry is shaped so it can be posted
@@ -64,7 +69,8 @@ The only difference that matters is `userWritable`. It decides which endpoint ca
 
 ## A field only some people have
 
-Bind it to a group and it applies only to members:
+Bind it to a group and it applies only to members. The same `POST /admin/profile-fields` as above,
+with this body:
 
 ```bash
 -d '{"key": "enrollment_year", "label": "Year of enrolment",
@@ -77,7 +83,8 @@ from that response rather than hardcoding your fields into a general-purpose ide
 
 ## Releasing a field to applications
 
-By default, no application ever sees a custom field. To release one:
+By default, no application ever sees a custom field. To release one, create it with a claim name and
+the permission that releases it:
 
 ```bash
 -d '{"key": "department", "label": "Department",
@@ -95,9 +102,11 @@ shadow a claim a token's meaning depends on.
 
 === "As the person"
 
+    With the person's own access token, as their application would send it.
+
     ```bash
     curl -X PATCH http://localhost:8000/entity/profile \
-      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -H "Authorization: Bearer $USER_TOKEN" -H "Content-Type: application/json" \
       -d '{"fields": {"preferred_name": "Sam"}}'
     ```
 

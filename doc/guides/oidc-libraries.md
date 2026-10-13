@@ -125,6 +125,8 @@ Confidential client. The code exchange happens on the server and the tokens neve
 === "Authlib (FastAPI / Flask)"
 
     ```python
+    import os
+
     from authlib.integrations.starlette_client import OAuth
 
     oauth = OAuth()
@@ -186,6 +188,8 @@ Client credentials. Most OAuth libraries have a two-line helper; the flow is sim
 directly.
 
 ```python
+import os
+
 import httpx
 
 response = httpx.post(

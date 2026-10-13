@@ -1,18 +1,22 @@
 # Develop the frontends
 
-The development loop for the two browser apps. You run the provider and both frontends from your
+The development loop for IDEN's two browser apps. You run the provider and both frontends from your
 checkout, with only the stores in Docker, so edits show up right away. To *deploy* them, see
 [Install IDEN](install.md).
+
+Budget **about ten minutes**.
 
 ## You need
 
 - **Python 3.14+** and [uv](https://docs.astral.sh/uv/), for the provider
-- **Node.js** and [pnpm](https://pnpm.io/), for the frontends
+- **Node.js 22** and [pnpm](https://pnpm.io/), for the frontends
 - **Docker**, for PostgreSQL, Redis and SeaweedFS
 - Ports **8000, 4000 and 5173** free
 
-IDEN ships two. They are what turns the API into something a person can use, and both are ordinary
-OIDC clients of the provider with no privileged path of their own.
+## The two apps
+
+They are what turns the API into something a person can use. Both are ordinary OIDC clients of the
+provider, with no privileged path of their own.
 
 | App | Dev port | Container port | Path | What it does |
 |---|---|---|---|---|
@@ -55,7 +59,7 @@ cd provider
 uv sync                              # install dependencies
 cp .env.example .env                 # the defaults match the containers above
 
-uv run python -m scripts.gen_keys    # once: signing key + totp.key
+uv run python -m scripts.gen_keys    # once: signing key, totp.key, engine.token
 uv run alembic upgrade head          # create the schema
 uv run python -m scripts.seed        # prints the bootstrap password, once
 
@@ -91,10 +95,10 @@ redirects to `/oauth2/authorize`, the provider redirects to auth-ui at
 with the bootstrap administrator from step 1. [After installing](first-steps.md) has a walkthrough
 that exercises every screen.
 
-Note the trailing paths — though you do not have to type them. All three ways of serving these apps
-redirect their root to the base: Vite's dev server, each app's own container, and the production
-proxy. <http://localhost:5173> and <http://localhost:3000> both land on `/console/`, so the dev loop
-and the deployment agree about where things live.
+You don't have to type the paths. Vite's dev server, each app's own container and the production
+proxy all redirect the root to the app's path, so <http://localhost:5173> and
+<http://localhost:3000> both land on `/console/`. The dev loop and the deployment agree about where
+things live.
 
 ### Pointing them somewhere else
 
@@ -105,8 +109,8 @@ entrypoint.
 | Variable | Effect |
 |---|---|
 | `VITE_IDEN_ISSUER` | The provider's origin — what these apps call. In `pnpm dev` it is a different origin from the app itself, so the app's own origin (5173 or 4000) must be in `IDEN_ALLOWED_ADMIN_ORIGINS`: CORS permits the caller, not the callee. Behind one origin in production, nothing needs listing. |
-| `VITE_IDEN_ORG_NAME` | Whose sign-in page this is. Takes the larger type; IDEN drops to a caption beneath it. |
-| `VITE_IDEN_ORG_LOGO` | Optional, sits beside the name. |
+| `VITE_IDEN_ORG_NAME` | Your organization's name, shown as the main heading of the sign-in page, with "IDEN" as a small caption beneath it. |
+| `VITE_IDEN_ORG_LOGO` | Optional. Your logo, shown beside the name. |
 | `VITE_IDEN_MAIL_DOMAIN` | Dashboard only. Shown beside the email field when adding a user; match the provider's `IDEN_MAIL_DOMAIN`. |
 
 Each app has an `.env.example` next to its `package.json` — copy it to `.env` and edit. The container

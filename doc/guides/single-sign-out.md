@@ -6,6 +6,11 @@ tells it not to.
 
 That "something" is a **logout token**, delivered server-to-server when the session ends.
 
+!!! tip "Prefer the dashboard?"
+    The dashboard asks for this URL when a client is registered, under **Administration →
+    Clients**; changing it later is the call below. `$ADMIN_TOKEN` in the examples is an
+    administrator's access token — [how to get one](index.md#calling-the-admin-api-yourself).
+
 ## 1. Register a back-channel URL
 
 ```bash

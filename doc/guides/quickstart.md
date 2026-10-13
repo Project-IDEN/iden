@@ -10,7 +10,7 @@ system in containers, see [On a laptop, in Docker](local-docker.md).
 ## You need
 
 - **Python 3.14+** and [uv](https://docs.astral.sh/uv/)
-- **Docker**, for PostgreSQL and Redis
+- **Docker**, for PostgreSQL, Redis and SeaweedFS
 
 ## Start the backing services
 
@@ -48,11 +48,13 @@ uv run provider                      # http://localhost:8000
 
 Two of those deserve a note.
 
-**`gen_keys`** writes one date-stamped PEM into `provider/keys/`, with `totp.key` and `engine.token` beside it. IDEN
-refuses to start without a signing key and will not invent one silently, because a key nobody can
-account for is not a key you want signing tokens. `totp.key` encrypts TOTP secrets at rest — the one
-credential IDEN cannot hash, since verifying a code means recomputing it. Back the key and `totp.key` up together.
-`engine.token` is what the provider presents to the biometric engine; losing it costs nothing.
+**`gen_keys`** writes three files into `provider/keys/`:
+
+| File | What it is |
+|---|---|
+| `iden-<date>.pem` | The key every token is signed with. IDEN refuses to start without one and never invents one silently: a key nobody can account for is not a key you want signing tokens. |
+| `totp.key` | Encrypts authenticator secrets at rest — the one credential IDEN cannot hash, since checking a code means recomputing it. Back it up with the `.pem`. |
+| `engine.token` | What the provider presents to the [biometric engine](../operations/biometric-engine.md). Losing it costs nothing. |
 
 **`seed`** prints the administrator's password, **once**:
 

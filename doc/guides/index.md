@@ -41,3 +41,29 @@ Start here if you are connecting something you built to IDEN.
 
 Then [Before you expose it](../operations/security-checklist.md), which is the list to work through
 before anyone outside your own machine can reach the deployment.
+
+## Calling the admin API yourself
+
+Everything the guides do with `curl` can also be done in the dashboard, under **Administration**.
+The `curl` examples are for scripting it, and for seeing exactly what is sent.
+
+They authenticate with `$ADMIN_TOKEN`: an access token for someone who holds the permissions the
+call needs — usually you, as an administrator. The quickest way to get one is from a dashboard tab
+you are signed in to. Open the browser's developer tools, go to the **Console**, and run:
+
+```js
+JSON.parse(sessionStorage.getItem(Object.keys(sessionStorage).find((k) => k.startsWith("oidc.user:")))).access_token
+```
+
+Copy the result, then in your terminal:
+
+```bash
+export ADMIN_TOKEN='eyJ...'
+```
+
+It carries every admin permission you hold, and lasts at most ten minutes; copy a fresh one when
+calls start answering `401`. Keep it out of anything that is saved or shared — for those ten minutes it
+can do whatever you can.
+
+For a script that runs unattended, register a [machine client](machine-client.md) holding only the
+permissions that script needs, rather than borrowing a person's token.

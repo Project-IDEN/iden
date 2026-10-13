@@ -7,6 +7,11 @@ That is what the `developer` role is for. It is the equivalent of what a develop
 Cloud Console for *Sign in with Google*: create your own OAuth client, set your own redirect URIs,
 read your own client ID, rotate your own secret. Nothing else.
 
+!!! tip "Prefer the dashboard?"
+    Granting the role is also in the dashboard, on the person's page under **Administration →
+    Users**. `$ADMIN_TOKEN` in the examples is an administrator's access token — [how to get
+    one](index.md#calling-the-admin-api-yourself).
+
 ## What you are handing out
 
 Someone with the `developer` role can, at `/developer/clients` or on the dashboard's **Applications**

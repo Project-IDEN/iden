@@ -3,6 +3,11 @@
 The authorization code flow with PKCE, end to end. This is the flow for anything with a person in
 front of it: a single-page app, a server-rendered site, a mobile app.
 
+!!! tip "Prefer the dashboard?"
+    Registering the client is also in the dashboard, under **Administration → Clients**.
+    `$ADMIN_TOKEN` in the examples is an administrator's access token — [how to get
+    one](index.md#calling-the-admin-api-yourself).
+
 ## 1. Register the client
 
 ```bash

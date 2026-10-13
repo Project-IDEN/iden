@@ -1,7 +1,14 @@
 # Add a machine client
 
-For a backend that acts **as itself** — a nightly job, a kiosk, a service calling another service.
-No person is involved, so there is nobody to redirect and nothing to consent to.
+For a backend that acts **as itself** — a nightly job, a service calling another service.
+No person is involved, so there is nobody to redirect and nothing to consent to. (Face enrolment
+kiosks are machine clients too, but they are registered and paired under
+[Kiosks](../operations/kiosks.md), not here.)
+
+!!! tip "Prefer the dashboard?"
+    Registering one is also in the dashboard, under **Administration → Clients**. `$ADMIN_TOKEN`
+    in the examples is an administrator's access token — [how to get
+    one](index.md#calling-the-admin-api-yourself).
 
 ## Register it
 

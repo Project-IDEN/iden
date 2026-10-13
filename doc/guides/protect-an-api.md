@@ -5,6 +5,11 @@ database, no network hop between your service and identity.
 
 Any language with a JWT library can do this; the steps are the same everywhere.
 
+!!! tip "Prefer the dashboard?"
+    Registering the API and its permissions is also in the dashboard, under **Administration →
+    APIs**. `$ADMIN_TOKEN` in the examples is an administrator's access token — [how to get
+    one](index.md#calling-the-admin-api-yourself).
+
 ## 1. Register the API and its permissions
 
 ```bash

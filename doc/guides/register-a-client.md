@@ -15,6 +15,11 @@ change later.
     nothing else. See
     [Let people register their own applications](self-service-registration.md).
 
+!!! tip "Prefer the dashboard?"
+    Everything here is also in the dashboard, under **Administration → Clients**. `$ADMIN_TOKEN`
+    in the examples is an administrator's access token — [how to get
+    one](index.md#calling-the-admin-api-yourself).
+
 ## Which kind of client are you
 
 The one question everything else follows from: **can your application keep a secret?**
