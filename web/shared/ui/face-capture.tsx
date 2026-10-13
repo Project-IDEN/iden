@@ -135,6 +135,12 @@ export function FaceCapture({
           await wait(FRAME_GAP_MS[kind]);
         }
       }
+    } catch {
+      // The camera went away mid-capture: unplugged, or taken by another program.
+      setPhase("ready");
+      setPrompt("The camera stopped. Check it is connected, then start again.");
+      setIcon(<Camera />);
+      return;
     } finally {
       setFlash(null);
     }

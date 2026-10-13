@@ -5,7 +5,7 @@ import { useCamera } from "./use-camera";
 
 /**
  * A copy of web/shared/ui/face-capture.tsx, which auth-ui uses for sign-in, with
- * a kiosk-sized button. Both follow the provider's challenge format; change
+ * a kiosk-sized button, a camera chosen by name, and kiosk wording. Both follow the provider's challenge format; change
  * them together.
  *
  * A face capture that follows the provider's challenge, frame by frame.
@@ -119,6 +119,12 @@ export function FaceCapture({
           await wait(FRAME_GAP_MS[kind]);
         }
       }
+    } catch {
+      // The camera went away mid-capture: unplugged, or taken by another program.
+      setCapturing(false);
+      setPrompt("The camera stopped. Check it is connected, then start again.");
+      setIcon(<Camera />);
+      return;
     } finally {
       setFlash(null);
     }
@@ -128,9 +134,8 @@ export function FaceCapture({
 
   if (status === "denied") {
     return (
-      <p role="alert" className="text-body-sm text-error">
-        The camera is unavailable. Allow camera access for this page in your browser, or use another
-        way to sign in.
+      <p role="alert" className="text-title-md text-error">
+        The camera is not working. Ask staff for help.
       </p>
     );
   }
