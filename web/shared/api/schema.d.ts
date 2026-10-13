@@ -89,7 +89,7 @@ export interface paths {
          *
          *     An `acr_values` the person has no way to reach — a level that needs an authenticator they have not set up — returns `unmet_authentication_requirements` to `redirect_uri` rather than a sign-in page they could never get past.
          *
-         *     `prompt=none` never shows UI. When interaction would have been needed it returns `login_required`, `consent_required`, or `account_selection_required` to `redirect_uri` instead (OIDC Core Section 3.1.2.6) — this is how a browser application checks silently whether someone is still signed in.
+         *     `prompt=none` never shows UI. When interaction would have been needed it returns `login_required` or `consent_required` to `redirect_uri` instead (OIDC Core Section 3.1.2.6) — this is how a browser application checks silently whether someone is still signed in.
          *
          *     `client_id` and `redirect_uri` errors render as JSON rather than redirecting: before those two are validated the URI is unverified, and redirecting to it would make this an open redirector (RFC 6749 Section 3.1.2.3).
          *

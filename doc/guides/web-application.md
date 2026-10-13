@@ -128,7 +128,6 @@ GET /oauth2/authorize?...&prompt=none
 |---|---|
 | `login_required` | Not signed in, or the session no longer satisfies what you asked for |
 | `consent_required` | Signed in, but has not agreed to these permissions |
-| `account_selection_required` | Needs to choose an account |
 
 ## Demanding a fresh sign-in
 

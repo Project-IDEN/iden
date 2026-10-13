@@ -82,8 +82,6 @@ Send the person through `/oauth2/authorize` with that `max_age` and retry.
 |---|---|
 | `login_required` | Not signed in, or the session no longer satisfies what you asked |
 | `consent_required` | Signed in, has not agreed to these permissions |
-| `account_selection_required` | Needs to pick an account |
-| `interaction_required` | Anything else needing a human |
 
 ## Face captures
 

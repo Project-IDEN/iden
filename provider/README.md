@@ -737,7 +737,7 @@ file, and returns a code — no prompt. Nothing in the applications coordinates 
 
 | Parameter | Effect |
 |---|---|
-| `prompt=none` | Never show UI. Returns `login_required`, `consent_required`, or `account_selection_required` to `redirect_uri` instead. This is how a browser app checks silently whether someone is still signed in. |
+| `prompt=none` | Never show UI. Returns `login_required` or `consent_required` to `redirect_uri` instead. This is how a browser app checks silently whether someone is still signed in. |
 | `prompt=login` | Re-authenticate even with a live session. The session id survives it — see below. |
 | `prompt=consent` | Ask again even where a grant exists. `skipConsent` is the client's default, not a veto over the request. |
 | `prompt=select_account` | Treated as `login`. IDEN holds one account per session, so there is nothing to select between; the value is accepted rather than refused so a conforming client is not broken. |
