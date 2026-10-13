@@ -225,3 +225,22 @@ volumes:
   postgres-data:
   redis-data:
   seaweedfs-data:
+
+# A fixed subnet so the address nginx trusts is knowable in advance. Left to
+# Docker it is assigned at creation time and changes between hosts, which would
+# make `set_real_ip_from` a value you have to look up and keep in step.
+#
+# Here rather than in the tunnel overlay, which is what uses it: a network whose
+# settings differ between the files is one Compose tries to recreate whenever
+# it runs without the overlay, and fails to while nginx and cloudflared are on
+# it.
+#
+# Change it if it collides with something on your network — and change
+# set_real_ip_from in nginx/iden.conf and IDEN_FORWARDED_ALLOW_IPS in .env to
+# match, or the proxy stops believing cloudflared and every caller looks like
+# the tunnel.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24

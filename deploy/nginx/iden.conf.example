@@ -27,7 +27,7 @@ upstream iden_provider  { server provider:8000; keepalive 32; }
 upstream iden_auth_ui   { server auth-ui:4000;  keepalive 16; }
 upstream iden_dashboard { server dashboard:3000; keepalive 16; }
 
-# The network cloudflared connects from; docker-compose.tunnel.yml pins it so
+# The network cloudflared connects from; docker-compose.yml pins it so
 # this value can be written down rather than looked up after every `up`. Keep
 # IDEN_FORWARDED_ALLOW_IPS in step with both.
 #

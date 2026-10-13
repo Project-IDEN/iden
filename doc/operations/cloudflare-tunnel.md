@@ -223,8 +223,9 @@ docker compose -f deploy/docker-compose.yml \
                -f deploy/docker-compose.tunnel.yml up -d --build
 ```
 
-The overlay adds `nginx` and `cloudflared`, and fixes the Docker network at `172.31.250.0/24`, so
-the address nginx trusts is known in advance instead of changing on every `up`.
+The overlay adds `nginx` and `cloudflared`. The base file fixes the Docker network at
+`172.31.250.0/24`, so the address nginx trusts is known in advance instead of changing on every
+`up`.
 
 The first build takes a few minutes. After that, startup runs in order. The stores come up healthy,
 `migrate` creates the schema and exits, and then the provider starts.
@@ -468,7 +469,7 @@ provider IDEN_FORWARDED_ALLOW_IPS=172.31.250.0/24      believe it, from this net
 ```
 
 **All three ranges must name the same network.** They are already consistent in the shipped files;
-if you change the subnet in `docker-compose.tunnel.yml`, change `set_real_ip_from` in
+if you change the subnet in `docker-compose.yml`, change `set_real_ip_from` in
 `nginx/iden.conf` and `IDEN_FORWARDED_ALLOW_IPS` in `.env` with it.
 
 Get it wrong in one direction and every caller looks like the tunnel:
