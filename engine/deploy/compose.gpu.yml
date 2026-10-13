@@ -16,7 +16,7 @@
 # built image:
 #
 #   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/../models:/app/models" \
-#     iden-engine-engine:latest python -m scripts.fetch_models
+#     --entrypoint python iden-engine-engine:latest -m scripts.fetch_models
 #
 # The steps: doc/operations/biometric-engine.md#on-another-machine.
 #

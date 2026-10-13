@@ -58,8 +58,12 @@ it — about 360 MB, each file checked against the checksum in `engine/models.to
 ```bash
 docker compose build engine
 docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/engine/models:/app/models" \
-  iden-dev-engine:latest python -m scripts.fetch_models
+  --entrypoint python iden-dev-engine:latest -m scripts.fetch_models
 ```
+
+The download needs no GPU, and runs the same with either engine file. `--entrypoint python` skips
+the GPU image's NVIDIA start-up banner, which would otherwise warn that no driver was detected — true
+of this one-off container, and not of the engine, which Compose starts with the GPU.
 
 Read the [model licences](../concepts/biometrics.md#the-models) before you go further: the default
 recogniser is for non-commercial research only.
@@ -129,7 +133,7 @@ engine's folder holds everything it needs — its code, its `Dockerfile` and its
     cd engine/deploy
     docker compose -f compose.cpu.yml build
     docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/../models:/app/models" \
-      iden-engine-engine:latest python -m scripts.fetch_models
+      --entrypoint python iden-engine-engine:latest -m scripts.fetch_models
     ```
 
 3. **Copy the engine token** from the provider's host, so both sides hold the same one. From the
