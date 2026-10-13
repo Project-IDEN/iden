@@ -3293,7 +3293,7 @@ export interface components {
         KioskSettings: {
             /**
              * Idleseconds
-             * @description Seconds without a touch before the kiosk clears the screen and returns to its welcome screen.
+             * @description Seconds without a touch before the kiosk clears the screen and returns to its idle screen, with the camera off.
              * @default 90
              */
             idleSeconds: number;
@@ -3305,7 +3305,7 @@ export interface components {
             inService: boolean;
             /**
              * Notice
-             * @description A line shown on the welcome screen — opening hours, where to get help.
+             * @description A line at the bottom of the kiosk's screens — opening hours, where to get help.
              */
             notice?: string | null;
             /**

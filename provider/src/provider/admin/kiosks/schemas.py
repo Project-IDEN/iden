@@ -17,7 +17,7 @@ class KioskSettings(CamelCaseBaseModel):
         ge=30,
         le=600,
         description="Seconds without a touch before the kiosk clears the screen "
-        "and returns to its welcome screen.",
+        "and returns to its idle screen, with the camera off.",
     )
     in_service: bool = Field(
         default=True,
@@ -27,7 +27,7 @@ class KioskSettings(CamelCaseBaseModel):
     notice: str | None = Field(
         default=None,
         max_length=200,
-        description="A line shown on the welcome screen — opening hours, where "
+        description="A line at the bottom of the kiosk's screens — opening hours, where "
         "to get help.",
     )
     camera_label: str | None = Field(

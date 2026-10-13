@@ -43,32 +43,35 @@ export function Setup({
   }
 
   return (
-    <Screen>
-      <Title>Set up this kiosk</Title>
-      <Lede>
-        In the IDEN dashboard, register this kiosk under Administration → Kiosks, then show its
-        pairing code here.
-      </Lede>
+    <Screen className="grid grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-10 text-left portrait:grid-cols-1 portrait:justify-items-center portrait:text-center short:gap-6">
+      <div className="flex flex-col gap-6 short:gap-4 portrait:items-center">
+        <Title>Set up this kiosk</Title>
+        <Lede>
+          In the IDEN dashboard, register this kiosk under{" "}
+          <strong className="font-medium text-ink">Administration → Kiosks</strong>, then{" "}
+          {typing ? "type" : "show"} its pairing code here.
+        </Lede>
+        {error ? (
+          <p role="alert" className="text-title-md text-error short:text-body-md">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-4 short:gap-3 portrait:justify-center">
+          <BigButton variant="quiet" onClick={() => setTyping(!typing)}>
+            {typing ? "Scan the code instead" : "Type the code instead"}
+          </BigButton>
+          {onCancel ? (
+            <BigButton variant="quiet" onClick={onCancel}>
+              Cancel
+            </BigButton>
+          ) : null}
+        </div>
+      </div>
       {typing ? (
         <Keypad pending={pending} onSubmit={(code) => void submit(code)} />
       ) : (
         <Scanner pending={pending} onCode={(code) => void submit(code)} />
       )}
-      {error ? (
-        <p role="alert" className="text-title-md text-error">
-          {error}
-        </p>
-      ) : null}
-      <div className="flex gap-4">
-        <BigButton variant="quiet" onClick={() => setTyping(!typing)}>
-          {typing ? "Scan the code instead" : "Type the code instead"}
-        </BigButton>
-        {onCancel ? (
-          <BigButton variant="quiet" onClick={onCancel}>
-            Cancel
-          </BigButton>
-        ) : null}
-      </div>
     </Screen>
   );
 }
@@ -81,32 +84,49 @@ function Scanner({ pending, onCode }: { pending: boolean; onCode: (code: string)
   return <CameraView video={video} status={status} />;
 }
 
+/** Eight keys to a row, the code shown as it is printed in the dashboard. */
 function Keypad({ pending, onSubmit }: { pending: boolean; onSubmit: (code: string) => void }) {
   const [code, setCode] = useState("");
-  const shown = code.length > 4 ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
+  const key =
+    "h-14 w-14 rounded-md bg-surface-card font-mono text-title-lg text-ink active:bg-surface-cream-strong disabled:opacity-40 short:h-11 short:w-11 short:text-title-md";
 
   return (
-    <div className="flex w-full max-w-xl flex-col items-center gap-5">
-      <p className="min-h-14 font-mono text-display-md tracking-[0.2em]" aria-live="polite">
-        {shown || " "}
+    <div className="flex flex-col items-center gap-5 short:gap-3">
+      <p
+        aria-live="polite"
+        aria-label={`Code: ${code || "empty"}`}
+        className="flex items-center gap-2 font-mono text-display-sm text-ink short:text-title-lg"
+      >
+        {Array.from({ length: LENGTH }, (_, index) => (
+          <span key={index} className="contents">
+            {index === 4 ? <span className="text-muted-soft">-</span> : null}
+            <span
+              className={`flex h-12 w-9 items-center justify-center border-b-2 short:h-9 short:w-7 ${
+                index === code.length ? "border-primary" : "border-hairline"
+              }`}
+            >
+              {code[index] ?? ""}
+            </span>
+          </span>
+        ))}
       </p>
       <div className="grid grid-cols-8 gap-2">
-        {KEYS.map((key) => (
+        {KEYS.map((letter) => (
           <button
-            key={key}
+            key={letter}
             type="button"
             disabled={code.length >= LENGTH}
-            onClick={() => setCode(code + key)}
-            className="h-14 w-14 rounded-md bg-surface-card font-mono text-title-lg active:bg-surface-cream-strong disabled:opacity-40"
+            onClick={() => setCode(code + letter)}
+            className={key}
           >
-            {key}
+            {letter}
           </button>
         ))}
         <button
           type="button"
           aria-label="Delete"
           onClick={() => setCode(code.slice(0, -1))}
-          className="col-span-2 flex h-14 items-center justify-center rounded-md bg-surface-card active:bg-surface-cream-strong"
+          className="col-span-2 flex h-14 items-center justify-center rounded-md bg-surface-card active:bg-surface-cream-strong short:h-11"
         >
           <Delete />
         </button>

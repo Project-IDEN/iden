@@ -97,6 +97,7 @@ export function FaceCapture({
   onCaptured,
   startLabel = "Start",
   camera: prefer,
+  onCancel,
   className,
 }: {
   challenge: FaceCaptureChallenge;
@@ -104,11 +105,13 @@ export function FaceCapture({
   startLabel?: string;
   /** Part of the camera's name, to choose one of several. */
   camera?: string | null;
+  onCancel?: () => void;
   className?: string;
 }) {
   const { video, status } = useCamera(prefer);
   const canvas = useRef<HTMLCanvasElement>(null);
   const [capturing, setCapturing] = useState(false);
+  const [taken, setTaken] = useState(0);
   const [prompt, setPrompt] = useState<string>("Centre your face in the oval.");
   const [icon, setIcon] = useState<ReactNode>(<ScanFace />);
   const [flash, setFlash] = useState<string | null>(null);
@@ -131,6 +134,7 @@ export function FaceCapture({
 
   async function run() {
     setCapturing(true);
+    setTaken(0);
     const frames: Blob[] = [];
     try {
       for (const { step, count } of groups(challenge.steps)) {
@@ -148,6 +152,7 @@ export function FaceCapture({
             wait(challenge.flashSlotMs * 0.6),
           ]);
           frames.push(await frame());
+          setTaken(frames.length);
           continue;
         }
 
@@ -159,6 +164,7 @@ export function FaceCapture({
         await wait(SETTLE_MS[kind]);
         for (let i = 0; i < count; i += 1) {
           frames.push(await frame());
+          setTaken(frames.length);
           await wait(FRAME_GAP_MS[kind]);
         }
       }
@@ -175,21 +181,80 @@ export function FaceCapture({
     onCaptured(frames);
   }
 
-  if (status === "denied") {
-    return (
-      <p role="alert" className="text-title-md text-error">
-        The camera is not working. Ask staff for help.
-      </p>
-    );
-  }
+  const buttonClass =
+    "inline-flex min-h-16 min-w-36 items-center justify-center rounded-lg px-8 text-title-lg transition-colors disabled:opacity-50 short:min-h-14 short:min-w-32 short:px-6 short:text-title-md";
 
   return (
-    <div className={cn("flex flex-col items-center gap-5", className)}>
+    <div
+      className={cn(
+        "grid grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-10 text-left portrait:grid-cols-1 portrait:justify-items-center portrait:text-center short:gap-6",
+        className,
+      )}
+    >
       {flash ? (
         <div aria-hidden="true" className="fixed inset-0 z-50" style={{ backgroundColor: flash }} />
       ) : null}
 
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-dark">
+      <div className="flex flex-col gap-6 short:gap-3 portrait:items-center">
+        {status === "denied" ? (
+          <p role="alert" className="font-display text-display-sm text-error">
+            The camera is not working. Ask staff for help.
+          </p>
+        ) : (
+          <p
+            aria-live="assertive"
+            className="flex items-center gap-4 font-display text-display-md text-ink short:text-display-sm [&_svg]:h-9 [&_svg]:w-9 [&_svg]:shrink-0 [&_svg]:text-primary short:[&_svg]:h-7 short:[&_svg]:w-7"
+          >
+            {icon}
+            {prompt}
+          </p>
+        )}
+
+        {capturing ? (
+          <div
+            role="progressbar"
+            aria-label="Capture progress"
+            aria-valuemin={0}
+            aria-valuemax={challenge.steps.length}
+            aria-valuenow={taken}
+            className="h-2 w-full max-w-sm overflow-hidden rounded-full bg-surface-card"
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width] duration-300"
+              style={{ width: `${(taken / challenge.steps.length) * 100}%` }}
+            />
+          </div>
+        ) : (
+          <p className="max-w-md text-title-md text-body short:text-body-md">
+            Stand about an arm's length away. It takes about ten seconds: you'll be asked to move
+            your head, and the screen will change colour a few times.
+          </p>
+        )}
+
+        <div className="flex flex-wrap gap-4 short:gap-3 portrait:justify-center">
+          {!capturing ? (
+            <button
+              type="button"
+              className={cn(buttonClass, "bg-primary text-on-primary active:bg-primary-active")}
+              disabled={status !== "ready"}
+              onClick={() => void run()}
+            >
+              {status === "starting" ? "Starting the camera…" : startLabel}
+            </button>
+          ) : null}
+          {onCancel ? (
+            <button
+              type="button"
+              className={cn(buttonClass, "bg-surface-card text-ink active:bg-surface-cream-strong")}
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="relative aspect-[4/3] h-[min(62dvh,30rem)] max-w-full overflow-hidden rounded-xl bg-surface-dark portrait:order-first portrait:h-auto portrait:w-full">
         <video
           ref={video}
           autoPlay
@@ -215,37 +280,12 @@ export function FaceCapture({
             rx="88"
             ry="115"
             fill="none"
-            strokeWidth="2"
-            className={cn("stroke-white/70", capturing && "animate-pulse stroke-primary")}
+            strokeWidth="2.5"
+            className={cn(capturing ? "animate-pulse stroke-primary" : "stroke-white/70")}
           />
         </svg>
         <canvas ref={canvas} className="hidden" />
       </div>
-
-      <p
-        aria-live="assertive"
-        className="flex min-h-6 items-center gap-2 text-body-md text-ink [&_svg]:h-5 [&_svg]:w-5"
-      >
-        {icon}
-        {prompt}
-      </p>
-
-      {!capturing ? (
-        <>
-          <p className="text-caption text-muted-foreground">
-            About ten seconds. You'll be asked to move your head, and the screen will change colour
-            a few times.
-          </p>
-          <button
-            type="button"
-            className="min-h-16 self-stretch rounded-lg bg-primary px-8 text-title-lg text-on-primary active:bg-primary-active disabled:opacity-50"
-            disabled={status !== "ready"}
-            onClick={() => void run()}
-          >
-            {status === "starting" ? "Starting the camera…" : startLabel}
-          </button>
-        </>
-      ) : null}
     </div>
   );
 }

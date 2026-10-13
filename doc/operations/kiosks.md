@@ -152,7 +152,7 @@ says why.
    see in their email — *Library Kiosk 2* — and where it is.
 3. A pairing code appears, as a QR code and as eight characters. Hold the QR code up to the kiosk's
    camera, or tap **Type the code instead** on the kiosk and enter it.
-4. The dashboard says **Paired**, and the kiosk shows its welcome screen.
+4. The dashboard says **Paired**, and the kiosk shows its idle screen.
 
 The code lasts 15 minutes (`IDEN_KIOSK_PAIRING_TTL`) and works once. Registering or pairing a kiosk
 needs `admin:kiosks:write` **and** both `biometric:` scopes, because the device receives them.
@@ -173,7 +173,7 @@ sudo reboot
 ```
 
 `enable` also makes the desktop sign in automatically, since kiosk mode starts when the desktop
-does. After the reboot the kiosk's welcome screen should appear on its own. `iden-kiosk disable`
+does. After the reboot the kiosk's idle screen should appear on its own. `iden-kiosk disable`
 undoes it; the desktop then still signs in by itself, which you can turn off in
 `sudo raspi-config` → System Options → Boot / Auto Login.
 
@@ -193,6 +193,11 @@ Everything is done with `iden-kiosk`, on the Pi or over SSH. It asks for `sudo` 
 | List the camera's settings | `iden-kiosk camera` |
 | Change the camera's settings | `iden-kiosk camera edit` |
 | Forget the pairing | `iden-kiosk unpair` |
+
+**When nobody is using it**, the kiosk shows an idle screen: what it is for, the three steps to
+enrol, and the time — with the camera **off**, so it films nobody passing by. Touching the screen
+opens the QR scanner. Every visit ends back there: a result, *Not me*, *Back*, or nobody touching the
+screen for the **Clear the screen after** time set in the dashboard.
 
 In kiosk mode Chromium cannot be closed from the screen: if it exits for any reason, it is back two
 seconds later. Leave kiosk mode from a terminal, usually over SSH: `iden-kiosk stop`.
@@ -214,8 +219,8 @@ And its **settings**, which the kiosk picks up within a minute:
 | Setting | What it does |
 |---|---|
 | In service | Off: the kiosk shows *out of service*, and IDEN refuses its enrolments immediately. |
-| Clear the screen after | Seconds without a touch before the kiosk returns to its welcome screen, forgetting the person. 30–600. |
-| Notice | A line on the welcome screen — opening hours, where to find help. |
+| Clear the screen after | Seconds without a touch before the kiosk returns to its idle screen, turning the camera off and forgetting the person. 30–600. |
+| Notice | A line at the bottom of the kiosk's screens — opening hours, where to find help. |
 | Camera | Part of the camera's name, to choose one when several are attached. |
 
 ## Replace or revoke

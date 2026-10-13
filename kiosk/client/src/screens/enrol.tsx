@@ -1,8 +1,8 @@
 import { describeCaptureProblems } from "../ui/capture-problems";
 import { FaceCapture } from "../ui/face-capture";
 import { useCamera } from "../ui/use-camera";
-import { CircleCheck } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { ArrowLeft, CircleAlert, CircleCheck, LoaderCircle, QrCode } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
   KioskError,
   enrol,
@@ -14,9 +14,11 @@ import {
 import { useIdle } from "../hooks/use-idle";
 import { useQrScanner } from "../hooks/use-qr-scanner";
 import { CameraView } from "./camera-view";
+import { Idle } from "./idle";
 import { BigButton, Lede, Screen, Title } from "./layout";
 
 type Phase =
+  | { kind: "idle" }
   | { kind: "welcome" }
   | { kind: "starting" }
   | { kind: "confirm"; ticket: string; challenge: EnrolmentChallenge }
@@ -29,17 +31,18 @@ const DONE_SECONDS = 8;
 const MAX_TICKET = 512;
 
 /**
- * One person's visit: show the QR code from the dashboard, confirm the name,
- * follow the capture, hear the result. Every way out — a result, Not me, or
- * nobody touching the screen — returns to the welcome screen with nothing of
+ * One person's visit: touch the idle screen, show the QR code from the
+ * dashboard, confirm the name, follow the capture, hear the result. Every way
+ * out — a result, Not me, Back, or nobody touching the screen for the kiosk's
+ * idle time — returns to the idle screen, with the camera off and nothing of
  * the person kept.
  */
 export function Enrolment({ state }: { state: KioskState }) {
-  const [phase, setPhase] = useState<Phase>({ kind: "welcome" });
-  const reset = useCallback(() => setPhase({ kind: "welcome" }), []);
+  const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const reset = useCallback(() => setPhase({ kind: "idle" }), []);
   const settings = state.settings;
 
-  useIdle(phase.kind !== "welcome" && phase.kind !== "checking", settings.idleSeconds ?? 90, reset);
+  useIdle(phase.kind !== "idle" && phase.kind !== "checking", settings.idleSeconds ?? 90, reset);
 
   useEffect(() => {
     if (phase.kind !== "done") return;
@@ -70,6 +73,9 @@ export function Enrolment({ state }: { state: KioskState }) {
   const footer = settings.notice || state.location;
 
   switch (phase.kind) {
+    case "idle":
+      return <Idle state={state} onStart={() => setPhase({ kind: "welcome" })} />;
+
     case "welcome":
     case "starting":
       return (
@@ -79,6 +85,7 @@ export function Enrolment({ state }: { state: KioskState }) {
           camera={settings.cameraLabel}
           busy={phase.kind === "starting"}
           onTicket={(ticket) => void begin(ticket, true)}
+          onBack={reset}
         />
       );
 
@@ -86,7 +93,9 @@ export function Enrolment({ state }: { state: KioskState }) {
       return (
         <Screen name={state.name} footer={footer}>
           <Lede>Enrolling the face of</Lede>
-          <Title>{phase.challenge.displayName}</Title>
+          <p className="font-display text-display-xl text-ink short:text-display-lg">
+            {phase.challenge.displayName}
+          </p>
           <Lede>Is this you?</Lede>
           <div className="flex gap-4">
             <BigButton onClick={() => setPhase({ ...phase, kind: "capture" })}>
@@ -101,35 +110,33 @@ export function Enrolment({ state }: { state: KioskState }) {
 
     case "capture":
       return (
-        <Screen name={state.name}>
-          <Lede>
-            Stand about an arm's length away, follow the instructions, and keep your face in the
-            oval.
-          </Lede>
+        <Screen name={state.name} className="gap-4 short:gap-2">
           <FaceCapture
-            className="w-full max-w-xl [&_p]:text-title-md"
+            className="w-full"
             challenge={phase.challenge}
             camera={settings.cameraLabel}
             onCaptured={(frames) => void submit(phase.ticket, phase.challenge, frames)}
+            onCancel={reset}
           />
-          <BigButton variant="quiet" onClick={reset}>
-            Cancel
-          </BigButton>
         </Screen>
       );
 
     case "checking":
       return (
         <Screen name={state.name}>
-          <Title>Checking…</Title>
-          <Lede>This takes a few seconds.</Lede>
+          <LoaderCircle aria-hidden="true" className="h-16 w-16 animate-spin text-primary" />
+          <Title>Checking your capture</Title>
+          <Lede>This takes a few seconds. Please stay here.</Lede>
         </Screen>
       );
 
     case "done":
       return (
         <Screen name={state.name}>
-          <CircleCheck aria-hidden="true" className="h-20 w-20 text-success" />
+          <CircleCheck
+            aria-hidden="true"
+            className="h-20 w-20 text-success short:h-14 short:w-14"
+          />
           <Title>You're enrolled, {phase.name}</Title>
           <Lede>
             You can now use your face as a second step when you sign in. We've emailed you to
@@ -142,10 +149,16 @@ export function Enrolment({ state }: { state: KioskState }) {
     case "problem":
       return (
         <Screen name={state.name} footer={footer}>
+          <CircleAlert
+            aria-hidden="true"
+            className="h-16 w-16 text-accent-amber short:h-12 short:w-12"
+          />
           <Title>{phase.title}</Title>
-          {phase.lines.map((line) => (
-            <Lede key={line}>{line}</Lede>
-          ))}
+          <div className="flex flex-col gap-2">
+            {phase.lines.map((line) => (
+              <Lede key={line}>{line}</Lede>
+            ))}
+          </div>
           <div className="flex gap-4">
             {phase.retry && phase.retry.left > 0 ? (
               <BigButton onClick={() => void begin(phase.retry?.ticket ?? "", false)}>
@@ -167,12 +180,14 @@ function Welcome({
   camera,
   busy,
   onTicket,
+  onBack,
 }: {
   name: string | null;
-  footer: string | null | undefined;
+  footer: ReactNode;
   camera: string | null | undefined;
   busy: boolean;
   onTicket: (ticket: string) => void;
+  onBack: () => void;
 }) {
   const { video, status, label } = useCamera(camera);
 
@@ -187,16 +202,36 @@ function Welcome({
   });
 
   return (
-    <Screen name={name} footer={footer}>
-      <Title>Enrol your face</Title>
-      <Lede>
-        Sign in to IDEN on your phone, open Security, choose <strong>Enrol at a kiosk</strong>, and
-        hold the QR code up to the camera.
-      </Lede>
+    <Screen
+      name={name}
+      footer={footer}
+      className="grid grid-cols-[minmax(0,1fr)_auto] content-center items-center gap-10 text-left portrait:grid-cols-1 portrait:justify-items-center portrait:text-center short:gap-6"
+    >
+      <div className="flex flex-col gap-6 short:gap-4 portrait:items-center">
+        <Title>Show your QR code</Title>
+        <Lede>
+          Hold your phone up to the camera, with the code from{" "}
+          <strong className="font-medium text-ink">Enrol at a kiosk</strong> inside the corners.
+        </Lede>
+        <p
+          aria-live="polite"
+          className="flex min-h-8 items-center gap-3 text-title-md text-muted-foreground short:text-body-md"
+        >
+          {busy ? (
+            <LoaderCircle aria-hidden="true" className="h-6 w-6 animate-spin text-primary" />
+          ) : (
+            <QrCode aria-hidden="true" className="h-6 w-6" />
+          )}
+          {busy ? "Reading your code…" : "Looking for a code…"}
+        </p>
+        <div className="portrait:self-center">
+          <BigButton variant="quiet" onClick={onBack}>
+            <ArrowLeft aria-hidden="true" className="h-6 w-6" />
+            Back
+          </BigButton>
+        </div>
+      </div>
       <CameraView video={video} status={status} />
-      <p className="min-h-8 text-title-md text-muted-foreground" aria-live="polite">
-        {busy ? "Reading your code…" : null}
-      </p>
     </Screen>
   );
 }

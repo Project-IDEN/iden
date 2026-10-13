@@ -130,7 +130,8 @@ A setting that is missing from the list is a setting the camera does not have. S
 
 1. Put the kiosk where it will stand, in the light it will have. Switch on the room's usual lights;
    draw the blinds the way they usually are.
-2. Enter kiosk mode, so the camera's picture is on screen: `iden-kiosk start`. The welcome screen
+2. Enter kiosk mode, so the camera's picture is on screen: `iden-kiosk start`, then touch the idle
+   screen to open the QR scanner. Its preview
    shows the live picture.
 3. From your laptop, open a terminal on the Pi over SSH, and open the settings file:
 

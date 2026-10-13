@@ -1,12 +1,35 @@
 @import "./theme.css";
 
+/* The official 7" Raspberry Pi touchscreen is 800×480. Below this height every
+   screen tightens its spacing and type rather than scrolling. */
+@custom-variant short (@media (max-height: 560px));
+
 /* A touchscreen with nobody to help: no text selection to get stuck in, no
    long-press menus, no pull-to-refresh. */
 html,
 body {
   height: 100%;
+  overflow: hidden;
   overscroll-behavior: none;
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+}
+
+/* The idle screen's one movement: a line passing down the face oval, the way
+   the camera will look at the person who steps up. */
+@keyframes scan {
+  0%,
+  100% {
+    transform: translateY(-34%);
+  }
+  50% {
+    transform: translateY(34%);
+  }
+}
+
+@layer utilities {
+  .animate-scan {
+    animation: scan 7s ease-in-out infinite;
+  }
 }

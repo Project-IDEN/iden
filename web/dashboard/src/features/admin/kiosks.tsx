@@ -334,7 +334,7 @@ function SettingsForm({ url, record }: { url: string; record: KioskRecord }) {
         </Field>
         <Field
           label="Notice"
-          hint="One line on the welcome screen — opening hours, where to get help."
+          hint="One line at the bottom of the kiosk's screens — opening hours, where to get help."
         >
           {(props) => (
             <Input

@@ -28,11 +28,14 @@ export function Maintenance({
   return (
     <Screen>
       <Title>Maintenance</Title>
-      <dl className="grid w-full max-w-lg grid-cols-2 gap-x-8 gap-y-3 text-left text-title-md">
+      <dl className="w-full max-w-lg rounded-xl bg-surface-card px-6 py-2 text-left text-title-md short:text-body-md">
         {rows.map(([label, value]) => (
-          <div key={label} className="contents">
+          <div
+            key={label}
+            className="flex justify-between gap-8 border-b border-hairline py-3 last:border-b-0 short:py-2"
+          >
             <dt className="text-muted-foreground">{label}</dt>
-            <dd>{value}</dd>
+            <dd className="text-ink">{value}</dd>
           </div>
         ))}
       </dl>
