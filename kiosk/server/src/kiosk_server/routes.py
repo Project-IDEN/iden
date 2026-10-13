@@ -5,6 +5,7 @@ reads IDEN's own error codes (`poor_capture`, `not_live`, …) and this process
 need not translate them.
 """
 
+import json
 from typing import Annotated
 
 import httpx
@@ -12,6 +13,7 @@ from fastapi import APIRouter, Depends, File, Form, Request, Response, UploadFil
 from fastapi.responses import JSONResponse
 
 from kiosk_server.device import Device, NotPaired, Unreachable
+from kiosk_server.logging import logger
 from kiosk_server.schemas import CameraReport, KioskState, PairRequest, TicketRequest
 
 router = APIRouter(prefix="/api", tags=["kiosk"])
@@ -107,10 +109,30 @@ async def enrol(
             ("frames", (f"{index}.jpg", data, frame.content_type or "image/jpeg"))
         )
 
-    return await _as_kiosk(
+    response = await _as_kiosk(
         device,
         "POST",
         "/biometric/enroll",
         data={"ticket": ticket, "faceChallengeId": face_challenge_id},
         files=files,
+    )
+    _log_outcome(response)
+    return response
+
+
+def _log_outcome(response: Response) -> None:
+    """What the engine made of a capture — the light, the camera, the checks
+    that failed — for whoever is tuning this kiosk. Nothing about the person."""
+    if response.status_code < 400:
+        logger.info("Enrolment accepted")
+        return
+    try:
+        body = json.loads(bytes(response.body))
+    except ValueError:
+        body = {}
+    logger.warning(
+        "Enrolment refused",
+        status=response.status_code,
+        code=body.get("code"),
+        details=body.get("details") or None,
     )
