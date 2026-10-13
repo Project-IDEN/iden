@@ -7,136 +7,202 @@ picture, checking it is live, and comparing it. What a face is for, and what is 
 
 It is optional. Without it, and with `IDEN_BIOMETRIC_ENABLED=false`, IDEN is complete.
 
-## Turn it on
+## Choose where it runs
 
-1. **Generate the engine token**, if `provider/keys/engine.token` does not exist yet. The same
-   command writes the signing and secret keys, and never overwrites one that exists:
-
-    ```bash
-    cd provider && uv run python -m scripts.gen_keys
-    ```
-
-2. **Fetch the models** into `engine/models`. About 360 MB, checked against the checksums in
-   `engine/models.toml`:
-
-    ```bash
-    cd engine && uv sync --extra cpu && uv run python -m scripts.fetch_models
-    ```
-
-    Read the [model licences](../concepts/biometrics.md#the-models) before you go further.
-
-3. **Turn the module on** in `deploy/.env`:
-
-    ```bash
-    IDEN_BIOMETRIC_ENABLED=true
-    ```
-
-4. **Start the engine**, on the provider's host or on another machine — one of the two sections
-   below.
-
-5. **Re-run the seed**, so the face and kiosk permissions exist:
-
-    ```bash
-    docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed
-    ```
-
-6. **Sign out of the dashboard and back in.** The face section appears under Security once your
-   token carries `entity:face:read`, and Kiosks under Administration once it carries
-   `admin:kiosks:read`.
-
-7. **Set up a kiosk** — see [Kiosks](kiosks.md).
-
-Each way of running it has a CPU file and a GPU file. Pick one; they are not layered on each other.
+The engine runs either **on the provider's host**, joining the same Docker network, or **on another
+machine** — typically one with a GPU — that the provider reaches over your network. On either, it
+runs on the CPU or on an NVIDIA GPU. That is four Compose files; you use exactly one:
 
 | | CPU | NVIDIA GPU |
 |---|---|---|
-| On the provider's host | `deploy/docker-compose.engine-cpu.yml` | `deploy/docker-compose.engine-gpu.yml` |
-| On another machine | `engine/deploy/compose.cpu.yml` | `engine/deploy/compose.gpu.yml` |
+| **On the provider's host** | `deploy/docker-compose.engine-cpu.yml` | `deploy/docker-compose.engine-gpu.yml` |
+| **On another machine** | `engine/deploy/compose.cpu.yml` | `engine/deploy/compose.gpu.yml` |
+
+The CPU is enough to try it and for light use: a capture takes a few seconds. A GPU checks one in a
+fraction of a second — see [On an NVIDIA GPU](#on-an-nvidia-gpu) for what the host needs.
+
+Every step below needs only Docker on the machine it runs on.
 
 ## On the provider's host
 
-Add the engine's file to the command that starts the deployment:
+Every command runs **on the provider's host, from the repository root**, the same place you run the
+rest of the deployment.
+
+**1. Name your Compose files once.** The deployment is now three files — the base, the tunnel if you
+use one, and the engine — so set them in your shell rather than typing three `-f` flags each time:
 
 ```bash
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.engine-cpu.yml up -d --build
-docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.engine-gpu.yml up -d --build   # on a GPU
+export COMPOSE_FILE=deploy/docker-compose.yml:deploy/docker-compose.tunnel.yml:deploy/docker-compose.engine-cpu.yml
 ```
 
-With the tunnel, it is a third `-f` after `deploy/docker-compose.tunnel.yml`. Keep it in every `up`
-from then on; left out, Compose leaves the engine running but no longer manages it.
+Leave out `deploy/docker-compose.tunnel.yml` if you do not use the tunnel; use
+`docker-compose.engine-gpu.yml` on a GPU. Every `docker compose` command below then uses these
+files. Add the line to your shell profile, so the engine stays part of every `up` — left out,
+Compose leaves it running but no longer manages it.
 
-The engine joins the provider's Docker network and publishes no port. The provider reaches it at
-`http://engine:8000`, the default for `IDEN_ENGINE_BASE_URL`, presenting the token from
-`provider/keys/engine.token`. `IDEN_ENGINE_WORKERS` in `deploy/.env` sets how many captures it
-checks at once.
+**2. Generate the engine token**, the secret the provider presents to the engine. The command that
+made your signing key writes it; on a deployment from before the engine existed, run it again. It
+only writes files that are missing:
+
+```bash
+docker run --rm --user "$(id -u):$(id -g)" \
+  -v "$PWD/provider/keys:/keys" -e IDEN_SIGNING_KEY_DIR=/keys \
+  --entrypoint python iden-dev-provider:latest -m scripts.gen_keys
+```
+
+`ls provider/keys/` now shows `engine.token` beside the `.pem` and `totp.key`.
+
+**3. Fetch the models** into `engine/models`. Build the engine's image, then run the download inside
+it — about 360 MB, each file checked against the checksum in `engine/models.toml`:
+
+```bash
+docker compose build engine
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/engine/models:/app/models" \
+  iden-dev-engine:latest python -m scripts.fetch_models
+```
+
+Read the [model licences](../concepts/biometrics.md#the-models) before you go further: the default
+recogniser is for non-commercial research only.
+
+**4. Turn the module on** in `deploy/.env`:
+
+```bash
+IDEN_BIOMETRIC_ENABLED=true
+```
+
+**5. Start it**, and add the face and kiosk permissions:
+
+```bash
+docker compose up -d --build
+docker compose exec provider python -m scripts.seed
+```
+
+**Check it worked.** The engine logs which device it chose once its models are loaded:
+
+```bash
+docker compose logs engine | grep "Engine ready"
+```
+
+```text
+engine-1  | {"event": "Engine ready", "model_version": "antelopev2-minifasnet-1", "device": "cpu", "calibrated": false, ...}
+```
+
+And the provider can reach it:
+
+```bash
+docker compose exec provider python -c \
+  "import urllib.request; print(urllib.request.urlopen('http://engine:8000/health/ready').read())"
+```
+
+```text
+b'{"status":"ready"}'
+```
+
+**6. Sign out of the dashboard and back in.** The face section appears under **Security** once your
+token carries `entity:face:read`, and **Kiosks** under Administration once it carries
+`admin:kiosks:read`.
+
+**7. Set up a kiosk** — see [Kiosks](kiosks.md).
+
+The engine publishes no port. The provider reaches it at `http://engine:8000`, the default for
+`IDEN_ENGINE_BASE_URL`. `IDEN_ENGINE_WORKERS` in `deploy/.env` sets how many captures it checks at
+once.
 
 ## On another machine
 
-The engine can run on a different server from the provider — a GPU machine, while the provider and
-the web apps stay where they are. `engine/` holds everything it needs: the code, the `Dockerfile`,
-and `engine/deploy/`, its compose files. Only `engine/` goes to that machine.
-
-**On the engine's machine,** in `engine/`:
-
-1. Fetch the models: `uv sync --extra cpu && uv run python -m scripts.fetch_models`.
-2. Copy the provider's `provider/keys/engine.token` to `engine/deploy/engine.token`. Both sides must
-   hold the same token.
-3. `cp deploy/.env.example deploy/.env` and check `ENGINE_PUBLISH`, the port it listens on, and
-   `ENGINE_WORKERS`.
-4. Start it:
-
-    ```bash
-    cd deploy
-    docker compose -f compose.cpu.yml up -d --build
-    docker compose -f compose.gpu.yml up -d --build   # on a GPU
-    ```
-
-**On the provider's host,** in `deploy/.env`, with no engine file in the `up` command:
-
-```bash
-IDEN_ENGINE_BASE_URL=http://10.0.0.5:8000
-```
-
-and `docker compose -f deploy/docker-compose.yml up -d` to restart the provider with it.
+The engine on a server of its own, while the provider and the web apps stay where they are. The
+engine's folder holds everything it needs — its code, its `Dockerfile` and its Compose files in
+`engine/deploy/` — so only `engine/` goes to that machine.
 
 !!! warning "The link is not encrypted"
     The engine speaks plain HTTP, and what the provider sends it is faces and face templates. Run
     the two machines on a network you trust — a private LAN, or a VPN such as WireGuard or
-    Tailscale between them — and let only the provider's machine reach the engine's port. Docker's
-    published ports bypass host firewalls such as `ufw`, so bind the port to the private interface
-    in `ENGINE_PUBLISH` (`10.0.0.5:8000`) rather than relying on one.
+    Tailscale between them — and let only the provider's machine reach the engine's port.
+
+**On the engine's machine:**
+
+1. **Get the engine's folder** there: a clone of the repository, or `scp -r engine` from one.
+
+2. **Build the image and fetch the models**, from `engine/deploy/` (`compose.gpu.yml` on a GPU):
+
+    ```bash
+    cd engine/deploy
+    docker compose -f compose.cpu.yml build
+    docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/../models:/app/models" \
+      iden-engine-engine:latest python -m scripts.fetch_models
+    ```
+
+3. **Copy the engine token** from the provider's host, so both sides hold the same one. From the
+   provider's host:
+
+    ```bash
+    scp provider/keys/engine.token <engine-host>:engine/deploy/engine.token
+    ```
+
+4. **Choose where it listens.** `cp .env.example .env`, and set `ENGINE_PUBLISH` to the engine
+   machine's private address and a port: `10.0.0.5:8000`. A port alone listens on every interface,
+   and Docker's published ports bypass host firewalls such as `ufw`, so the address is what keeps
+   it private.
+
+5. **Start it:**
+
+    ```bash
+    docker compose -f compose.cpu.yml up -d
+    docker compose -f compose.cpu.yml logs | grep "Engine ready"
+    ```
+
+**On the provider's host,** point the provider at it in `deploy/.env`, and turn the module on:
+
+```bash
+IDEN_BIOMETRIC_ENABLED=true
+IDEN_ENGINE_BASE_URL=http://10.0.0.5:8000
+```
+
+Then, from the repository root, with your usual Compose files and **no** engine file among them
+(leave out the tunnel file if you do not use one):
+
+```bash
+export COMPOSE_FILE=deploy/docker-compose.yml:deploy/docker-compose.tunnel.yml
+docker compose up -d
+docker compose exec provider python -m scripts.seed
+```
+
+Check the provider reaches the engine, at its address:
+
+```bash
+docker compose exec provider python -c \
+  "import urllib.request; print(urllib.request.urlopen('http://10.0.0.5:8000/health/ready').read())"
+```
+
+Then steps 6 and 7 of the section above.
 
 ## On an NVIDIA GPU
 
-On a GPU the engine checks a capture in a fraction of a second rather than a few seconds. The host
-needs:
+The host needs:
 
-- an NVIDIA GPU from **Pascal (GTX 10-series) on**
-- the NVIDIA driver, **575 or newer** — the image carries CUDA 12.9 and cuDNN 9
-- the NVIDIA Container Toolkit
+- an NVIDIA GPU from **Pascal (GTX 10-series) on**;
+- the NVIDIA driver, **575 or newer** — the image carries CUDA 12.9 and cuDNN 9;
+- the NVIDIA Container Toolkit.
 
-Check both with:
+Check all three at once:
 
 ```bash
 docker run --rm --gpus all nvidia/cuda:12.9.1-base-ubuntu24.04 nvidia-smi
 ```
 
-The image stays on CUDA 12 deliberately. CUDA 13 dropped Maxwell, Pascal and Volta, and onnxruntime
-moved to it from 1.27, so the GPU build is held at onnxruntime-gpu 1.26. On a Turing (RTX 20) card
-or newer it can move forward; see the note in `engine/pyproject.toml`.
-
-Then start the engine with one of the two GPU files. It logs which device it chose:
-
-```
-Engine ready  calibrated=False device=cuda model_version=antelopev2-minifasnet-1
-```
+It prints a table naming your GPU. Then use one of the two GPU files above. The engine reports
+`"device": "cuda"` in its *Engine ready* line.
 
 The GPU files set `ENGINE_DEVICE=cuda`, which makes the engine **refuse to start** when it cannot
 see a GPU, instead of falling back to the CPU and serving twenty times slower without anyone
 noticing.
 
-The number of workers sets how many captures are checked at once. Each worker holds its own copy of
-the models — up to about 1 GB of GPU memory — so size it to the card.
+Each worker (`IDEN_ENGINE_WORKERS`, or `ENGINE_WORKERS` on another machine) holds its own copy of the
+models, up to about 1 GB of GPU memory, so size the number of workers to the card.
+
+The image stays on CUDA 12 deliberately. CUDA 13 dropped Maxwell, Pascal and Volta, and onnxruntime
+moved to it from 1.27, so the GPU build is held at onnxruntime-gpu 1.26. On a Turing (RTX 20) card
+or newer it can move forward; see the note in `engine/pyproject.toml`.
 
 ## Calibrate the threshold
 
@@ -144,7 +210,8 @@ The engine decides "same person" by comparing a similarity score with a threshol
 in `models.toml` is a conservative guess for the default model, and the engine reports
 `calibrated: false` until you replace it with a measured one.
 
-A threshold is only meaningful for the cameras and people it was measured on, so measure on yours:
+A threshold is only meaningful for the cameras and people it was measured on, so measure on yours.
+This is separate from [tuning the kiosk camera](kiosk-camera.md), and comes after it.
 
 1. **Collect consented photos** from the kiosk camera, in the light it will have:
 
@@ -159,23 +226,22 @@ A threshold is only meaningful for the cameras and people it was measured on, so
     photos each. With fewer, the report says the estimate is rough.
 
 2. **Run the evaluation on the build that serves traffic** — GPU and CPU produce slightly different
-   scores:
+   scores. On the provider's host, with `COMPOSE_FILE` set as above:
 
     ```bash
-    docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.engine-gpu.yml \
-      run --rm -v "$PWD/dataset:/data:ro" engine \
+    docker compose run --rm -v "$PWD/dataset:/data:ro" engine \
       python -m eval.run /data --out /tmp/reports
     ```
 
-    On another machine it is the same `run` from `engine/deploy`, with `-f compose.gpu.yml` alone.
+    On another machine it is the same `run` from `engine/deploy`, with `-f compose.gpu.yml` or
+    `-f compose.cpu.yml`.
 
     It prints the threshold for the target false match rate (`--fmr`, default `1e-4`), the share of
     genuine attempts that threshold would reject, and how often each kind of attack passed the
     anti-spoofing models.
 
-3. **Write the threshold into `engine/models.toml`** as `match_threshold`, set
-    `calibrated = true`, and rebuild the engine. (`--write-threshold` does the editing when the
-    evaluation runs from `engine/` on the host — use it only when the host is the serving build.)
+3. **Write the threshold into `engine/models.toml`** as `match_threshold`, set `calibrated = true`,
+   and rebuild and restart the engine (`docker compose up -d --build engine`).
 
 If too many genuine attempts are rejected at the threshold you need, improve the capture — light,
 camera, distance — rather than lowering it. A lower threshold is a weaker lock.
@@ -185,14 +251,13 @@ camera, distance — rather than lowering it. A lower threshold is a weaker lock
 1. Put the new model's file, checksum and calibrated threshold in `engine/models.toml`, and **change
    `version`**. Every stored face is stamped with the version it was enrolled under, and a face from
    another version is never compared — the person is told to enrol again.
-2. Fetch, rebuild, restart.
+2. Fetch the models, rebuild, restart: steps 3 and 5 of [On the provider's host](#on-the-providers-host).
 3. If enrolment photos are kept (`IDEN_BIOMETRIC_KEEP_IMAGES=true`), move everyone onto the new
    model:
 
     ```bash
-    docker compose -f deploy/docker-compose.yml exec provider \
-      python -m scripts.reembed_faces --dry-run
-    docker compose -f deploy/docker-compose.yml exec provider python -m scripts.reembed_faces
+    docker compose exec provider python -m scripts.reembed_faces --dry-run
+    docker compose exec provider python -m scripts.reembed_faces
     ```
 
     It reports how many faces had no photo and so can only move by enrolling again.
@@ -204,6 +269,7 @@ For development, without Docker. The provider uses port 8000 and the docs site 8
 ```bash
 cd engine
 uv sync --extra cpu
+uv run python -m scripts.fetch_models
 ENGINE_TOKEN_FILE=../provider/keys/engine.token uv run uvicorn engine.app:app --port 8002
 ```
 
@@ -218,8 +284,13 @@ To enrol a face in development, run the kiosk app against it on your laptop — 
 
 | Symptom | Cause |
 |---|---|
-| Sign-in shows *Face checks are unavailable right now* (`503 engine_unavailable`) | The provider cannot reach the engine, or the engine refused its token. Check the engine is running, that `IDEN_ENGINE_BASE_URL` is its address, and that both read the same `engine.token`. |
-| *Your face enrolment is out of date* (`409 face_enrolment_outdated`) | The model changed since this person enrolled. Re-embed, or have them enrol again. |
-| The engine exits with `ENGINE_DEVICE=cuda but onnxruntime cannot see a GPU` | The driver or the container toolkit is missing, or a GPU file is in use on a host without one. |
+| Sign-in shows *Face checks are unavailable right now* (`503 engine_unavailable`) | The provider cannot reach the engine, or the engine refused its token. Run the reachability check above; check `IDEN_ENGINE_BASE_URL`, and that both sides read the same `engine.token`. |
+| The engine exits with `PermissionError` on `/secrets/engine.token` | The engine runs as uid 1000 and cannot read the token file, which is private to its owner. `sudo chown 1000 provider/keys/engine.token` (or `engine/deploy/engine.token`). The provider reads its keys as uid 1000 too. |
+| The engine exits with `IsADirectoryError` on `/secrets/engine.token` | The token did not exist the first time the engine started, so Docker created an empty directory in its place. Remove that directory (`sudo rmdir provider/keys/engine.token`), generate the token, and start again. |
+| The engine exits with `ENGINE_TOKEN_FILE must name a non-empty file in prod` | The token is missing on that machine: step 2 on the provider's host, or step 3 on another machine. |
+| The engine exits saying a model file `is missing` | The models were not fetched into `engine/models` on the machine the engine runs on. |
 | The engine exits saying a model `does not match the sha256` | A model file is not the reviewed one. Delete it and fetch again. |
-| Enrolment keeps failing with `not_live` at one kiosk | Usually the light: a window behind the person, or a screen too dim for the colour flashes to register. Each failure lists the checks that failed. |
+| The engine exits with `ENGINE_DEVICE=cuda but onnxruntime cannot see a GPU` | The driver or the container toolkit is missing, or a GPU file is in use on a host without one. Run the `nvidia-smi` check above. |
+| *Your face enrolment is out of date* (`409 face_enrolment_outdated`) | The model changed since this person enrolled. Re-embed, or have them enrol again. |
+| No face section under Security, no Kiosks under Administration | The seed was not re-run after turning the module on, or you have not signed in again since. |
+| Enrolment keeps failing at one kiosk | Usually the light or the camera settings. See [Tuning the kiosk camera](kiosk-camera.md#reading-the-results). |

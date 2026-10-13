@@ -7,9 +7,13 @@
 # provider's host, see deploy/docker-compose.engine-cpu.yml.
 #
 # Needs, beside this file: `engine.token`, a copy of the provider's
-# provider/keys/engine.token, and the models in ../models
-# (`uv run python -m scripts.fetch_models`). See
-# doc/operations/biometric-engine.md#on-another-machine.
+# provider/keys/engine.token, and the models in ../models, fetched with the
+# built image:
+#
+#   docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/../models:/app/models" \
+#     iden-engine-engine:latest python -m scripts.fetch_models
+#
+# The steps: doc/operations/biometric-engine.md#on-another-machine.
 #
 # Plain HTTP: let only the provider's machine reach the port.
 

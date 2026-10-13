@@ -41,16 +41,23 @@ The kiosks are separate devices again, with their own [install](kiosks.md).
 
 ## Order of operations
 
-```bash
-# 1. Schema. Safe to run repeatedly; does nothing when already current.
-uv run alembic upgrade head
+Three steps, always in this order. With Compose, the first and third happen on their own — the
+`migrate` service runs before the provider starts — and you run only the seed:
 
-# 2. Catalogue and bootstrap. Idempotent — creates nothing structural.
-uv run python -m scripts.seed
+=== "Compose"
 
-# 3. The application.
-uv run provider
-```
+    ```bash
+    docker compose -f deploy/docker-compose.yml up -d                            # 1 and 3
+    docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed   # 2
+    ```
+
+=== "Running it directly"
+
+    ```bash
+    uv run alembic upgrade head      # 1. Schema. Does nothing when already current.
+    uv run python -m scripts.seed    # 2. Catalogue and bootstrap. Idempotent.
+    uv run provider                  # 3. The application.
+    ```
 
 The seed **refuses to run against an unmigrated database** rather than half-filling it. That refusal
 is the useful behaviour: it means a deployment cannot silently come up with a schema that does not
@@ -115,7 +122,7 @@ first-party:
 
 | Path | Serves |
 |---|---|
-| `/.well-known/*`, `/oauth2/*`, `/api/v1/auth/*`, `/admin/*`, `/entity/*`, `/developer/*`, `/media/*` | provider |
+| `/.well-known/*`, `/oauth2/*`, `/api/v1/auth/*`, `/admin/*`, `/entity/*`, `/developer/*`, `/biometric/*`, `/media/*` | provider |
 | `/auth/*` | auth-ui |
 | `/console/*` | dashboard |
 
@@ -165,9 +172,9 @@ exchange verifies a client secret with argon2 in the same way the password route
 
 ## Signing keys
 
-```bash
-uv run python -m scripts.gen_keys
-```
+Generated once, before the first start, by `scripts.gen_keys` — run inside the provider's image as in
+[step 4 of the tunnel install](cloudflare-tunnel.md#4-generate-the-keys), or
+`uv run python -m scripts.gen_keys` from `provider/` when running from source.
 
 These sign every token. Anyone who can read them can mint a token for anyone.
 
@@ -223,9 +230,11 @@ credentials are refused either way — but both tables grow for the life of the 
 this:
 
 ```bash
-uv run python -m scripts.cleanup --dry-run   # count what would go
-uv run python -m scripts.cleanup             # delete it
+docker compose -f deploy/docker-compose.yml exec provider python -m scripts.cleanup --dry-run  # count what would go
+docker compose -f deploy/docker-compose.yml exec provider python -m scripts.cleanup            # delete it
 ```
+
+From source, `uv run python -m scripts.cleanup` in `provider/`.
 
 Cron, a Kubernetes `CronJob`, or a systemd timer — daily is plenty. It is not an in-process
 background task on purpose: every replica would race on the same rows, and a job you cannot run by

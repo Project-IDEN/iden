@@ -78,6 +78,14 @@ character. Changing it later invalidates everything already issued.
 Throughout this page, `iden.example.org` stands for your hostname. Every command runs from the
 repository root.
 
+!!! tip "Shorter commands"
+    Every `docker compose` command here names both files with `-f`, so it works as written. To type
+    less, set them once per shell, or in your profile, and drop the `-f` flags:
+
+    ```bash
+    export COMPOSE_FILE=deploy/docker-compose.yml:deploy/docker-compose.tunnel.yml
+    ```
+
 !!! tip "Already running it on a laptop?"
     Follow the steps below on the server. To carry a laptop database over rather than starting
     fresh, see [Moving an existing deployment here](#moving-an-existing-deployment-here) once

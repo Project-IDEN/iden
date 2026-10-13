@@ -13,6 +13,10 @@ signed-in administrator, so you won't need another page open while you follow it
 Once you can sign in, **[After installing](first-steps.md)** checks every part of the system and
 walks through setting up your organization. The steps there are the same whichever way you installed.
 
+**Faces are an add-on**, for after that: first [the biometric engine](../operations/biometric-engine.md),
+then a [kiosk](../operations/kiosks.md) where people enrol, with its
+[camera tuned](../operations/kiosk-camera.md).
+
 ## What gets installed
 
 The two container paths run seven services. The two source paths run the first three from your
