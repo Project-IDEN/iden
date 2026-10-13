@@ -1,0 +1,10 @@
+{
+  "VideoCaptureAllowedUrls": ["http://localhost:8080"],
+  "AudioCaptureAllowed": false,
+  "TranslateEnabled": false,
+  "PasswordManagerEnabled": false,
+  "AutofillAddressEnabled": false,
+  "AutofillCreditCardEnabled": false,
+  "BrowserSignin": 0,
+  "DefaultNotificationsSetting": 2
+}

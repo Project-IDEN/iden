@@ -1,0 +1,9 @@
+[Unit]
+Description=IDEN kiosk: screen at full brightness
+
+[Service]
+Type=oneshot
+ExecStart=/opt/iden-kiosk/display.sh
+
+[Install]
+WantedBy=multi-user.target

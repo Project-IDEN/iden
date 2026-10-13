@@ -1,0 +1,18 @@
+# The build context is the repository root; only these reach the image.
+*
+!web/package.json
+!web/pnpm-lock.yaml
+!web/pnpm-workspace.yaml
+!web/tsconfig.base.json
+!web/shared/
+!web/kiosk/
+!kiosk/server/
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/.pytest_cache
+**/.ruff_cache
+kiosk/server/data
+kiosk/server/.env
+kiosk/server/tests

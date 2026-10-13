@@ -1,0 +1,6 @@
+[Unit]
+Description=IDEN kiosk: lock the controls of camera %I
+
+[Service]
+Type=oneshot
+ExecStart=/opt/iden-kiosk/camera.sh %I

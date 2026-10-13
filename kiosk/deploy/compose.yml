@@ -1,0 +1,19 @@
+# The kiosk server on a Raspberry Pi. install.sh copies this to /opt/iden-kiosk
+# and writes the .env beside it.
+name: iden-kiosk
+
+services:
+  kiosk:
+    image: ${KIOSK_IMAGE:?set KIOSK_IMAGE in .env}
+    restart: unless-stopped
+    environment:
+      KIOSK_ISSUER: ${KIOSK_ISSUER:?set KIOSK_ISSUER in .env}
+    # Loopback only: the one browser that should reach it is on this device.
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - credentials:/data
+
+volumes:
+  # The kiosk's client secret. Survives image updates; delete it to un-pair.
+  credentials:
