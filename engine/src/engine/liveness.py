@@ -29,6 +29,8 @@ EXPECTED = {
 class Verdict:
     passed: bool
     score: float
+    # Flash only: the largest chroma change seen, which must also clear a bar.
+    spread: float = 0.0
 
 
 def anti_spoofing(probabilities: list[float], rules: Policy) -> Verdict:
@@ -87,7 +89,9 @@ def flash(observed: list[tuple[str, np.ndarray]], rules: Liveness) -> Verdict:
     score = sum(hits) / len(hits)
     spread = float(np.abs(shifts).max())
     return Verdict(
-        score >= rules.flash_min_score and spread >= rules.flash_min_spread, score
+        score >= rules.flash_min_score and spread >= rules.flash_min_spread,
+        score,
+        spread,
     )
 
 

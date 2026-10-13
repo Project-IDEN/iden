@@ -333,6 +333,14 @@ class TestKioskEnrolment:
         assert response.status_code == 422
         assert response.json()["code"] == "not_live"
         assert response.json()["details"]["failed"] == ["anti_spoofing", "flash"]
+        # A kiosk is supervised: it hears how far each check was off, for tuning.
+        assert set(response.json()["details"]["scores"]) == {
+            "antiSpoofing",
+            "actions",
+            "flash",
+            "flashSpread",
+            "consistency",
+        }
         assert await db.scalar(select(FaceTemplate.id)) is None
         assert (await kiosk_capture(client, kiosk_headers, ticket)).status_code == 200
 

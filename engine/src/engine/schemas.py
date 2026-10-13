@@ -7,11 +7,26 @@ from engine.quality import Reason
 
 class Checks(BaseModel):
     anti_spoofing: bool = Field(description="Passive models judged the face live.")
-    anti_spoofing_score: float
+    anti_spoofing_score: float = Field(
+        description="Mean live probability over the straight-ahead frames."
+    )
     actions: bool = Field(description="Every requested head movement was made.")
+    actions_score: float = Field(
+        default=0.0,
+        description="How far the least-made movement went, as a share of what "
+        "counts: 1.0 and above passes, below 0 is the wrong way.",
+    )
     flash: bool = Field(description="The face reflected the colours shown.")
-    flash_score: float
+    flash_score: float = Field(
+        description="Share of flash frames whose colour cast matched the colour shown."
+    )
+    flash_spread: float = Field(
+        default=0.0, description="The largest colour change seen across them."
+    )
     consistent: bool = Field(description="Every frame shows the same person.")
+    consistency_score: float = Field(
+        default=0.0, description="The least similar frame's similarity."
+    )
 
     @property
     def live(self) -> bool:

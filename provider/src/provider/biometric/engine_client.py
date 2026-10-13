@@ -31,9 +31,21 @@ class Checks(BaseModel):
     anti_spoofing: bool
     anti_spoofing_score: float
     actions: bool
+    actions_score: float = 0.0
     flash: bool
     flash_score: float
+    flash_spread: float = 0.0
     consistent: bool
+    consistency_score: float = 0.0
+
+    def scores(self) -> dict[str, float]:
+        return {
+            "antiSpoofing": round(self.anti_spoofing_score, 3),
+            "actions": round(self.actions_score, 3),
+            "flash": round(self.flash_score, 3),
+            "flashSpread": round(self.flash_spread, 4),
+            "consistency": round(self.consistency_score, 3),
+        }
 
     def failed(self) -> list[str]:
         return [

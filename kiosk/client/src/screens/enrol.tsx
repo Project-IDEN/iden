@@ -215,6 +215,12 @@ function explain(error: unknown, retry?: { ticket: string; left: number }): Phas
         retry,
       };
     case "not_live":
+      return {
+        kind: "problem",
+        title: "That didn't work",
+        lines: describeFailedChecks(error instanceof KioskError ? error.details.failed : undefined),
+        retry,
+      };
     case "invalid_frames":
       return {
         kind: "problem",
@@ -253,4 +259,23 @@ function explain(error: unknown, retry?: { ticket: string; left: number }): Phas
         lines: ["Something went wrong on our side. Try again later, or ask staff for help."],
       };
   }
+}
+
+// The kiosk is supervised, so IDEN says which liveness checks failed. Each line
+// is what the person can do about it.
+const CHECK_ADVICE: Record<string, string> = {
+  actions:
+    "Turn your head the way each arrow shows, slowly but all the way, then back to the middle.",
+  flash: "Stand close, facing the screen, and keep still while it changes colour.",
+  anti_spoofing: "Make sure your face is evenly lit, with nothing covering it, and try again.",
+  consistent: "Only one person should be in front of the camera during the capture.",
+};
+
+function describeFailedChecks(failed: unknown): string[] {
+  const lines = Array.isArray(failed)
+    ? failed.map((check) => CHECK_ADVICE[String(check)]).filter((line) => line !== undefined)
+    : [];
+  return lines.length > 0
+    ? lines
+    : ["Look at the screen, follow each instruction, and keep still while it changes colour."];
 }

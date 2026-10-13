@@ -82,7 +82,10 @@ async def enrol(
     if not result.usable:
         raise PoorCapture(reasons=result.reasons)
     if not result.live:
-        raise NotLive(failed=result.checks.failed() if result.checks else [])
+        raise NotLive(
+            failed=result.checks.failed() if result.checks else [],
+            scores=result.checks.scores() if result.checks else {},
+        )
 
     previous = await templates(session, user.id)
     keep = settings.iden_biometric_keep_images and storage is not None

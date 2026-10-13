@@ -42,6 +42,44 @@ type Phase = "starting" | "denied" | "ready" | "capturing";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// A flash frame must have been *taken* while the colour was on screen. A fixed
+// delay is not enough: through Chromium a USB webcam can run a quarter of a
+// second or more behind the screen, and a frame still showing the previous
+// colour fails the check every time — the colours never repeat back to back.
+// So the capture waits for the first frame the camera exposed after the colour
+// was painted, by the capture time Chromium reports for each frame.
+const EXPOSURE_MARGIN_MS = 40;
+// When the browser reports no capture time, how far the camera is assumed to lag.
+const FALLBACK_LAG_MS = 300;
+const FRAME_TIMEOUT_MS = 2000;
+
+/** The time the screen has shown whatever was just rendered. */
+const painted = () =>
+  new Promise<number>((resolve) =>
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now()))),
+  );
+
+/** Resolves once the video shows a frame the camera took at or after `since`. */
+function frameTakenAfter(video: HTMLVideoElement, since: number): Promise<void> {
+  return new Promise((resolve) => {
+    const timeout = setTimeout(resolve, FRAME_TIMEOUT_MS);
+    const check: VideoFrameRequestCallback = (now, metadata) => {
+      const reported = metadata.captureTime;
+      const taken =
+        reported !== undefined && Math.abs(now - reported) < 1000
+          ? reported
+          : now - FALLBACK_LAG_MS;
+      if (taken >= since) {
+        clearTimeout(timeout);
+        resolve();
+      } else {
+        video.requestVideoFrameCallback(check);
+      }
+    };
+    video.requestVideoFrameCallback(check);
+  });
+}
+
 /** Consecutive identical steps, so a prompt is shown once for its frames. */
 function groups(steps: string[]): { step: string; count: number }[] {
   return steps.reduce<{ step: string; count: number }[]>((out, step) => {
@@ -116,11 +154,16 @@ export function FaceCapture({
           setPrompt("Keep still while the screen changes colour.");
           setIcon(<Camera />);
           setFlash(FLASH[step.slice("flash:".length)] ?? null);
-          // Exposed under the colour, captured before the camera's white balance
-          // has time to cancel it out.
-          await wait(challenge.flashSlotMs * 0.6);
+          const shown = await painted();
+          const source = video.current;
+          if (!source) throw new Error("The camera is not ready.");
+          // Under the colour, and soon after it appeared: before the camera's
+          // automatic white balance, if any, has time to cancel it out.
+          await Promise.all([
+            frameTakenAfter(source, shown + EXPOSURE_MARGIN_MS),
+            wait(challenge.flashSlotMs * 0.6),
+          ]);
           frames.push(await frame());
-          await wait(challenge.flashSlotMs * 0.4);
           continue;
         }
 

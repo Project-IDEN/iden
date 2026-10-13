@@ -9,6 +9,7 @@ from engine import liveness, quality
 from engine.align import align
 from engine.detect import Face, detect
 from engine.embed import embed, normalise
+from engine.log import logger
 from engine.pad import live_probability
 from engine.pose import Pose, estimate
 from engine.runtime import Models
@@ -112,14 +113,12 @@ def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analy
     centre = _centre(frames)
     reference = normalise(np.mean([s.embedding for _, s in centre], axis=0))
 
-    spoofing = liveness.anti_spoofing(
-        live_probability(
-            models.anti_spoofing,
-            [model.crop_scale for model in manifest.anti_spoofing],
-            [(f.image, s.face) for f, s in centre],
-        ).tolist(),
-        manifest.policy,
-    )
+    probabilities = live_probability(
+        models.anti_spoofing,
+        [model.crop_scale for model in manifest.anti_spoofing],
+        [(f.image, s.face) for f, s in centre],
+    ).tolist()
+    spoofing = liveness.anti_spoofing(probabilities, manifest.policy)
 
     baseline = Pose(
         yaw=float(np.median([s.pose.yaw for _, s in centre])),
@@ -152,9 +151,31 @@ def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analy
         anti_spoofing=spoofing.passed,
         anti_spoofing_score=spoofing.score,
         actions=moved.passed,
+        actions_score=moved.score,
         flash=reflected.passed,
         flash_score=reflected.score,
+        flash_spread=reflected.spread,
         consistent=same.passed,
+        consistency_score=same.score,
+    )
+    # Numbers only, never a picture or an identity: what an operator tuning a
+    # kiosk's camera and light needs to see, and what tells the checks apart.
+    logger.info(
+        "Liveness",
+        live=checks.live,
+        **checks.model_dump(
+            exclude={"anti_spoofing", "actions", "flash", "consistent"}
+        ),
+        live_per_frame=[round(p, 3) for p in probabilities],
+        movement={
+            step: [
+                round(pose.yaw - baseline.yaw, 3)
+                if "turn" in step
+                else round(pose.pitch - baseline.pitch, 3)
+                for pose in poses
+            ]
+            for step, poses in performed.items()
+        },
     )
     return Analysis(frames, _reasons(frames), checks, reference)
 
