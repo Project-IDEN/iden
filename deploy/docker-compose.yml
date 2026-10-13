@@ -161,6 +161,7 @@ services:
       IDEN_ENGINE_TIMEOUT: ${IDEN_ENGINE_TIMEOUT:-20}
       IDEN_BIOMETRIC_KEEP_IMAGES: ${IDEN_BIOMETRIC_KEEP_IMAGES:-false}
       IDEN_FACE_TICKET_TTL: ${IDEN_FACE_TICKET_TTL:-900}
+      IDEN_KIOSK_PAIRING_TTL: ${IDEN_KIOSK_PAIRING_TTL:-900}
     volumes: &provider-volumes
       # Written by `uv run python -m scripts.gen_keys`, read-only inside. The
       # whole directory: `totp.key` lives here too, and it is what makes a stolen

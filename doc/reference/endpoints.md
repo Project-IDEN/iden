@@ -47,6 +47,20 @@ Every `/admin/*`, `/entity/*`, `/developer/*` and `/biometric/*` route is gated 
 | `DELETE` | `/admin/groups/{group_id}/members/{user_id}` | Remove a member |
 | `PUT` | `/admin/groups/{group_id}/roles` | Set a group's roles |
 
+### Admin — kiosks
+
+Only with `IDEN_BIOMETRIC_ENABLED`. See [Kiosks](../operations/kiosks.md).
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/admin/kiosks` | List enrolment kiosks |
+| `POST` | `/admin/kiosks` | Register a kiosk |
+| `GET` | `/admin/kiosks/{kiosk_id}` | Read a kiosk |
+| `PATCH` | `/admin/kiosks/{kiosk_id}` | Rename, move, or configure a kiosk |
+| `DELETE` | `/admin/kiosks/{kiosk_id}` | Revoke a kiosk |
+| `GET` | `/admin/kiosks/{kiosk_id}/enrolments` | What a kiosk enrolled |
+| `POST` | `/admin/kiosks/{kiosk_id}/pairing-code` | Pair a device again |
+
 ### Admin — profile fields
 
 | Method | Path | Purpose |
@@ -101,6 +115,8 @@ Every `/admin/*`, `/entity/*`, `/developer/*` and `/biometric/*` route is gated 
 
 | Method | Path | Purpose |
 |---|---|---|
+| `POST` | `/biometric/kiosk/pair` | Pair a device with its kiosk registration |
+| `POST` | `/biometric/kiosk/heartbeat` | Report in, and read this kiosk's settings |
 | `POST` | `/biometric/enroll/challenge` | Start a face capture for the person holding a ticket |
 | `POST` | `/biometric/enroll` | Enrol the face in a capture |
 

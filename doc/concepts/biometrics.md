@@ -48,6 +48,22 @@ A ticket:
   try forever
 - is gone once a face is enrolled with it, and asking for a new one retires the old one
 
+### Kiosks are registered devices
+
+Every kiosk is registered in the dashboard and has a client of its own. A new device is **paired**:
+an administrator registers the kiosk and is shown a short code, and the device trades it, once, for
+its own secret. So:
+
+- **one kiosk can be cut off without touching the others.** Revoking it deletes its client, and
+  enrolment refuses a token whose client is not a registered kiosk, so it stops at once — even
+  while its last access token has minutes to run;
+- **a kiosk can be taken out of service** from the dashboard, and IDEN refuses its enrolments until
+  it is put back;
+- **every enrolment names the kiosk** — in the person's email, on their security page, and in the
+  kiosk's own history in the dashboard, with why each failed attempt failed.
+
+Setting one up is in [Kiosks](../operations/kiosks.md).
+
 Enrolling again replaces the face on file. The person is emailed whenever a face is enrolled, with
 where to remove it if it was not them, and the audit log records the kiosk and whose face it was.
 

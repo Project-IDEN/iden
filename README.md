@@ -146,7 +146,7 @@ flowchart TB
 | **engine** | Python 3.14, FastAPI, ONNX Runtime | 8000 | Internal, stateless biometric engine — face detection, quality checks, embedding, anti-spoofing. Models are pluggable; it holds no data and has no external access |
 | **dashboard** | React 19, TypeScript, Vite, Tailwind CSS, TanStack Query | 3000 | Single-page app for both admin and end-user activities (bootstrapped OIDC client). Navigation renders from the token's scopes, so one build serves administrators and ordinary users. |
 | **auth-ui** | React 19, TypeScript, Vite, Tailwind CSS | 4000 | Login + consent pages — password, then a code or a **face** as the second factor. Hosted UI invoked by `/authorize`. |
-| **kiosk** | Hardware + Next.js / native | n/a | Biometric kiosk device — where faces are enrolled. Authenticates with `client_credentials`; the person shows a single-use ticket from the dashboard, which is what names them |
+| **kiosk** | Raspberry Pi 5 + USB webcam; FastAPI kiosk server + React app in full-screen Chromium | 8080 (loopback) | Where faces are enrolled. Each kiosk is registered and paired from the dashboard, signs in as its own client with `client_credentials`, and reports in every minute; the person shows a single-use ticket from the dashboard, which is what names them. See [Kiosks](doc/operations/kiosks.md) |
 | **postgres** | PostgreSQL 18 | 5432 | Users, groups, roles, scopes, APIs, clients, tokens, encrypted face templates |
 | **redis** | Redis 8 | 6379 | Sessions, login/consent challenges, token denylist, rate limits |
 | **seaweedfs** | SeaweedFS (S3-compatible) | 8333 | Blob storage — profile photos, and face enrolment images when a deployment chooses to keep them. Keeps large binaries out of Postgres. Any S3 API answers: MinIO, Garage, or AWS S3. |
@@ -686,7 +686,7 @@ build plan in [provider/PLAN.md](provider/PLAN.md).
 | **Phase 5** | Biometric module + Engine — kiosk enrolment, face as a second factor, liveness (feature-flagged) | Done |
 | **Phase 6** | Hardening — Docker, security headers, error contract, probes, coverage review | Done |
 | **Phase 7** | Frontends — auth-ui and dashboard SPAs | Done |
-| **Phase 8** | Kiosk systems — device registration, `client_credentials` enrollment flow | Planned |
+| **Phase 8** | Kiosks — registered devices, pairing, health, the Raspberry Pi enrolment app | Done |
 
 Phases 0–6 are broken down file-by-file in [provider/PLAN.md](provider/PLAN.md), and Phase 7 in
 [web/PLAN.md](web/PLAN.md). Tests ship with the
@@ -744,7 +744,7 @@ Four of these are now implemented. The rest are listed with what they would buy.
 | Specification | What it adds | Worth it when |
 |---|---|---|
 | **RFC 8707** — Resource Indicators | A `resource` parameter narrowing a token to one audience | This is [KI-9](provider/PLAN.md#known-issues) with a specification attached: today a token requesting `admin:` and `entity:` scopes carries both audiences, and a compromised resource server can replay it at the other. The cost is on the client side — the dashboard would hold one token per audience and choose per call. |
-| **RFC 8628** — Device Authorization Grant | A third grant for input-constrained devices | The natural fit for Phase 8. A kiosk with a keyboard is fine on `client_credentials`; one without is what this grant is for. |
+| **RFC 8628** — Device Authorization Grant | A third grant for input-constrained devices | Considered for Phase 8 and not needed: a kiosk is not a person signing in, so it is paired instead — a one-time code from the dashboard traded for its own client secret, then `client_credentials`. Still the right grant for a device a *person* signs in on. |
 | OIDC Core Section 5.4 — `address`, `phone` | The two standard claim scopes IDEN does not release | Both map onto organization-defined profile fields already; this is a matter of reserving the scope names and wiring `claim_scope`. |
 
 ### Tier 3 — Deliberate non-goals
@@ -780,7 +780,8 @@ than the argument for having written the list.
   See [provider/PLAN.md — Phase 4](provider/PLAN.md#phase-4--entity-rs-self-service).
 - ~~**Biometric kiosk handoff** — how a kiosk knows whose face it is enrolling.~~ **Settled:** the
   person signs in to the dashboard and creates a single-use ticket, shown as a QR code; the kiosk's
-  own credential names nobody. See [Faces](doc/concepts/biometrics.md).
+  own credential names nobody. Each kiosk is a registered device with a client of its own, paired
+  with a one-time code. See [Faces](doc/concepts/biometrics.md) and [Kiosks](doc/operations/kiosks.md).
 - ~~**Biometric engine** — model selection, GPU vs CPU deployment, accuracy/latency targets.~~
   **Settled:** open models pinned in `engine/models.toml` (the recogniser's licence is
   research-only), CUDA when a GPU is present, and a threshold each deployment calibrates on its own

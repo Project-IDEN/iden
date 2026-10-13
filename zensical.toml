@@ -63,6 +63,7 @@ nav = [
     { "Deployment" = "operations/deployment.md" },
     { "Backup and restore" = "operations/backup-and-restore.md" },
     { "The biometric engine" = "operations/biometric-engine.md" },
+    { "Kiosks" = "operations/kiosks.md" },
     { "Before you expose it" = "operations/security-checklist.md" },
   ] },
   { "Contributing" = [

@@ -80,8 +80,8 @@ uv run python -m scripts.reset         # asks before it does anything
 uv run python -m scripts.reset --yes   # for when you are sure
 ```
 
-It drops the schema, flushes Redis, migrates, and seeds — printing a new bootstrap password and
-kiosk secret, because those are created fresh with everything else. Redis is the step people miss
+It drops the schema, flushes Redis, migrates, and seeds — printing a new bootstrap password,
+because it is created fresh with everything else. Redis is the step people miss
 doing this by hand: sessions outlive the rows they name, so a database-only reset leaves live
 cookies pointing at users who no longer exist. It refuses outright when `IDEN_ENV=prod`.
 
@@ -180,8 +180,8 @@ about thirteen seconds; a gate that fails because Docker is down teaches people 
 `--no-verify`, and a hook everyone bypasses is worse than no hook. Run the suite yourself, or add it
 as a pre-push hook: `pre-commit install --hook-type pre-push`.
 
-The hook is scoped to `provider/` — the only package with lint and type configuration so far. Widen
-`files:` in `.pre-commit-config.yaml` when `kiosk/server` grows past a skeleton.
+The hooks are scoped per package — `provider/`, `engine/` and `kiosk/server/` each run their own
+ruff and pyright.
 
 **After changing a model:**
 
@@ -212,9 +212,8 @@ missing.
 
 The seed is still idempotent and still safe to re-run; it just no longer creates anything structural.
 
-The seed prints the bootstrap administrator's password and the kiosk client's secret **once**. They
-are argon2-hashed on the way into the database and cannot be recovered afterwards — losing them means
-re-seeding into a fresh database.
+The seed prints the bootstrap administrator's password **once**. It is argon2-hashed on the way into
+the database and cannot be recovered afterwards — losing it means re-seeding into a fresh database.
 
 ---
 
@@ -316,14 +315,15 @@ provider/
     │   └── services/           # scope_resolver · token_service · session_store
     │                           # challenge_store · auth_methods · pkce
     ├── admin/
-    │   └── users/ groups/ roles/ apis/ scopes/ clients/ audit/ profile_fields/
+    │   └── users/ groups/ roles/ apis/ scopes/ clients/ kiosks/ audit/ profile_fields/
     ├── entity/
     │   ├── deps.py             # CurrentUserDep — the subject comes from the token
     │   └── profile/ credentials/ totp/ face/ sessions/ permissions/ connections/
-    └── biometric/              # kiosk enrolment API, and what face sign-in uses
+    └── biometric/              # the kiosk's API, and what face sign-in uses
         ├── engine_client.py    # the engine's wire format
         ├── challenges.py       # random movements + colours, one capture each
         ├── tickets.py          # how a kiosk learns whose face it is
+        ├── pairing.py          # how a new device becomes a registered kiosk
         └── service.py          # enrol · verify · remove; encrypted embeddings
 ```
 
@@ -549,6 +549,10 @@ Seeded by `scripts/seed.py` from `shared/scopes.py`, all flagged `is_system`.
 | Scope | Allows |
 |---|---|
 | `biometric:enroll` | The kiosk's: enrol a face, given the ticket its owner created |
+| `biometric:device` | The kiosk's: report its health and read its settings |
+
+With the module on, the `admin` API also carries `admin:kiosks:read` / `admin:kiosks:write`: register,
+pair, configure and revoke kiosks.
 
 **Seeded roles:** `administrator` (all `admin:*` and `entity:*`) and `member` (all `entity:*`).
 

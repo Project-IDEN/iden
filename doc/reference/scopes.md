@@ -71,11 +71,19 @@ Two more `entity:` scopes, which `member` and `administrator` receive with the r
 | `entity:face:read` | See whether your face is enrolled. |
 | `entity:face:write` | Let a kiosk enrol your face, or remove your face. |
 
-And the kiosk's own, under the `biometric` API:
+Two `admin:` scopes for the kiosks themselves, which `administrator` receives:
 
 | Scope | Grants |
 |---|---|
-| `biometric:enroll` | Enrol a person's face, given the ticket they created. Worth nothing without one: the ticket is what names the person. |
+| `admin:kiosks:read` | View enrolment kiosks, their health and history. |
+| `admin:kiosks:write` | Register, pair, configure, and revoke enrolment kiosks. Registering or pairing one also needs both `biometric:` scopes below, because the device receives them. |
+
+And the kiosk's own, under the `biometric` API. Each registered kiosk's client holds both:
+
+| Scope | Grants |
+|---|---|
+| `biometric:enroll` | Enrol a person's face, given the ticket they created. Worth nothing without one: the ticket is what names the person. Refused, too, for a client that is not a registered kiosk in service. |
+| `biometric:device` | Report a kiosk's health and read its settings. |
 
 ## The OIDC scopes
 

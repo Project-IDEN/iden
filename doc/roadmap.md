@@ -16,7 +16,7 @@ the summary.
 | 5 | Biometrics — kiosk enrolment, face as a second factor, liveness | :material-check-circle-outline: Done |
 | 6 | Hardening — Docker, security headers, error contract, probes, coverage review | :material-check-circle-outline: Done |
 | 7 | Frontends — the sign-in UI and the dashboard | :material-check-circle-outline: Done |
-| 8 | Kiosk — device registration and enrollment | :material-circle-outline: Planned |
+| 8 | Kiosks — registered devices, pairing, the Raspberry Pi enrolment app | :material-check-circle-outline: Done |
 
 Phase 7 shipped both browser applications: `auth-ui` (password, TOTP, consent and recovery) and the
 dashboard (self-service plus all seven admin resources, each gated on its read scope). Their own
@@ -31,9 +31,14 @@ lost, and an unmigrated schema needs manual surgery.
 
 Phase 5 was held back while Phase 7 went ahead — the biometric module is the only part with an
 external dependency — and is now done: faces enrolled at a kiosk with a ticket the person creates,
-compared **1:1 only**, and offered as a second factor after a password. The kiosk app that captures
-them is Phase 8; until then `kiosk/scripts/enrol_from_files.py` stands in. Before relying on faces,
+compared **1:1 only**, and offered as a second factor after a password. Before relying on faces,
 read [what the liveness checks do not stop](concepts/biometrics.md#what-it-does-not-stop).
+
+Phase 8 made the kiosk real: each one registered in the dashboard with a client of its own, paired
+with a one-time code, reporting its health every minute, and revocable on its own; and the app it
+runs — a touchscreen page on a Raspberry Pi, served by a local process that holds the secret. See
+[Kiosks](operations/kiosks.md). Not yet done: a kiosk walked through end to end with a real face on
+the real hardware, and the camera settings tuned for the Rapoo C280 it is meant for.
 
 ## Open issues
 

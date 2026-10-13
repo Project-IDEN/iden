@@ -9,6 +9,8 @@ Running IDEN somewhere real.
   prove the backup works before you need it.
 - **[The biometric engine](biometric-engine.md)** — turning faces on, running the engine on a GPU,
   and calibrating it on your own cameras.
+- **[Kiosks](kiosks.md)** — the devices where faces are enrolled: installing one on a Raspberry Pi,
+  pairing it, tuning its camera, and revoking it.
 - **[Before you expose it](security-checklist.md)** — what must be true before anyone outside your
   machine can reach it.
 

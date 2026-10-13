@@ -22,6 +22,7 @@ job rather than a cleanup job's.
 | `refresh_tokens` | Rotating, with lineage for reuse detection. |
 | `consent_grants` | What each person agreed to give each application. |
 | `totp_credentials` | Authenticator secrets. Unconfirmed until a code is verified. |
+| `kiosks` | Registered enrolment kiosks, one per client: location, settings, and the last thing each reported. |
 | `face_templates` | Enrolled faces, a few samples each: encrypted embeddings, never photos. Stamped with the model that made them. |
 | `profile_fields`, `user_profile_values` | The organization's own schema, and the answers. |
 | `audit_events` | Append-only. |
@@ -52,5 +53,6 @@ job rather than a cleanup job's.
 | `refresh_replay:{hash}` | 30 seconds — see [refresh rotation](../concepts/tokens.md#the-honest-double-use-problem) |
 | `password_reset:{hash}` | 15 minutes, single use |
 | `face-ticket:{hash}` | 15 minutes — lets a kiosk enrol one person's face, until used |
+| `kiosk-pairing:{hash}` | 15 minutes, single use — pairs a new device with its kiosk |
 | `face-challenge:{hash}` | 2 minutes, single use — the movements and colours asked of one capture |
 | `ratelimit:{bucket}:{identity}` | The window |

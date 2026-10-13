@@ -53,7 +53,7 @@ refuses to start without a signing key and will not invent one silently, because
 account for is not a key you want signing tokens. `totp.key` encrypts TOTP secrets at rest — the one
 credential IDEN cannot hash, since verifying a code means recomputing it. Back both up together.
 
-**`seed`** prints two credentials, **once**:
+**`seed`** prints the administrator's password, **once**:
 
 ```text
 Seeded 27 system scopes across 3 APIs.
@@ -61,13 +61,9 @@ Seeded 27 system scopes across 3 APIs.
   Bootstrap administrator — shown once, change it after first login
     email:    admin@localhost
     password: _qajl3wRjjx6QsuXMO9YY5tw
-
-  Kiosk client secret — shown once, it is hashed in the database
-    client_id:     kiosk
-    client_secret: 7ZJbgK2um1y9QeliyysqElTJ-SUhC_8R8aXRygrmUgM
 ```
 
-Both are hashed before they're stored and can't be recovered. If you lose one,
+It is hashed before it's stored and can't be recovered. If you lose it,
 [start over](#starting-over).
 
 ## Check it worked
@@ -90,7 +86,6 @@ is read from the database, so permissions you define appear there without a rest
 | **Three roles** | `administrator` (everything), `member` (self-service only), and `developer` (self-service plus registering their own applications) |
 | **One person** | The bootstrap administrator |
 | **`dashboard`** | A public client for the browser, using PKCE and skipping consent. Its callbacks are `/console/callback` on `localhost` ports 8000, 3000 and 5173 |
-| **`kiosk`** | A confidential client for machine-to-machine access |
 
 The seed is idempotent — re-run it any time. It creates nothing structural; that is
 [Alembic's job](../contributing/migrations.md).

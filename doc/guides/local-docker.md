@@ -103,15 +103,11 @@ Seeded 27 system scopes across 3 APIs.
   Bootstrap administrator — shown once, change it after first login
     email:    admin@localhost
     password: _qajl3wRjjx6QsuXMO9YY5tw
-
-  Kiosk client secret — shown once, it is hashed in the database
-    client_id:     kiosk
-    client_secret: 7ZJbgK2um1y9QeliyysqElTJ-SUhC_8R8aXRygrmUgM
 ```
 
-!!! warning "Write both down before you close the terminal"
-    Both are hashed before they're stored and can't be recovered. On a laptop, if you lose one, the
-    fix is [starting over](#starting-over).
+!!! warning "Write it down before you close the terminal"
+    It is hashed before it's stored and can't be recovered. On a laptop, if you lose it, the fix is
+    [starting over](#starting-over).
 
 | Created | Detail |
 |---|---|
@@ -119,7 +115,6 @@ Seeded 27 system scopes across 3 APIs.
 | **Three roles** | `administrator` (everything), `member` (self-service only), and `developer` (self-service plus registering their own applications) |
 | **One person** | The bootstrap administrator, holding the `administrator` role |
 | **`dashboard`** | A public client for the browser, using PKCE and skipping consent as a first-party app. Its callbacks are `localhost` on ports 8000, 3000 and 5173, so it works as-is. |
-| **`kiosk`** | A confidential client for machine-to-machine access |
 
 The seed is **idempotent**, so you can re-run it any time. On a database that's already seeded, it
 prints `Nothing new to create` and leaves existing credentials alone.

@@ -267,14 +267,10 @@ Seeded 27 system scopes across 3 APIs.
   Bootstrap administrator — shown once, change it after first login
     email:    admin@example.org
     password: _qajl3wRjjx6QsuXMO9YY5tw
-
-  Kiosk client secret — shown once, it is hashed in the database
-    client_id:     kiosk
-    client_secret: 7ZJbgK2um1y9QeliyysqElTJ-SUhC_8R8aXRygrmUgM
 ```
 
-!!! warning "Write both down before you close the terminal"
-    Both are hashed before they're stored and can't be recovered. If you lose the administrator
+!!! warning "Write it down before you close the terminal"
+    It is hashed before it's stored and can't be recovered. If you lose the administrator
     password before creating a second administrator, the only way back in is a fresh database.
 
     To choose the password yourself, pass it to this one command instead of putting it in
@@ -286,8 +282,9 @@ Seeded 27 system scopes across 3 APIs.
     ```
 
 The seed creates IDEN's three APIs and their 27 [permissions](../reference/scopes.md), the
-`administrator`, `member` and `developer` roles, the administrator, and two clients: `dashboard`
-for the browser and `kiosk` for machine-to-machine access.
+`administrator`, `member` and `developer` roles, the administrator, and one client, `dashboard`,
+for the browser. A machine client is [registered](../guides/machine-client.md) when one is needed;
+kiosks are [registered and paired](kiosks.md) from the dashboard.
 
 The `dashboard` client's redirect URI is built from `IDEN_ISSUER`, so here it's
 `https://iden.example.org/console/callback` and nothing else. The `localhost` callbacks for

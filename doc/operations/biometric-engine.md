@@ -31,19 +31,18 @@ It is optional. Without it, and with `IDEN_BIOMETRIC_ENABLED=false`, IDEN is com
     IDEN_BIOMETRIC_ENABLED=true
     ```
 
-4. **Start with the engine**, then re-run the seed so the face permissions exist and the kiosk
-   client holds `biometric:enroll`:
+4. **Start with the engine**, then re-run the seed so the face and kiosk permissions exist:
 
     ```bash
     docker compose -f deploy/docker-compose.yml --profile biometric up -d --build
     docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed
     ```
 
-    The seed prints the kiosk client's secret the first time it creates it. If the kiosk was
-    created earlier, rotate its secret from the dashboard.
-
 5. **Sign out of the dashboard and back in.** The face section appears under Security once your
-   token carries `entity:face:read`.
+   token carries `entity:face:read`, and Kiosks under Administration once it carries
+   `admin:kiosks:read`.
+
+6. **Set up a kiosk** — see [Kiosks](kiosks.md).
 
 ## On an NVIDIA GPU
 
@@ -154,7 +153,8 @@ and point the provider at it with `IDEN_ENGINE_BASE_URL=http://localhost:8002`. 
 checks run like the provider's: `uv run ruff format . && uv run ruff check . && uv run pyright &&
 uv run pytest`. The tests that need the models are skipped until they are fetched.
 
-Until the kiosk app exists, `kiosk/scripts/enrol_from_files.py` stands in for one.
+To enrol a face in development, run the kiosk app against it on your laptop — see
+[Kiosks](kiosks.md#develop-without-a-pi).
 
 ## When something is wrong
 

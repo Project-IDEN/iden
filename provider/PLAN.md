@@ -25,6 +25,7 @@ begins.
 - [Phase 5 — Biometric module](#phase-5--biometric-module)
 - [Phase 6 — Hardening](#phase-6--hardening)
 - [Session provenance — last seen, device, address](#session-provenance--last-seen-device-address)
+- [Phase 8 — Kiosks](#phase-8--kiosks)
 - [Known issues](#known-issues)
 - [Why this order](#why-this-order)
 
@@ -848,7 +849,7 @@ enabled**.
 **Status: done.** The engine (`engine/`), the provider module (`biometric/`, `entity/face/`, the face
 step in `authz/login/`), the auth-ui face step and the dashboard's kiosk tickets shipped;
 `tests/test_biometric.py` pins the provider side with a fake engine, `engine/tests/` the engine
-against the real models. The kiosk app that captures faces is Phase 8. What a face is for, and what
+against the real models. The kiosk app that captures faces is [Phase 8](#phase-8--kiosks). What a face is for, and what
 it does not protect against, is [doc/concepts/biometrics.md](../doc/concepts/biometrics.md).
 
 ### What made this additive rather than invasive
@@ -1154,6 +1155,50 @@ curl -H "Authorization: Bearer $TOKEN" localhost:8000/entity/sessions | jq '.ses
 returns `lastSeenAt`, `ip`, `deviceLabel` and `browserLabel`; a second call a minute later shows
 `lastSeenAt` advanced; and a session that predates the change appears in the list with the new fields
 null rather than causing a `500`.
+
+---
+
+## Phase 8 — Kiosks
+
+**Goal:** the kiosk as a real device — registered, paired, watched, revocable on its own — and the
+app it runs.
+
+**Status: done, except on the hardware.** The provider side (`admin/kiosks/`, `biometric/pairing.py`,
+the device routes in `biometric/routes.py`), the dashboard's kiosk pages, the kiosk server
+(`kiosk/server`), the kiosk app (`web/kiosk`) and the Raspberry Pi install (`kiosk/deploy`) shipped.
+`tests/test_kiosks.py` pins the provider side, `kiosk/server/tests` the server against a stand-in
+IDEN; pairing, heartbeat, a real ticket and revocation were run against a live provider. How to set
+one up is [doc/operations/kiosks.md](../doc/operations/kiosks.md).
+
+### Decisions
+
+- **One client per kiosk, created with it.** The seeded shared `kiosk` client is gone — a secret
+  every device held could not be revoked for one. A `kiosks` row is what makes a client a kiosk;
+  enrolment looks it up on every request, so deleting it stops a device whose access token has not
+  expired, and `/admin/clients` refuses to touch a kiosk's client.
+- **Pairing, not the Device Authorization Grant.** RFC 8628 is for a *person* signing in on a
+  device; a kiosk is nobody. The administrator who registers it gets an eight-character code (no
+  ambiguous letters, 15 minutes, single use) and the device trades it for its own secret. Pairing
+  again rotates the secret, which signs the previous device out.
+- **Registering or pairing needs the `biometric:` scopes too,** for the reason `admin.delegation`
+  exists: the device receives them.
+- **The secret never reaches the browser.** A local server holds it and relays captures, answering
+  only to `localhost`; IDEN's error codes pass through unchanged so the screen can explain them.
+- **A heartbeat a minute, not audited.** It records version, camera and address, and returns the
+  kiosk's settings — the dashboard's remote control. Like `/oauth2/token`, recording every one would
+  bury the log.
+- **History is the audit log.** The audit row now records the error code of a failed request, so a
+  kiosk's enrolment history says *why* each attempt failed without a table of its own.
+- **Unattended, so nothing lingers.** Every result, a *Not me*, or an idle screen returns to the
+  start; the ticket and frames live in memory for one visit.
+
+### Open
+
+- **Not yet run on the Pi.** The install script and units are written and the image builds for
+  arm64, but nobody has installed a kiosk from them, and the shipped `camera.conf` has not been
+  checked against the Rapoo C280's controls.
+- **No live enrolment yet.** The capture has been exercised by tests and against the real engine,
+  never by a person in front of a camera — Phase 5's open item, now testable end to end.
 
 ---
 
