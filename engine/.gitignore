@@ -10,5 +10,4 @@ reports/
 
 # Deployment secrets, on a host that runs the engine alone.
 deploy/engine.token
-deploy/tls/
 deploy/.env

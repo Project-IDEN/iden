@@ -13,11 +13,6 @@ class Settings(BaseSettings):
     # which `docker inspect` can read. Empty is accepted only in development.
     engine_token_file: Path | None = None
 
-    # TLS, for an engine on another host than the provider: frames are faces,
-    # and they must not cross a network in the clear. Both or neither.
-    engine_tls_cert_file: Path | None = None
-    engine_tls_key_file: Path | None = None
-
     engine_model_dir: Path = Path("models")
     engine_manifest: Path = Path("models.toml")
     # `auto` uses CUDA when onnxruntime-gpu can see a GPU and the CPU otherwise;
@@ -36,12 +31,7 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )
 
-    @field_validator(
-        "engine_token_file",
-        "engine_tls_cert_file",
-        "engine_tls_key_file",
-        mode="before",
-    )
+    @field_validator("engine_token_file", mode="before")
     @classmethod
     def blank_means_unset(cls, value: object) -> object:
         """Compose passes an unset variable as an empty string, which would

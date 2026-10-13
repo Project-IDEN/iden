@@ -1,26 +1,43 @@
-# Runs the biometric engine on an NVIDIA GPU. An overlay for either compose file
-# that runs the engine:
+# The biometric engine on a machine of its own, on an NVIDIA GPU. Only engine/
+# needs to be on that machine.
 #
-#   cd engine/deploy && docker compose -f compose.yml -f compose.gpu.yml up -d
+#   cd engine/deploy && docker compose -f compose.gpu.yml up -d --build
 #
-#   docker compose -f deploy/docker-compose.yml \
-#                  -f engine/deploy/compose.gpu.yml --profile biometric up -d
+# Without a GPU, use compose.cpu.yml instead. For an engine on the provider's
+# host, see deploy/docker-compose.engine-gpu.yml.
 #
 # The host needs an NVIDIA GPU from Pascal (GTX 10) on, a driver new enough for
-# CUDA 12.9 (575 or later), and the NVIDIA Container Toolkit. The image carries
-# CUDA 12.9 and cuDNN 9. Check with:
+# CUDA 12.9 (575 or later), and the NVIDIA Container Toolkit. Check with:
 #
 #   docker run --rm --gpus all nvidia/cuda:12.9.1-base-ubuntu24.04 nvidia-smi
 #
-# ENGINE_DEVICE=cuda makes the engine refuse to start without a GPU rather than
-# fall back to the CPU and serve twenty times slower without anyone noticing.
+# Needs, beside this file: `engine.token`, a copy of the provider's
+# provider/keys/engine.token, and the models in ../models
+# (`uv run python -m scripts.fetch_models`). See
+# doc/operations/biometric-engine.md#on-another-machine.
+#
+# Plain HTTP: let only the provider's machine reach the port.
+
+name: iden-engine
 
 services:
   engine:
     build:
+      context: ..
       target: gpu
     environment:
+      ENGINE_ENV: ${ENGINE_ENV:-prod}
+      ENGINE_TOKEN_FILE: /secrets/engine.token
+      ENGINE_MODEL_DIR: /app/models
+      ENGINE_WORKERS: ${ENGINE_WORKERS:-1}
+      # Refuse to start without a GPU rather than fall back to the CPU and
+      # serve twenty times slower without anyone noticing.
       ENGINE_DEVICE: cuda
+    volumes:
+      - ./engine.token:/secrets/engine.token:ro
+      - ../models:/app/models:ro
+    ports:
+      - "${ENGINE_PUBLISH:-8000}:8000"
     deploy:
       resources:
         reservations:
@@ -28,3 +45,4 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+    restart: unless-stopped

@@ -29,7 +29,7 @@ ENV PATH="/app/.venv/bin:$PATH" ENGINE_DEVICE=cpu
 USER iden
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=60s --retries=3 \
-    CMD ["python", "-m", "engine.healthcheck"]
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"
 CMD ["engine"]
 
 
@@ -54,5 +54,5 @@ ENV PATH="/app/.venv/bin:$PATH" ENGINE_DEVICE=cuda
 USER iden
 EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=3s --start-period=120s --retries=3 \
-    CMD ["python", "-m", "engine.healthcheck"]
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')"
 CMD ["engine"]

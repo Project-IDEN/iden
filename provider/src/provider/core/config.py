@@ -12,15 +12,6 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 PUBLISHED_CREDENTIALS = frozenset({"iden", "idensecret"})
 
 
-def _engine_url_is_private(url: str) -> bool:
-    """https, or plain http to this host or a service on the same Docker network
-    — a name without a dot. Anything else crosses a network a face should not
-    cross in the clear."""
-    parts = urlsplit(url)
-    host = parts.hostname or ""
-    return parts.scheme == "https" or host == "localhost" or "." not in host
-
-
 class Settings(BaseSettings):
     # Application
     iden_env: Literal["dev", "prod"] = "dev"
@@ -113,9 +104,6 @@ class Settings(BaseSettings):
     # The secret the engine expects in `Authorization`. Defaults to
     # `engine.token` beside the signing keys, written by `scripts.gen_keys`.
     iden_engine_token_file: Path | None = None
-    # The CA that signed the engine's certificate, when the engine is on another
-    # host with a certificate of its own rather than a public one.
-    iden_engine_ca_file: Path | None = None
     # Face analysis on a CPU takes a few seconds; on a GPU, a fraction of one.
     iden_engine_timeout: float = 20.0
     # Off: only encrypted embeddings are kept, and a model upgrade means
@@ -131,12 +119,7 @@ class Settings(BaseSettings):
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )
 
-    @field_validator(
-        "iden_totp_key_file",
-        "iden_engine_token_file",
-        "iden_engine_ca_file",
-        mode="before",
-    )
+    @field_validator("iden_totp_key_file", "iden_engine_token_file", mode="before")
     @classmethod
     def blank_means_unset(cls, value: object) -> object:
         """An empty value is no value.
@@ -195,14 +178,6 @@ class Settings(BaseSettings):
         if self.iden_biometric_keep_images and not self.blob_storage_configured:
             problems.append(
                 "IDEN_BIOMETRIC_KEEP_IMAGES needs blob storage (IDEN_S3_ENDPOINT_URL)."
-            )
-
-        if self.iden_biometric_enabled and not _engine_url_is_private(
-            self.iden_engine_base_url
-        ):
-            problems.append(
-                "IDEN_ENGINE_BASE_URL must be https:// when the engine is on another "
-                "host: the provider sends it faces."
             )
 
         if self.iden_forwarded_allow_ips.strip() == "*":

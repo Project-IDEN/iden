@@ -170,18 +170,10 @@ def ready() -> dict[str, str]:
 
 
 def main() -> None:
-    if (settings.engine_tls_cert_file is None) != (
-        settings.engine_tls_key_file is None
-    ):
-        raise SystemExit(
-            "Set both ENGINE_TLS_CERT_FILE and ENGINE_TLS_KEY_FILE, or neither."
-        )
     uvicorn.run(
         "engine.app:app",
         host="0.0.0.0",
         port=8000,
         log_config=None,
         workers=settings.engine_workers,
-        ssl_certfile=settings.engine_tls_cert_file,
-        ssl_keyfile=settings.engine_tls_key_file,
     )

@@ -1,5 +1,6 @@
-# The IDEN provider, the stores it needs, and the two browser frontends — plus
-# the biometric engine, which starts only with `--profile biometric`.
+# The IDEN provider, the stores it needs, and the two browser frontends. The
+# biometric engine is a file of its own, added beside this one:
+# docker-compose.engine-cpu.yml or docker-compose.engine-gpu.yml.
 #
 # `docker compose -f deploy/docker-compose.yml up --build` brings up a working
 # deployment: migrations run to completion, then the provider starts.
@@ -158,9 +159,6 @@ services:
       IDEN_ENGINE_BASE_URL: ${IDEN_ENGINE_BASE_URL:-http://engine:8000}
       # Empty means `engine.token` beside the signing keys, which is /keys above.
       IDEN_ENGINE_TOKEN_FILE: ${IDEN_ENGINE_TOKEN_FILE:-}
-      # For an engine on another host with a private CA's certificate: put the CA
-      # in provider/keys and set /keys/engine-ca.pem.
-      IDEN_ENGINE_CA_FILE: ${IDEN_ENGINE_CA_FILE:-}
       IDEN_ENGINE_TIMEOUT: ${IDEN_ENGINE_TIMEOUT:-20}
       IDEN_BIOMETRIC_KEEP_IMAGES: ${IDEN_BIOMETRIC_KEEP_IMAGES:-false}
       IDEN_FACE_TICKET_TTL: ${IDEN_FACE_TICKET_TTL:-900}
@@ -189,30 +187,6 @@ services:
       seaweedfs:
         condition: service_healthy
     restart: unless-stopped
-
-  # The biometric engine. Absent unless asked for:
-  #
-  #   docker compose -f deploy/docker-compose.yml --profile biometric up -d
-  #
-  # with IDEN_BIOMETRIC_ENABLED=true in deploy/.env. No published port: only the
-  # provider reaches it, over this network, presenting the token from
-  # provider/keys. Models are fetched once into engine/models — see
-  # doc/operations/biometric-engine.md. On an NVIDIA host, add
-  # engine/deploy/compose.gpu.yml.
-  #
-  # Defined once, in engine/deploy/compose.yml, which also runs it on a host of
-  # its own; here it takes the provider's token and publishes nothing.
-  engine:
-    extends:
-      file: ../engine/deploy/compose.yml
-      service: engine
-    profiles: ["biometric"]
-    environment:
-      ENGINE_ENV: ${IDEN_ENV:-dev}
-      ENGINE_WORKERS: ${IDEN_ENGINE_WORKERS:-1}
-    volumes:
-      - ../provider/keys/engine.token:/secrets/engine.token:ro
-    ports: !reset []
 
   # Static builds. The issuer and branding are written into /config.js at
   # container start, so the same image serves any deployment.

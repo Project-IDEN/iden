@@ -1,0 +1,28 @@
+# The biometric engine on the provider's host, on its CPU. Added to the main
+# file rather than run on its own, so it joins the provider's network:
+#
+#   docker compose -f deploy/docker-compose.yml \
+#                  -f deploy/docker-compose.engine-cpu.yml up -d --build
+#
+# with IDEN_BIOMETRIC_ENABLED=true in deploy/.env. On an NVIDIA GPU, use
+# docker-compose.engine-gpu.yml instead. For an engine on another machine, see
+# engine/deploy. Both are described in doc/operations/biometric-engine.md.
+#
+# No published port: only the provider reaches it, at http://engine:8000,
+# presenting the token from provider/keys. Models are fetched once into
+# engine/models.
+
+services:
+  engine:
+    build:
+      context: ../engine
+      target: cpu
+    environment:
+      ENGINE_ENV: ${IDEN_ENV:-dev}
+      ENGINE_TOKEN_FILE: /secrets/engine.token
+      ENGINE_MODEL_DIR: /app/models
+      ENGINE_WORKERS: ${IDEN_ENGINE_WORKERS:-1}
+    volumes:
+      - ../provider/keys/engine.token:/secrets/engine.token:ro
+      - ../engine/models:/app/models:ro
+    restart: unless-stopped
