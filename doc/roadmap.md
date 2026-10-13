@@ -38,7 +38,7 @@ Phase 8 made the kiosk real: each one registered in the dashboard with a client 
 with a one-time code, reporting its health every minute, and revocable on its own; and the app it
 runs — a touchscreen page on a Raspberry Pi, served by a local process that holds the secret. See
 [Kiosks](operations/kiosks.md). Not yet done: a kiosk walked through end to end with a real face on
-the real hardware, and the camera settings tuned for the Rapoo C280 it is meant for.
+the real hardware, and [its camera tuned](operations/kiosk-camera.md) in the light it will stand in.
 
 ## Open issues
 

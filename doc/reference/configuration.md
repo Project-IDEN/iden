@@ -102,8 +102,10 @@ files set it to `cuda`.
 
 ## The kiosk server
 
-Read by the kiosk server on each kiosk, not the provider. `install.sh` writes `KIOSK_ISSUER` into
-`/opt/iden-kiosk/.env`; the image sets the rest. See [Kiosks](../operations/kiosks.md).
+Read by the kiosk server on each kiosk, not the provider. `install.sh` writes `/opt/iden-kiosk/.env`
+with `KIOSK_ISSUER`, and two values for the device itself rather than the server — `KIOSK_IMAGE`, the
+image to run, and `KIOSK_USER`, the desktop user kiosk mode runs as. Run `install.sh` again to
+change any of them. The image sets the rest. See [Kiosks](../operations/kiosks.md).
 
 | Variable | Default | Notes |
 |---|---|---|
