@@ -116,3 +116,29 @@ class TestBiometricSettings:
                 **SAFE_PROD
                 | {"iden_s3_endpoint_url": "", "iden_biometric_keep_images": True}
             )
+
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://engine:8000",
+            "http://localhost:8002",
+            "https://engine.internal.example.org:8443",
+            "https://10.0.0.5:8443",
+        ],
+    )
+    def test_an_engine_on_this_host_or_over_tls_is_accepted(self, url):
+        settings = Settings(
+            **SAFE_PROD | {"iden_biometric_enabled": True, "iden_engine_base_url": url}
+        )
+        assert settings.iden_engine_base_url == url
+
+    @pytest.mark.parametrize(
+        "url", ["http://10.0.0.5:8000", "http://engine.internal.example.org:8000"]
+    )
+    def test_an_engine_on_another_host_needs_tls(self, url):
+        """The provider sends it faces."""
+        with pytest.raises(ValidationError, match="IDEN_ENGINE_BASE_URL"):
+            Settings(
+                **SAFE_PROD
+                | {"iden_biometric_enabled": True, "iden_engine_base_url": url}
+            )

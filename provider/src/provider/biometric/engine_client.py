@@ -110,6 +110,9 @@ class HttpEngine:
                 base_url=settings.iden_engine_base_url,
                 timeout=settings.iden_engine_timeout,
                 headers={"Authorization": f"Bearer {token}"} if token else {},
+                verify=str(settings.iden_engine_ca_file)
+                if settings.iden_engine_ca_file
+                else True,
             ) as client:
                 response = await client.request(
                     method,

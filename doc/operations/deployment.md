@@ -34,8 +34,9 @@ speaks the S3 API and nothing else, so MinIO, Garage, or AWS S3 need only differ
 
 The provider is a single deployable. The admin, entity, and biometric modules are logical
 boundaries, not separate services — one image, one port, one thing to run. The engine is the one
-exception: it is where faces are analysed, it needs a GPU to be fast, and it is never reachable from
-outside.
+exception: it is where faces are analysed, it needs a GPU to be fast, and only the provider reaches
+it — on the same host, or on [a host of its own](biometric-engine.md#on-a-host-of-its-own) over TLS.
+The kiosks are separate devices again, with their own [install](kiosks.md).
 
 ## Order of operations
 

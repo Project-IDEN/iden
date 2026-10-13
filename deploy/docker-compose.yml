@@ -158,6 +158,9 @@ services:
       IDEN_ENGINE_BASE_URL: ${IDEN_ENGINE_BASE_URL:-http://engine:8000}
       # Empty means `engine.token` beside the signing keys, which is /keys above.
       IDEN_ENGINE_TOKEN_FILE: ${IDEN_ENGINE_TOKEN_FILE:-}
+      # For an engine on another host with a private CA's certificate: put the CA
+      # in provider/keys and set /keys/engine-ca.pem.
+      IDEN_ENGINE_CA_FILE: ${IDEN_ENGINE_CA_FILE:-}
       IDEN_ENGINE_TIMEOUT: ${IDEN_ENGINE_TIMEOUT:-20}
       IDEN_BIOMETRIC_KEEP_IMAGES: ${IDEN_BIOMETRIC_KEEP_IMAGES:-false}
       IDEN_FACE_TICKET_TTL: ${IDEN_FACE_TICKET_TTL:-900}
@@ -195,21 +198,21 @@ services:
   # provider reaches it, over this network, presenting the token from
   # provider/keys. Models are fetched once into engine/models — see
   # doc/operations/biometric-engine.md. On an NVIDIA host, add
-  # deploy/docker-compose.gpu.yml.
+  # engine/deploy/compose.gpu.yml.
+  #
+  # Defined once, in engine/deploy/compose.yml, which also runs it on a host of
+  # its own; here it takes the provider's token and publishes nothing.
   engine:
+    extends:
+      file: ../engine/deploy/compose.yml
+      service: engine
     profiles: ["biometric"]
-    build:
-      context: ../engine
-      target: cpu
     environment:
       ENGINE_ENV: ${IDEN_ENV:-dev}
-      ENGINE_TOKEN_FILE: /keys/engine.token
-      ENGINE_MODEL_DIR: /app/models
       ENGINE_WORKERS: ${IDEN_ENGINE_WORKERS:-1}
     volumes:
-      - ../provider/keys/engine.token:/keys/engine.token:ro
-      - ../engine/models:/app/models:ro
-    restart: unless-stopped
+      - ../provider/keys/engine.token:/secrets/engine.token:ro
+    ports: !reset []
 
   # Static builds. The issuer and branding are written into /config.js at
   # container start, so the same image serves any deployment.

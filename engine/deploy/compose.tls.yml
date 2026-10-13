@@ -1,0 +1,13 @@
+# The engine serving TLS itself, for a provider on another host: the frames it
+# receives are faces, and must not cross a network in the clear.
+#
+# Put the certificate and its key in ./tls (or ENGINE_TLS_DIR). A certificate
+# from a private CA works; give the provider that CA in IDEN_ENGINE_CA_FILE.
+
+services:
+  engine:
+    environment:
+      ENGINE_TLS_CERT_FILE: /tls/cert.pem
+      ENGINE_TLS_KEY_FILE: /tls/key.pem
+    volumes:
+      - ${ENGINE_TLS_DIR:-./tls}:/tls:ro

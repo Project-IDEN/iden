@@ -1,7 +1,10 @@
-# Runs the biometric engine on an NVIDIA GPU.
+# Runs the biometric engine on an NVIDIA GPU. An overlay for either compose file
+# that runs the engine:
+#
+#   cd engine/deploy && docker compose -f compose.yml -f compose.gpu.yml up -d
 #
 #   docker compose -f deploy/docker-compose.yml \
-#                  -f deploy/docker-compose.gpu.yml --profile biometric up -d
+#                  -f engine/deploy/compose.gpu.yml --profile biometric up -d
 #
 # The host needs an NVIDIA GPU from Pascal (GTX 10) on, a driver new enough for
 # CUDA 12.9 (575 or later), and the NVIDIA Container Toolkit. The image carries

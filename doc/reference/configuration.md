@@ -75,6 +75,7 @@ for as long as the container lives, where `docker inspect` reads it.
 | `IDEN_BIOMETRIC_ENABLED` | `false` | Faces as a second factor, enrolled at a kiosk. Off, `/biometric/*`, `/admin/kiosks*` and `/entity/face*` answer 404 and are absent from `/docs`, and face sign-in answers 501. Re-run the seed after turning it on. See [Faces](../concepts/biometrics.md). |
 | `IDEN_ENGINE_BASE_URL` | `http://engine:8000` | Where the biometric engine listens. Never published outside the deployment. |
 | `IDEN_ENGINE_TOKEN_FILE` | `<IDEN_SIGNING_KEY_DIR>/engine.token` | The secret the provider presents to the engine. Written by `scripts.gen_keys`; losing it costs nothing — write a new one and restart both. |
+| `IDEN_ENGINE_CA_FILE` | *empty* | The CA that signed the engine's certificate, for an engine on another host with a private CA. Empty trusts the public CAs. In `prod`, an engine on another host must be `https://`. |
 | `IDEN_ENGINE_TIMEOUT` | `20` (seconds) | How long to wait for the engine to judge a capture. |
 | `IDEN_BIOMETRIC_KEEP_IMAGES` | `false` | Keep enrolment photos, encrypted, in blob storage, so a model upgrade can re-embed them with `scripts.reembed_faces`. Off, only embeddings are stored and people enrol again after an upgrade. Needs blob storage; refused in prod without it. |
 | `IDEN_FACE_TICKET_TTL` | `900` (15 min) | How long the QR code that lets a kiosk enrol someone's face stays usable. |
@@ -82,7 +83,7 @@ for as long as the container lives, where `docker inspect` reads it.
 
 ## The biometric engine
 
-Read by the `engine` service, not the provider. `deploy/docker-compose.yml` sets the first three.
+Read by the `engine` service, not the provider. `engine/deploy/compose.yml` sets the first three.
 
 | Variable | Default | Notes |
 |---|---|---|
@@ -92,6 +93,7 @@ Read by the `engine` service, not the provider. `deploy/docker-compose.yml` sets
 | `ENGINE_WORKERS` | `1` | Captures checked at once. Each holds its own copy of the models in memory. |
 | `ENGINE_MANIFEST` | `models.toml` | The models, their checksums, and the thresholds calibrated for them. |
 | `ENGINE_ENV` | `dev` | `prod` hides `/docs` and requires the token. |
+| `ENGINE_TLS_CERT_FILE`, `ENGINE_TLS_KEY_FILE` | *empty* | Serve TLS, for a provider on another host. Both or neither; `engine/deploy/compose.tls.yml` sets them. |
 
 ## The two frontends
 
