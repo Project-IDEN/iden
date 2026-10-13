@@ -429,13 +429,12 @@ they still name the old origin, and sign-in loops until they're updated. You can
 
 ```bash
 docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tunnel.yml \
-  exec postgres psql -U iden -d iden
+  exec -T postgres psql -U iden -d iden -c \
+  "update clients set redirect_uris = ARRAY['https://iden.example.org/console/callback']
+   where client_id = 'dashboard';"
 ```
 
-```sql
-update clients set redirect_uris = ARRAY['https://iden.example.org/console/callback']
-where client_id = 'dashboard';
-```
+It prints `UPDATE 1`. `UPDATE 0` means there is no `dashboard` client yet: run the seed first.
 
 `redirect_uris` is a PostgreSQL array, so use `ARRAY[...]`. A JSON string fails with
 *malformed array literal*.
