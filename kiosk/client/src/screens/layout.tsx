@@ -1,4 +1,5 @@
-import { Brand, cn } from "@iden/shared";
+import { cn } from "../ui/cn";
+import { Logo } from "../ui/logo";
 import type { ReactNode } from "react";
 
 /** Every screen: the kiosk's name at the top, its notice at the bottom, and
@@ -17,7 +18,10 @@ export function Screen({
   return (
     <div className="flex min-h-dvh flex-col bg-canvas text-ink">
       <header className="flex items-center justify-between px-8 py-5">
-        <Brand branding={{ organization: null, logoUrl: null }} />
+        <span className="flex items-center gap-2 text-title-md text-ink">
+          <Logo className="h-7 w-7 text-primary" />
+          IDEN
+        </span>
         {name ? <span className="text-body-md text-muted-foreground">{name}</span> : null}
       </header>
       <main

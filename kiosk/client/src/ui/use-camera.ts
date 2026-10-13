@@ -1,3 +1,4 @@
+/** A copy of web/shared/ui/use-camera.ts. */
 import { useEffect, useRef, useState } from "react";
 
 export type CameraStatus = "starting" | "denied" | "ready";

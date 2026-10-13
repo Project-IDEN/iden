@@ -43,10 +43,13 @@ Where it stands matters as much as what it is:
 **1. Build and publish the image.** Once, from a clone, for every kiosk to pull:
 
 ```bash
-docker buildx build -f kiosk/Dockerfile --platform linux/arm64,linux/amd64 \
+docker buildx build --platform linux/arm64,linux/amd64 \
   --build-arg VERSION=$(git describe --always) \
-  -t ghcr.io/<you>/iden-kiosk:latest --push .
+  -t ghcr.io/<you>/iden-kiosk:latest --push kiosk
 ```
+
+`kiosk/` holds everything the kiosk needs — the server, the client and the install files — and
+nothing outside it is used. It can be built, and the folder handed over, on its own.
 
 **2. Install on the Pi.** Copy `kiosk/deploy/` onto it, then:
 
@@ -142,11 +145,17 @@ again**. It needs no PIN: pairing needs a fresh code from an administrator anywa
 
 ```bash
 cd kiosk/server && uv sync && KIOSK_ISSUER=http://localhost:8000 uv run kiosk-server   # :8080
-cd web && pnpm --filter @iden/kiosk dev                                                # :5180
+cd kiosk/client && pnpm install && pnpm dev                                           # :5180
 ```
 
 Open `http://localhost:5180`; Vite passes `/api` to the kiosk server. The laptop's webcam stands in
-for the kiosk's. The server's checks are the same four as the provider's, run from `kiosk/server`.
+for the kiosk's. The server's checks are the same four as the provider's, run from `kiosk/server`; the client's
+are `pnpm typecheck && pnpm lint && pnpm build` in `kiosk/client`.
+
+The client carries its own copies of three things the web apps share: the design tokens
+(`src/theme.css`), the face capture (`src/ui/face-capture.tsx`, which auth-ui also has for sign-in)
+and the capture-problem wording. A change to the provider's challenge format means changing both
+face captures.
 
 ## When something is wrong
 

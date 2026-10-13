@@ -1,4 +1,4 @@
-import { useCamera } from "@iden/shared";
+import { useCamera } from "../ui/use-camera";
 import { Delete } from "lucide-react";
 import { useState } from "react";
 import { KioskError, pair, type KioskState } from "../api";

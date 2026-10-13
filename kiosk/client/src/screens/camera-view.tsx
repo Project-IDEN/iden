@@ -1,4 +1,5 @@
-import { cn, type CameraStatus } from "@iden/shared";
+import { cn } from "../ui/cn";
+import type { CameraStatus } from "../ui/use-camera";
 import type { RefObject } from "react";
 
 /** The live camera, mirrored as people expect, with a frame to aim a phone at. */

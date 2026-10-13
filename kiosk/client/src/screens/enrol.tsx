@@ -1,4 +1,6 @@
-import { FaceCapture, describeCaptureProblems, useCamera } from "@iden/shared";
+import { describeCaptureProblems } from "../ui/capture-problems";
+import { FaceCapture } from "../ui/face-capture";
+import { useCamera } from "../ui/use-camera";
 import { CircleCheck } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import {

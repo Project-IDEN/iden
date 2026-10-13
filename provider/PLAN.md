@@ -1165,7 +1165,7 @@ app it runs.
 
 **Status: done, except on the hardware.** The provider side (`admin/kiosks/`, `biometric/pairing.py`,
 the device routes in `biometric/routes.py`), the dashboard's kiosk pages, the kiosk server
-(`kiosk/server`), the kiosk app (`web/kiosk`) and the Raspberry Pi install (`kiosk/deploy`) shipped.
+(`kiosk/server`), the kiosk app (`kiosk/client`) and the Raspberry Pi install (`kiosk/deploy`) shipped.
 `tests/test_kiosks.py` pins the provider side, `kiosk/server/tests` the server against a stand-in
 IDEN; pairing, heartbeat, a real ticket and revocation were run against a live provider. How to set
 one up is [doc/operations/kiosks.md](../doc/operations/kiosks.md).

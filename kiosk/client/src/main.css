@@ -1,4 +1,4 @@
-@import "@iden/shared/tokens.css";
+@import "./theme.css";
 
 /* A touchscreen with nobody to help: no text selection to get stuck in, no
    long-press menus, no pull-to-refresh. */

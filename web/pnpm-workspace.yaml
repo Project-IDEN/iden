@@ -2,7 +2,6 @@ packages:
   - shared
   - auth-ui
   - dashboard
-  - kiosk
 
 allowBuilds:
   esbuild: true

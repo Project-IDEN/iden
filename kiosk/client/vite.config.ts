@@ -2,7 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 
-// Built into kiosk/server's image and served by it on localhost. In development
+// Built into the kiosk image and served by kiosk/server on localhost. In development
 // Vite serves the page and passes /api to the kiosk server.
 export default defineConfig({
   plugins: [react(), tailwindcss()],

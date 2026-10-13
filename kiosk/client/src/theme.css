@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+/* A copy of web/shared/tokens/theme.css — DESIGN.md, transcribed. The kiosk
+   builds on its own, on its own device, so it carries its own copy rather than
+   reaching into web/. Change both together.
+
+   Copernicus and StyreneB are licensed and unavailable as web fonts; these are
+   the substitutes DESIGN.md's own Known Gaps section names. Self-hosted rather
+   than linked, because the provider's CSP is `default-src 'none'` and IDEN is
+   meant to deploy without internet egress. */
+@import "@fontsource/eb-garamond/latin-400.css";
+@import "@fontsource/eb-garamond/latin-ext-400.css";
+@import "@fontsource-variable/inter/wght.css";
+@import "@fontsource-variable/jetbrains-mono/wght.css";
+
+@theme {
+  /* Brand */
+  --color-primary: #cc785c;
+  --color-primary-active: #a9583e;
+  --color-primary-disabled: #e6dfd8;
+  --color-on-primary: #ffffff;
+
+  /* Surfaces — cream, coral, dark. There is no fourth surface tone. */
+  --color-canvas: #faf9f5;
+  --color-surface-soft: #f5f0e8;
+  --color-surface-card: #efe9de;
+  --color-surface-cream-strong: #e8e0d2;
+  --color-surface-dark: #181715;
+  --color-surface-dark-elevated: #252320;
+  --color-surface-dark-soft: #1f1e1b;
+
+  /* Text.
+
+     `muted` is the one name shadcn and DESIGN.md disagree on: DESIGN.md calls
+     the grey *text* colour muted, shadcn calls a subtle *surface* muted and its
+     text `muted-foreground`. shadcn's reading wins, because its components are
+     written against it and this file is what makes them ours. DESIGN.md's
+     muted is therefore `--color-muted-foreground`. */
+  --color-ink: #141413;
+  --color-body-strong: #252523;
+  --color-body: #3d3d3a;
+  --color-muted-foreground: #6c6a64;
+  --color-muted-soft: #8e8b82;
+  --color-on-dark: #faf9f5;
+  --color-on-dark-soft: #a09d96;
+
+  /* Lines */
+  --color-hairline: #e6dfd8;
+  --color-hairline-soft: #ebe6df;
+  --color-hairline-dark: #302e2a;
+
+  /* Accent and semantic */
+  --color-accent-teal: #5db8a6;
+  --color-accent-amber: #e8a55a;
+  --color-success: #5db872;
+  --color-warning: #d4a017;
+  --color-error: #c64545;
+
+  /* Product layer, derived — DESIGN.md documents a marketing surface with no
+     table and no sidebar, so these extend its tokens rather than sit beside
+     them. `row-hover` is surface-soft under a name that says what it is for. */
+  --color-row-hover: #f5f0e8;
+
+  /* ------------------------------------------------------------------
+     The shadcn vocabulary.
+
+     shadcn components are written against semantic names — `bg-background`,
+     `text-muted-foreground`, `border-input` — rather than palette names. Rather
+     than editing every component to say `bg-canvas`, the names are defined here
+     in terms of DESIGN.md's palette. That is what lets an unmodified shadcn
+     component render in this design language, and it means an updated component
+     pulled from the registry needs no re-styling to fit.
+
+     Every value below is a DESIGN.md value. Nothing new is introduced.
+     ------------------------------------------------------------------ */
+  --color-background: #faf9f5; /* canvas */
+  --color-foreground: #141413; /* ink */
+
+  /* Cards sit on the canvas and are separated by a hairline, not by fill —
+     DESIGN.md's elevation philosophy is colour-block first, shadow rare. */
+  --color-card: #faf9f5;
+  --color-card-foreground: #141413;
+  --color-popover: #faf9f5;
+  --color-popover-foreground: #141413;
+
+  --color-primary-foreground: #ffffff; /* on-primary */
+
+  /* secondary, muted and accent all resolve to the same soft cream. In DESIGN.md
+     there is one step between canvas and card, and inventing three would be the
+     fourth surface tone the system explicitly refuses. */
+  --color-secondary: #f5f0e8;
+  --color-secondary-foreground: #141413;
+  --color-muted: #f5f0e8;
+  --color-accent: #f5f0e8;
+  --color-accent-foreground: #141413;
+
+  --color-destructive: #c64545; /* error */
+  --color-destructive-foreground: #ffffff;
+
+  --color-border: #e6dfd8; /* hairline */
+  --color-input: #e6dfd8;
+  --color-ring: #cc785c; /* coral — DESIGN.md specifies the focus ring in coral */
+
+  /* Type. Display stays weight 400 with negative tracking — Copernicus at 700
+     reads as bombastic, and the substitute inherits the rule. */
+  --font-display: "EB Garamond", "Tiempos Headline", Garamond, "Times New Roman", serif;
+  --font-sans:
+    "Inter Variable", Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --text-display-xl: 4rem;
+  --text-display-xl--line-height: 1.05;
+  --text-display-xl--letter-spacing: -1.5px;
+  --text-display-xl--font-weight: 400;
+
+  --text-display-lg: 3rem;
+  --text-display-lg--line-height: 1.1;
+  --text-display-lg--letter-spacing: -1px;
+  --text-display-lg--font-weight: 400;
+
+  --text-display-md: 2.25rem;
+  --text-display-md--line-height: 1.15;
+  --text-display-md--letter-spacing: -0.5px;
+  --text-display-md--font-weight: 400;
+
+  --text-display-sm: 1.75rem;
+  --text-display-sm--line-height: 1.2;
+  --text-display-sm--letter-spacing: -0.3px;
+  --text-display-sm--font-weight: 400;
+
+  --text-title-lg: 1.375rem;
+  --text-title-lg--line-height: 1.3;
+  --text-title-lg--font-weight: 500;
+
+  --text-title-md: 1.125rem;
+  --text-title-md--line-height: 1.4;
+  --text-title-md--font-weight: 500;
+
+  --text-title-sm: 1rem;
+  --text-title-sm--line-height: 1.4;
+  --text-title-sm--font-weight: 500;
+
+  --text-body-md: 1rem;
+  --text-body-md--line-height: 1.55;
+
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.55;
+
+  --text-caption: 0.8125rem;
+  --text-caption--line-height: 1.4;
+  --text-caption--font-weight: 500;
+
+  --text-caption-upper: 0.75rem;
+  --text-caption-upper--line-height: 1.4;
+  --text-caption-upper--letter-spacing: 1.5px;
+  --text-caption-upper--font-weight: 500;
+
+  --text-code: 0.875rem;
+  --text-code--line-height: 1.6;
+
+  --text-button: 0.875rem;
+  --text-button--line-height: 1;
+  --text-button--font-weight: 500;
+
+  /* Radius is hierarchical: controls 8, cards 12, marquee 16. */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Tailwind's base spacing unit is already DESIGN.md's 4px, so the scale maps
+     one to one: p-3 is sm, p-6 is lg, p-8 is xl, p-12 is xxl. */
+  --spacing-section: 96px;
+  --spacing-control: 40px;
+  --spacing-row: 44px;
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-body);
+    font-family: var(--font-sans);
+    font-size: var(--text-body-md);
+    line-height: 1.55;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: var(--color-ink);
+    font-family: var(--font-display);
+    font-weight: 400;
+  }
+
+  /* DESIGN.md specifies the coral ring for a focused input; the product layer
+     promotes it to everything interactive, because a keyboard user navigating a
+     table of 200 users needs to know where they are. */
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+
+  ::selection {
+    background-color: color-mix(in srgb, var(--color-primary) 22%, transparent);
+    color: var(--color-ink);
+  }
+}
+
+@keyframes step-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@layer utilities {
+  /* Password → TOTP → consent is one conversation continuing, not three pages.
+     The global reduced-motion rule below collapses this to nothing. */
+  .step-in {
+    animation: step-in 200ms cubic-bezier(0.2, 0, 0, 1);
+  }
+
+  /* The identity vernacular: scope values, client ids, audiences, UUIDs, jti.
+     Monospace is not decoration here — these are strings people copy, compare
+     character by character, and paste into configuration files. */
+  .font-identity {
+    font-family: var(--font-mono);
+    font-variant-ligatures: none;
+    font-size: 0.9em;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
