@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from provider.admin.clients.errors import (
     ClientIdTaken,
     ClientNotFound,
+    KioskManaged,
     PublicClientHasNoSecret,
     RedirectUriRequired,
     RestrictedScopeOnOwnedClient,
@@ -15,7 +16,7 @@ from provider.admin.clients.errors import (
 from provider.admin.clients.schemas import ClientCreate, ClientUpdate
 from provider.core.security import generate_token, hash_secret_async
 from provider.shared.enums import ClientType, GrantType
-from provider.shared.models import Client, ClientScope, Scope
+from provider.shared.models import Client, ClientScope, Kiosk, Scope
 from provider.shared.scopes import RESTRICTED_PREFIXES
 
 
@@ -75,6 +76,13 @@ async def list_clients(
     return clients, total
 
 
+async def _refuse_kiosk(session: AsyncSession, client: Client) -> None:
+    """A kiosk's client is the kiosk's: its secret is replaced by pairing, and
+    its scopes are what pairing hands the device."""
+    if await session.scalar(select(Kiosk.id).where(Kiosk.client_id == client.id)):
+        raise KioskManaged
+
+
 async def get_client(session: AsyncSession, client_id: UUID) -> Client:
     client = await session.get(Client, client_id)
     if client is None:
@@ -120,6 +128,7 @@ async def update_client(
     session: AsyncSession, client_id: UUID, data: ClientUpdate
 ) -> Client:
     client = await get_client(session, client_id)
+    await _refuse_kiosk(session, client)
 
     for field in (
         "name",
@@ -148,6 +157,7 @@ async def set_client_scopes(
     session: AsyncSession, client_id: UUID, grantable: list[UUID], granted: list[UUID]
 ) -> Client:
     client = await get_client(session, client_id)
+    await _refuse_kiosk(session, client)
     await _apply_scopes(session, client, grantable, granted)
     await session.commit()
     await session.refresh(client)
@@ -156,6 +166,7 @@ async def set_client_scopes(
 
 async def rotate_secret(session: AsyncSession, client_id: UUID) -> str:
     client = await get_client(session, client_id)
+    await _refuse_kiosk(session, client)
     if client.client_type != ClientType.CONFIDENTIAL:
         raise PublicClientHasNoSecret
 
@@ -167,6 +178,7 @@ async def rotate_secret(session: AsyncSession, client_id: UUID) -> str:
 
 async def delete_client(session: AsyncSession, client_id: UUID) -> None:
     client = await get_client(session, client_id)
+    await _refuse_kiosk(session, client)
     if client.is_system:
         raise SystemClientImmutable
 

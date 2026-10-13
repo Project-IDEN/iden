@@ -20,6 +20,7 @@ from provider.admin.apis.routes import router as admin_apis_router  # noqa: E402
 from provider.admin.audit.routes import router as admin_audit_router  # noqa: E402
 from provider.admin.clients.routes import router as admin_clients_router  # noqa: E402
 from provider.admin.groups.routes import router as admin_groups_router  # noqa: E402
+from provider.admin.kiosks.routes import router as admin_kiosks_router  # noqa: E402
 from provider.admin.profile_fields.routes import (  # noqa: E402
     router as admin_profile_fields_router,
 )
@@ -80,6 +81,7 @@ router.include_router(developer_clients_router)
 # Mounted whatever the flag says, and answering 404 while it is off: the flag is
 # then a setting read per request rather than a decision frozen at import.
 router.include_router(biometric_router)
+router.include_router(admin_kiosks_router)
 
 router.include_router(media_router)
 

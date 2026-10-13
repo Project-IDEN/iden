@@ -268,6 +268,33 @@ class Client(Base, TimestampMixin):
     )
 
 
+class Kiosk(Base, TimestampMixin):
+    """A registered enrolment kiosk: one device, with its own client.
+
+    The client is what the device signs in as; this row is what makes that
+    client a kiosk. Enrolment refuses a client without one, so deleting the row
+    (with its client) stops a device whose access token has not yet expired.
+    """
+
+    __tablename__ = "kiosks"
+
+    id: Mapped[uuid.UUID] = _pk()
+    client_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("clients.id", ondelete="CASCADE"), unique=True
+    )
+    location: Mapped[str | None] = mapped_column(String(255))
+    # Set from the dashboard, read by the device at every heartbeat. Shape and
+    # defaults are `admin.kiosks.schemas.KioskSettings`.
+    settings: Mapped[dict] = mapped_column(JSONB, default=dict)
+    paired_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_seen_version: Mapped[str | None] = mapped_column(String(64))
+    last_seen_camera: Mapped[str | None] = mapped_column(String(255))
+    last_seen_address: Mapped[str | None] = mapped_column(String(45))
+
+    client: Mapped[Client] = relationship(lazy="selectin")
+
+
 class ClientScope(Base, TimestampMixin):
     """A client's relationship to one scope.
 
@@ -391,6 +418,8 @@ class AuditEvent(Base):
     __table_args__ = (
         Index("ix_audit_events_occurred_at", "occurred_at"),
         Index("ix_audit_events_actor_user_id", "actor_user_id"),
+        # A kiosk's enrolment history is read by its client id.
+        Index("ix_audit_events_actor_client", "actor_client"),
     )
 
     id: Mapped[uuid.UUID] = _pk()

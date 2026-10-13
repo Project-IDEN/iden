@@ -3,6 +3,7 @@ from typing import Any, Literal, Self
 
 from pydantic import Field
 
+from provider.admin.kiosks.schemas import KioskSettings
 from provider.biometric.challenges import FLASH_SLOT_MS, FaceChallenge
 from provider.core.schemas import CamelCaseBaseModel
 
@@ -54,8 +55,44 @@ class KioskChallengeResponse(FaceChallengeResponse):
     display_name: str = Field(
         description="Show it, so the person can confirm it is their account."
     )
+    attempts_left: int = Field(
+        description="Captures this ticket still allows after this one."
+    )
 
 
 class KioskEnrolment(CamelCaseBaseModel):
     enrolled: Literal[True]
     samples: int = Field(description="How many face samples were stored.")
+
+
+class PairRequest(CamelCaseBaseModel):
+    code: str = Field(
+        max_length=32,
+        description="The pairing code from the dashboard. Case, spaces and the "
+        "dash do not matter.",
+    )
+
+
+class PairedKiosk(CamelCaseBaseModel):
+    client_id: str
+    client_secret: str = Field(
+        description="Shown once. Store it on the device; it cannot be recovered, "
+        "only replaced by pairing again."
+    )
+    name: str
+
+
+class Heartbeat(CamelCaseBaseModel):
+    software_version: str = Field(max_length=64)
+    camera: str | None = Field(
+        default=None,
+        max_length=255,
+        description="The camera the kiosk is using, by name; null when it has none.",
+    )
+
+
+class KioskConfig(CamelCaseBaseModel):
+    name: str
+    location: str | None
+    settings: KioskSettings
+    heartbeat_seconds: int = Field(description="When to report in next.")

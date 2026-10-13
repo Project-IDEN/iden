@@ -47,3 +47,11 @@ class RestrictedScopeOnOwnedClient(ValidationError):
         "An application registered by a developer cannot be given an `admin:` or "
         "`biometric:` scope: its owner controls where its tokens are delivered."
     )
+
+
+class KioskManaged(ConflictError):
+    code = "kiosk_managed"
+    message = (
+        "This client belongs to an enrolment kiosk. Change, re-pair, or revoke it "
+        "from the kiosk's own page."
+    )

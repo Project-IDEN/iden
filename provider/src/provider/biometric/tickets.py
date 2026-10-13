@@ -42,8 +42,11 @@ async def issue(redis: Redis, user_id: UUID) -> tuple[str, datetime]:
     return ticket, datetime.now(UTC) + timedelta(seconds=ttl)
 
 
-async def holder(redis: Redis, ticket: str, *, attempt: bool = False) -> UUID | None:
-    """Whose ticket this is, or None. `attempt` counts one try against it."""
+async def holder(
+    redis: Redis, ticket: str, *, attempt: bool = False
+) -> tuple[UUID, int] | None:
+    """Whose ticket this is and how many attempts it has left, or None.
+    `attempt` counts one try against it."""
     key = _key(ticket)
     raw = await redis.get(key)
     if raw is None:
@@ -56,7 +59,7 @@ async def holder(redis: Redis, ticket: str, *, attempt: bool = False) -> UUID | 
             await redis.delete(key)
             return None
         await redis.set(key, json.dumps(data), keepttl=True)
-    return UUID(data["user_id"])
+    return UUID(data["user_id"]), MAX_ATTEMPTS - data["attempts"]
 
 
 async def spend(redis: Redis, ticket: str, user_id: UUID) -> None:

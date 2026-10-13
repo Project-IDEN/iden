@@ -35,6 +35,11 @@ NOT_FULL_ADMIN = {
     "description": "The caller is not a full administrator",
 }
 
+KIOSK_MANAGED = {
+    "model": ErrorResponse,
+    "description": "The client belongs to a kiosk; manage it at `/admin/kiosks`",
+}
+
 
 def to_response(client) -> ClientResponse:
     return ClientResponse(
@@ -144,6 +149,7 @@ async def read_client(client_id: UUID, session: DBSessionDep) -> ClientResponse:
             "model": ErrorResponse,
             "description": "Authorization code grant without a redirect URI",
         },
+        409: KIOSK_MANAGED,
         403: NOT_FULL_ADMIN,
     },
     dependencies=[FULL_ADMIN],
@@ -173,6 +179,7 @@ async def update_client(
             "model": ErrorResponse,
             "description": "A restricted scope on a developer's application",
         },
+        409: KIOSK_MANAGED,
         403: NOT_FULL_ADMIN,
     },
     dependencies=[FULL_ADMIN],
@@ -198,6 +205,7 @@ async def set_client_scopes(
     responses={
         404: {"model": ErrorResponse, "description": "No such client"},
         422: {"model": ErrorResponse, "description": "Public clients have no secret"},
+        409: KIOSK_MANAGED,
         403: NOT_FULL_ADMIN,
     },
     dependencies=[FULL_ADMIN],
@@ -216,7 +224,10 @@ async def rotate_secret(client_id: UUID, session: DBSessionDep) -> SecretRotated
     ),
     responses={
         404: {"model": ErrorResponse, "description": "No such client"},
-        409: {"model": ErrorResponse, "description": "Bootstrap client"},
+        409: {
+            "model": ErrorResponse,
+            "description": "A bootstrap client, or one that belongs to a kiosk",
+        },
         403: NOT_FULL_ADMIN,
     },
     dependencies=[FULL_ADMIN],

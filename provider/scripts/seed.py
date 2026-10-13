@@ -227,7 +227,6 @@ async def main() -> None:
             for v in scopes
             if v.startswith(("admin:", "entity:", "developer:", "biometric:"))
         ]
-        biometric_scopes = [v for v in scopes if v.startswith("biometric:")]
 
         await seed_client(
             session,
@@ -242,18 +241,6 @@ async def main() -> None:
             grantable=dashboard_scopes,
             granted=[],
         )
-        kiosk_secret = await seed_client(
-            session,
-            client_id="kiosk",
-            name="Biometric Kiosk",
-            client_type=ClientType.CONFIDENTIAL,
-            grants=[GrantType.CLIENT_CREDENTIALS],
-            redirect_uris=[],
-            skip_consent=True,
-            scopes=scopes,
-            grantable=[],
-            granted=biometric_scopes,
-        )
         admin_password = await seed_admin_user(session, roles)
 
         await session.commit()
@@ -265,11 +252,7 @@ async def main() -> None:
         print("\n  Bootstrap administrator — shown once, change it after first login")
         print(f"    email:    {settings.iden_bootstrap_admin_email}")
         print(f"    password: {admin_password}")
-    if kiosk_secret:
-        print("\n  Kiosk client secret — shown once, it is hashed in the database")
-        print("    client_id:     kiosk")
-        print(f"    client_secret: {kiosk_secret}")
-    if not admin_password and not kiosk_secret:
+    else:
         print("Nothing new to create — existing credentials left untouched.")
 
 

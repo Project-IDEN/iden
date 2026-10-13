@@ -102,6 +102,9 @@ TOTP_PER_IP = limit_by_ip("totp-ip", limit=20, window=300)
 # Each attempt is a dozen frames through the engine — real GPU time.
 FACE_PER_IP = limit_by_ip("face-ip", limit=20, window=300)
 KIOSK_PER_IP = limit_by_ip("kiosk-ip", limit=60, window=300)
+# A pairing code is eight characters from thirty: guessing one at this rate takes
+# longer than the heat death of every code ever issued.
+PAIR_PER_IP = limit_by_ip("pair-ip", limit=10, window=300)
 RESET_PER_IP = limit_by_ip("reset-ip", limit=10, window=3600)
 
 # The three endpoints that verify a client secret, which is argon2: 64 MiB and

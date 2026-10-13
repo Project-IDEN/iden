@@ -15,7 +15,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from provider.authz.oauth.errors import OAuthError, RedirectableError
 from provider.core import redis as redis_module
-from provider.core.audit import AuditMiddleware
+from provider.core.audit import AuditMiddleware, set_error
 from provider.core.bodylimit import BodyLimitMiddleware
 from provider.core.config import settings
 from provider.core.db import engine
@@ -104,6 +104,7 @@ async def handle_iden_error(request: Request, exc: IdenError) -> JSONResponse:
     status_code = next(
         (code for cls, code in ERROR_STATUS if isinstance(exc, cls)), 500
     )
+    set_error(request, exc.code)
     if status_code >= 500:
         logger.error("Unmapped domain error", code=exc.code, path=request.url.path)
 
@@ -155,12 +156,13 @@ async def handle_http_exception(
     code: `totp_not_enrolled` and `invalid_totp_code` are both 400 and a caller
     has to tell them apart.
     """
-    body = ErrorResponse(
-        code=exc.detail.code
+    code = (
+        exc.detail.code
         if isinstance(exc.detail, IdenError)
-        else STATUS_CODES.get(exc.status_code, "error"),
-        message=str(exc.detail),
+        else STATUS_CODES.get(exc.status_code, "error")
     )
+    set_error(request, code)
+    body = ErrorResponse(code=code, message=str(exc.detail))
     return JSONResponse(
         status_code=exc.status_code,
         content=body.model_dump(by_alias=True),

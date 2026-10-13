@@ -112,6 +112,8 @@ class Settings(BaseSettings):
     iden_biometric_keep_images: bool = False
     # How long the QR code that lets a kiosk enrol your face stays usable.
     iden_face_ticket_ttl: int = 900
+    # How long the code that pairs a new kiosk with its registration stays usable.
+    iden_kiosk_pairing_ttl: int = 900
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False

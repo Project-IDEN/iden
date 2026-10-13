@@ -103,13 +103,29 @@ FACE_SCOPES = (
     ScopeSpec("entity:face:write", "Let a kiosk enrol your face, or remove your face."),
 )
 
-# The kiosk's. Worth nothing without the enrolment ticket the person brings,
-# which is what names whose face it may enrol.
+# Managing the kiosks that enrol faces. Present only with the biometric module.
+KIOSK_ADMIN_SCOPES = (
+    ScopeSpec("admin:kiosks:read", "View enrolment kiosks, their health and history."),
+    ScopeSpec(
+        "admin:kiosks:write",
+        "Register, pair, configure, and revoke enrolment kiosks.",
+    ),
+)
+
+# A kiosk's own. `biometric:enroll` is worth nothing without the enrolment ticket
+# the person brings, which is what names whose face it may enrol.
 BIOMETRIC_SCOPES = (
     ScopeSpec(
         "biometric:enroll", "Enrol a person's face, given the ticket they created."
     ),
+    ScopeSpec("biometric:device", "Report a kiosk's health and read its settings."),
 )
+
+
+def admin_scopes() -> tuple[ScopeSpec, ...]:
+    return ADMIN_SCOPES + (
+        KIOSK_ADMIN_SCOPES if settings.iden_biometric_enabled else ()
+    )
 
 
 def entity_scopes() -> tuple[ScopeSpec, ...]:
@@ -122,7 +138,7 @@ def system_apis() -> tuple[ApiSpec, ...]:
             name="admin",
             audience=settings.admin_audience,
             description="IDEN administration — users, groups, roles, APIs, scopes, clients.",
-            scopes=ADMIN_SCOPES,
+            scopes=admin_scopes(),
         ),
         ApiSpec(
             name="entity",
@@ -174,7 +190,7 @@ FULL_ADMIN_SCOPES = tuple(
 
 
 def system_roles() -> tuple[RoleSpec, ...]:
-    admin = tuple(s.value for s in ADMIN_SCOPES)
+    admin = tuple(s.value for s in admin_scopes())
     entity = tuple(s.value for s in entity_scopes())
     developer = tuple(s.value for s in DEVELOPER_SCOPES)
     # Held, not merely grantable: under `RESTRICTED_PREFIXES` an administrator who

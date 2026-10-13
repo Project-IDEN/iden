@@ -21,7 +21,7 @@ from provider.biometric.engine_client import (
 from provider.core import notifier
 from provider.core.config import settings
 from provider.core.security import decrypt_bytes
-from provider.shared.models import AuditEvent, ClientScope, FaceTemplate
+from provider.shared.models import AuditEvent, ClientScope, FaceTemplate, Kiosk
 from tests.conftest import REDIRECT_URI
 from tests.flows import pkce_pair, query_of, sign_in, start
 
@@ -112,15 +112,18 @@ def mail(monkeypatch):
 
 @pytest.fixture
 async def kiosk_headers(client, db, kiosk, scope_of):
+    """A token for a registered kiosk: the `kiosk` client with a kiosk row."""
     kiosk_client, secret = kiosk
-    db.add(
-        ClientScope(
-            client_id=kiosk_client.id,
-            scope_id=scope_of("biometric:enroll").id,
-            grantable=False,
-            granted=True,
+    for scope in ("biometric:enroll", "biometric:device"):
+        db.add(
+            ClientScope(
+                client_id=kiosk_client.id,
+                scope_id=scope_of(scope).id,
+                grantable=False,
+                granted=True,
+            )
         )
-    )
+    db.add(Kiosk(client_id=kiosk_client.id, settings={}))
     await db.commit()
     response = await client.post(
         "/oauth2/token",
@@ -128,7 +131,7 @@ async def kiosk_headers(client, db, kiosk, scope_of):
             "grant_type": "client_credentials",
             "client_id": "kiosk",
             "client_secret": secret,
-            "scope": "biometric:enroll",
+            "scope": "biometric:enroll biometric:device",
         },
     )
     return {"Authorization": f"Bearer {response.json()['access_token']}"}

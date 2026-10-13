@@ -35,6 +35,10 @@ AUDITED_PREFIXES = (
 
 READ_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
+# Writes too routine to record, for the reason `/oauth2/token` is not audited: a
+# kiosk reports in every minute, and its last report is on the kiosk itself.
+NEVER_AUDITED = frozenset({"/biometric/kiosk/heartbeat"})
+
 # The exception to the read/write split: RP-initiated logout is a GET by
 # specification (OIDC RP-Initiated Logout Section 2), and it destroys a session.
 ALWAYS_AUDITED = frozenset({"/oauth2/logout"})
@@ -108,6 +112,12 @@ def set_target(request: Request, target: str) -> None:
     request.state.audit_target = target
 
 
+def set_error(request: Request, code: str) -> None:
+    """Record why a request failed: a status code alone does not say whether an
+    enrolment was refused for the light or for a spoof."""
+    request.state.audit_error = code
+
+
 def _normalise(key: str) -> str:
     return "".join(c for c in key if c.isalnum()).lower()
 
@@ -146,6 +156,8 @@ def _is_audited(scope: Scope) -> bool:
         return False
     if scope["path"] in ALWAYS_AUDITED:
         return True
+    if scope["path"] in NEVER_AUDITED:
+        return False
     return scope["method"] not in READ_METHODS and scope["path"].startswith(
         AUDITED_PREFIXES
     )
@@ -216,6 +228,8 @@ async def _write(scope: Scope, body: bytes, status_code: int) -> None:
     actor: Actor = scope.get("state", {}).get("audit_actor") or Actor()
     params = scope.get("path_params") or {}
     detail = _body_detail(scope, body)
+    if error := scope.get("state", {}).get("audit_error"):
+        detail = {**detail, "error": error}
     if params:
         detail = {**detail, "pathParams": {k: str(v) for k, v in params.items()}}
     if forwarded := _header(scope, b"x-forwarded-for"):

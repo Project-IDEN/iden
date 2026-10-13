@@ -1,5 +1,6 @@
 from provider.core.errors import (
     ConflictError,
+    ForbiddenError,
     IdenError,
     NotFoundError,
     UnavailableError,
@@ -68,3 +69,13 @@ class FaceRejected(IdenError):
 
     code = "face_rejected"
     message = "That did not match. Try again or use another method."
+
+
+class PairingCodeInvalid(NotFoundError):
+    code = "pairing_code_invalid"
+    message = "This pairing code has expired or was already used."
+
+
+class KioskOutOfService(ForbiddenError):
+    code = "kiosk_out_of_service"
+    message = "This kiosk has been taken out of service."
