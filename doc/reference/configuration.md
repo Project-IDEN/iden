@@ -51,7 +51,7 @@ for as long as the container lives, where `docker inspect` reads it.
 | `IDEN_MAIL_DOMAIN` | `localhost` | **The organization's mail domain.** Every account created through `POST /admin/users` is `<local part>@<this>`, lowercased, and marked verified — an administrator chooses only the part before the `@`, and it cannot be changed afterwards. Set it before the first user is added; changing it later leaves existing accounts where they are. The dashboard reads the same variable. |
 | `IDEN_DATABASE_URL` | `postgresql+asyncpg://iden:iden@localhost:5432/iden` |  |
 | `IDEN_REDIS_URL` | `redis://localhost:6379/0` | Sessions, pending sign-ins, the denylist, and rate-limit counters. |
-| `IDEN_S3_ENDPOINT_URL` | *empty* | Blob storage, over the S3 API. Empty means none is attached and profile photos are unavailable; nothing else changes. |
+| `IDEN_S3_ENDPOINT_URL` | *empty* | Blob storage, over the S3 API. Empty means none is attached and profile photos and application logos are unavailable; nothing else changes. |
 | `IDEN_S3_ACCESS_KEY` | *empty* |  |
 | `IDEN_S3_SECRET_KEY` | *empty* |  |
 | `IDEN_S3_BUCKET` | `iden` | Created at startup when it does not exist. |

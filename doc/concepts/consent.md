@@ -18,6 +18,16 @@ screens depend on not existing.
 
 Everything else should ask.
 
+## What the screen shows
+
+The application's name and, when it has one, its logo; then every permission it is asking for, each
+in words and by its scope value. The permissions are the content — the screen exists to make the
+request legible before it is granted.
+
+The name and logo are what the application's registrant chose. They identify an application people
+already know; they do not vouch for one they do not. See
+[Let people register their own applications](../guides/self-service-registration.md#limits-worth-knowing).
+
 ## What gets recorded
 
 The permissions **actually granted**, not the ones requested.

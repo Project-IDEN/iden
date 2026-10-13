@@ -57,10 +57,11 @@ server {
   listen 80 default_server;
   server_name _;
 
-  # Applies wherever a location does not override it. The one upload IDEN
-  # accepts is a profile photo, and its own limit is IDEN_AVATAR_MAX_BYTES;
-  # nginx's 1m default would refuse a 3 MB photo first, with an HTML error page
-  # instead of the documented JSON one.
+  # Applies wherever a location does not override it. An application's logo
+  # (at most 512 KB) fits under it. A profile photo does not: its own limit is
+  # IDEN_AVATAR_MAX_BYTES, and nginx's 1m would refuse a 3 MB photo first, with
+  # an HTML error page instead of the documented JSON one — hence the location
+  # below.
   client_max_body_size 1m;
 
   # --- provider: OIDC protocol and both resource servers ---
@@ -116,7 +117,7 @@ server {
     include /etc/nginx/conf.d/proxy.inc;
   }
 
-  # The one endpoint that accepts a file.
+  # The one upload larger than the default.
   location = /entity/profile/photo {
     client_max_body_size 6m;
     proxy_pass http://iden_provider;
@@ -136,8 +137,9 @@ server {
     include /etc/nginx/conf.d/proxy.inc;
   }
 
-  # Profile photos. Public by design — this is the URL in the `picture` claim,
-  # fetched by <img> tags that cannot present a token.
+  # Profile photos and application logos. Public by design — the URL in the
+  # `picture` claim, and the logo on the consent screen, are fetched by <img>
+  # tags that cannot present a token.
   location ^~ /media/ {
     proxy_pass http://iden_provider;
     include /etc/nginx/conf.d/proxy.inc;

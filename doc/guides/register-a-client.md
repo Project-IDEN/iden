@@ -76,6 +76,24 @@ actually holds; this is a ceiling, not a grant.
 keeps its own session alive after the person signs out elsewhere. See
 [Handle single sign-out](single-sign-out.md).
 
+### A logo
+
+The consent screen shows the application's logo beside its name. It is uploaded on its own, once the
+client exists — the dashboard does both in one step:
+
+```bash
+curl -X PUT http://localhost:8000/admin/clients/$ID/logo \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -F "file=@logo.png"
+```
+
+PNG, JPEG, WebP or GIF, at most 512 KB. It is re-encoded as WebP and scaled to fit 256 pixels, keeping
+its proportions and its transparency, so a square or a wide wordmark both work. SVG is refused: an
+image that can carry script has no place on the page where people decide what to trust. The response
+carries `logoUrl`, served publicly under a name that changes with every upload. `DELETE` on the same
+path removes it, and deleting the client deletes it too. Uploading needs file storage — see
+[Configuration](../reference/configuration.md).
+
 ## Redirect URIs in practice
 
 Exact matching is the rule that catches people out, so:

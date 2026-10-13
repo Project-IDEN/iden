@@ -31,6 +31,8 @@ Every `/admin/*`, `/entity/*`, `/developer/*` and `/biometric/*` route is gated 
 | `GET` | `/admin/clients/{client_id}` | Read an OAuth client |
 | `PATCH` | `/admin/clients/{client_id}` | Update an OAuth client |
 | `POST` | `/admin/clients/{client_id}/rotate-secret` | Rotate a client secret |
+| `PUT` | `/admin/clients/{client_id}/logo` | Set a client's logo |
+| `DELETE` | `/admin/clients/{client_id}/logo` | Remove a client's logo |
 | `PUT` | `/admin/clients/{client_id}/scopes` | Set a client's scopes |
 
 ### Admin — groups
@@ -133,6 +135,8 @@ only the applications they registered.
 | `GET` | `/developer/clients/{application_id}` | Read one of your applications |
 | `PATCH` | `/developer/clients/{application_id}` | Update one of your applications |
 | `POST` | `/developer/clients/{application_id}/rotate-secret` | Rotate an application's secret |
+| `PUT` | `/developer/clients/{application_id}/logo` | Set your application's logo |
+| `DELETE` | `/developer/clients/{application_id}/logo` | Remove your application's logo |
 
 ### Sign-in and recovery
 
@@ -205,6 +209,7 @@ only the applications they registered.
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/media/avatars/{name}` | Fetch a profile photo. Public — it is what the `picture` claim points at, and an `<img>` cannot send a token |
+| `GET` | `/media/logos/{name}` | Fetch an application's logo. Public — the consent screen shows it before anyone is signed in |
 
 ### Service
 

@@ -15,6 +15,7 @@ screen:
 - register an application and receive a generated `client_id`
 - choose whether it is public (browser, mobile) or confidential (server-side)
 - set and change its redirect URIs
+- give it a logo, shown beside its name on the consent screen
 - rotate its secret, and delete it
 
 What they **cannot** do, by construction rather than by policy:
@@ -67,5 +68,9 @@ without special cases.
 - **Everything is audited.** `/developer/*` is covered by the audit middleware, so every
   registration, change, rotation, and deletion is a row in the audit log with the person's name on
   it.
+- **A name and a logo are claims, not proof.** Nothing stops a registrant naming their app after
+  another and uploading that one's logo. The consent screen is where people decide whether to trust
+  an application, so if you open the role to people you do not know, review what they register —
+  every application, with its logo, is in `/admin/clients`, and the audit log says who registered it.
 - **An administrator still sees everything.** Self-registered applications appear in
   `/admin/clients` like any other, and can be edited or deleted there.
