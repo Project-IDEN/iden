@@ -1,4 +1,4 @@
-import { ADMIN_SCOPES, Brand, Button, ErrorState, Spinner } from "@iden/shared";
+import { ADMIN_SCOPES, BIOMETRIC_SCOPES, Brand, Button, ErrorState, Spinner } from "@iden/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 import { ErrorResponse } from "oidc-client-ts";
@@ -17,6 +17,8 @@ import { RolesRoute, RoleDetailRoute } from "./features/admin/roles";
 import { ApisRoute, ApiDetailRoute } from "./features/admin/apis";
 import { ClientsRoute, ClientDetailRoute } from "./features/admin/clients";
 import { ClientCreateRoute } from "./features/admin/clients-new";
+import { KioskDetailRoute, KiosksRoute } from "./features/admin/kiosks";
+import { KioskCreateRoute } from "./features/admin/kiosks-new";
 import { UserCreateRoute } from "./features/admin/users-new";
 import { GroupCreateRoute } from "./features/admin/groups-new";
 import { RoleCreateRoute } from "./features/admin/roles-new";
@@ -87,6 +89,16 @@ const router = createBrowserRouter(
         {
           path: "admin/clients/:clientId",
           element: guarded("admin:clients:read", <ClientDetailRoute />),
+        },
+        { path: "admin/kiosks", element: guarded("admin:kiosks:read", <KiosksRoute />) },
+        {
+          path: "admin/kiosks/new",
+          // Registering a kiosk hands the device the biometric scopes.
+          element: guarded(["admin:kiosks:write", ...BIOMETRIC_SCOPES], <KioskCreateRoute />),
+        },
+        {
+          path: "admin/kiosks/:kioskId",
+          element: guarded("admin:kiosks:read", <KioskDetailRoute />),
         },
         {
           path: "admin/profile-fields",

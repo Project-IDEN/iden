@@ -16,6 +16,11 @@ export type ClientRecord = Schemas["ClientResponse"];
 export type ClientCreated = Schemas["ClientCreated"];
 export type ProfileFieldRecord = Schemas["ProfileFieldResponse"];
 export type AuditEvent = Schemas["AuditEventResponse"];
+export type KioskRecord = Schemas["KioskResponse"];
+export type KioskCreated = Schemas["KioskCreated"];
+export type KioskSettings = Schemas["KioskSettings"];
+export type PairingCode = Schemas["PairingCode"];
+export type KioskEnrolment = Schemas["KioskEnrolmentEvent"];
 
 /** Lists share one hook; the resource is the URL and nothing else differs. */
 export function useList<T>(api: AxiosInstance, url: string, params: Record<string, unknown> = {}) {
@@ -55,4 +60,21 @@ export async function fetchAll<T>(api: AxiosInstance, url: string): Promise<T[]>
     offset += page.meta.limit;
     if (offset >= page.meta.total) return items;
   }
+}
+
+/** A kiosk, polled quickly while a pairing code is showing so the page sees the
+ * device pair, and slowly otherwise so its status stays current. */
+export function useKiosk(api: AxiosInstance, kioskId: string, pairing: boolean) {
+  const url = `/admin/kiosks/${kioskId}`;
+  return useQuery({
+    queryKey: [url],
+    queryFn: () => get<Schemas["KioskResponse"]>(api, url),
+    refetchInterval: pairing ? 3000 : 30_000,
+    enabled: kioskId !== "",
+  });
+}
+
+/** Whether the device paired after `issuedAt`, allowing for clock skew. */
+export function pairedSince(kiosk: Schemas["KioskResponse"], issuedAt: number): boolean {
+  return kiosk.pairedAt !== null && Date.parse(kiosk.pairedAt) >= issuedAt - 5000;
 }

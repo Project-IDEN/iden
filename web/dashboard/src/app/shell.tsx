@@ -23,6 +23,7 @@ import {
   Menu as MenuIcon,
   MonitorSmartphone,
   Plug,
+  ScanFace,
   ScrollText,
   Server,
   ShieldCheck,
@@ -76,6 +77,7 @@ const ADMIN: NavItem[] = [
   { to: "/admin/roles", label: "Roles", icon: ShieldCheck, scope: "admin:roles:read" },
   { to: "/admin/apis", label: "APIs", icon: Server, scope: "admin:apis:read" },
   { to: "/admin/clients", label: "Clients", icon: AppWindow, scope: "admin:clients:read" },
+  { to: "/admin/kiosks", label: "Kiosks", icon: ScanFace, scope: "admin:kiosks:read" },
   {
     to: "/admin/profile-fields",
     label: "Profile fields",

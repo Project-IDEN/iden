@@ -50,13 +50,16 @@ export const DEVELOPER_SCOPES = ["developer:clients:read", "developer:clients:wr
  * requested regardless: an unknown scope is pruned.
  *
  * `entity:face:*` lets a person see their face enrolment, create the ticket a
- * kiosk needs, and remove it. `biometric:enroll` is the kiosk's own; the
- * dashboard asks for it because changing an OAuth client needs every restricted
- * scope the deployment defines.
+ * kiosk needs, and remove it. `biometric:*` are the kiosk's own; the dashboard
+ * asks for them because changing an OAuth client needs every restricted scope
+ * the deployment defines, and registering a kiosk hands them to the device.
  */
 export const FACE_SCOPES = ["entity:face:read", "entity:face:write"] as const;
 
-export const BIOMETRIC_SCOPES = ["biometric:enroll"] as const;
+export const BIOMETRIC_SCOPES = ["biometric:enroll", "biometric:device"] as const;
+
+/** Managing enrolment kiosks; present only with the biometric module. */
+export const KIOSK_ADMIN_SCOPES = ["admin:kiosks:read", "admin:kiosks:write"] as const;
 
 /**
  * Not in the DB and never carry an audience — see `scope_resolver.OIDC_SCOPES`.
@@ -77,6 +80,7 @@ export type Scope = AdminScope | EntityScope | DeveloperScope;
 export const DASHBOARD_SCOPE = [
   ...OIDC_SCOPES,
   ...ADMIN_SCOPES,
+  ...KIOSK_ADMIN_SCOPES,
   ...ENTITY_SCOPES,
   ...FACE_SCOPES,
   ...DEVELOPER_SCOPES,

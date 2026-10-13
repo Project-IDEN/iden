@@ -11,8 +11,9 @@ import {
 } from "@iden/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useApi } from "../../app/api";
+import { useCountdown } from "../../app/countdown";
 import { useHasScope, useStepUp } from "../../app/session";
 import { PageHeader } from "../../app/shell";
 import {
@@ -401,19 +402,6 @@ function TotpSetting() {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
-}
-
-/** Minutes and seconds until `iso`, ticking, and zero once it has passed. */
-function useCountdown(iso: string | undefined): string | null {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!iso) return;
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [iso]);
-  if (!iso) return null;
-  const left = Math.max(0, Math.round((new Date(iso).getTime() - now) / 1000));
-  return `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`;
 }
 
 /**

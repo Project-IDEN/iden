@@ -1737,6 +1737,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/biometric/kiosk/pair": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pair a device with its kiosk registration
+         * @description Exchanges the pairing code an administrator was shown for this kiosk's client secret. The code works once. Pairing replaces the secret, so a device paired earlier with the same kiosk can no longer sign in.
+         *
+         *     **Required scope:** none — the code is the credential.
+         */
+        post: operations["pair_biometric_kiosk_pair_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/biometric/kiosk/heartbeat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Report in, and read this kiosk's settings
+         * @description Called every `heartbeatSeconds`. Records that the kiosk is up, its software version and camera, and returns its name and settings as set in the dashboard. Not recorded in the audit log.
+         *
+         *     **Required scope:** `biometric:device`
+         */
+        post: operations["heartbeat_biometric_kiosk_heartbeat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/biometric/enroll/challenge": {
         parameters: {
             query?: never;
@@ -1781,6 +1825,110 @@ export interface paths {
          *     **Required scope:** `biometric:enroll`
          */
         post: operations["enrol_biometric_enroll_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/kiosks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List enrolment kiosks
+         * @description With each one's status and last report.
+         *
+         *     **Required scope:** `admin:kiosks:read`
+         */
+        get: operations["list_kiosks_admin_kiosks_get"];
+        put?: never;
+        /**
+         * Register a kiosk
+         * @description Creates the kiosk and the client it will sign in as, and returns a **pairing code**. Enter or scan the code on the device: it receives its own secret, once. The code lasts 15 minutes and works once.
+         *
+         *     **Required scope:** `admin:kiosks:write`, plus every `biometric:` scope — the device it pairs will hold them.
+         */
+        post: operations["create_kiosk_admin_kiosks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/kiosks/{kiosk_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a kiosk
+         * @description **Required scope:** `admin:kiosks:read`
+         */
+        get: operations["read_kiosk_admin_kiosks__kiosk_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Revoke a kiosk
+         * @description Deletes the kiosk and its client. The device stops at once — enrolment refuses it even while its last access token is unexpired. Faces it enrolled stay enrolled.
+         *
+         *     **Required scope:** `admin:kiosks:write`
+         */
+        delete: operations["delete_kiosk_admin_kiosks__kiosk_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Rename, move, or configure a kiosk
+         * @description Settings reach the device at its next heartbeat, within a minute. `inService: false` takes effect at once on IDEN's side: its enrolments are refused.
+         *
+         *     **Required scope:** `admin:kiosks:write`
+         */
+        patch: operations["update_kiosk_admin_kiosks__kiosk_id__patch"];
+        trace?: never;
+    };
+    "/admin/kiosks/{kiosk_id}/pairing-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pair a device again
+         * @description For a replaced or reinstalled device. Any earlier code stops working. When the new device pairs, the old one is signed out for good: the secret it held is replaced.
+         *
+         *     **Required scope:** `admin:kiosks:write`, plus every `biometric:` scope — the device it pairs will hold them.
+         */
+        post: operations["new_pairing_code_admin_kiosks__kiosk_id__pairing_code_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/kiosks/{kiosk_id}/enrolments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What a kiosk enrolled
+         * @description Every enrolment this kiosk attempted, newest first, and why the failed ones failed. Read from the audit log.
+         *
+         *     **Required scope:** `admin:kiosks:read`
+         */
+        get: operations["list_enrolments_admin_kiosks__kiosk_id__enrolments_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2772,6 +2920,16 @@ export interface components {
              */
             redis: "ok" | "unreachable";
         };
+        /** Heartbeat */
+        Heartbeat: {
+            /** Softwareversion */
+            softwareVersion: string;
+            /**
+             * Camera
+             * @description The camera the kiosk is using, by name; null when it has none.
+             */
+            camera?: string | null;
+        };
         /**
          * IntrospectionResponse
          * @description RFC 7662 Section 2.2. `active` is the only guaranteed field.
@@ -2838,6 +2996,80 @@ export interface components {
              * @description Show it, so the person can confirm it is their account.
              */
             displayName: string;
+            /**
+             * Attemptsleft
+             * @description Captures this ticket still allows after this one.
+             */
+            attemptsLeft: number;
+        };
+        /** KioskConfig */
+        KioskConfig: {
+            /** Name */
+            name: string;
+            /** Location */
+            location: string | null;
+            settings: components["schemas"]["KioskSettings"];
+            /**
+             * Heartbeatseconds
+             * @description When to report in next.
+             */
+            heartbeatSeconds: number;
+        };
+        /** KioskCreate */
+        KioskCreate: {
+            /**
+             * Name
+             * @description What people see in the email telling them their face was enrolled, e.g. `Library Kiosk 2`.
+             */
+            name: string;
+            /** Location */
+            location?: string | null;
+        };
+        /** KioskCreated */
+        KioskCreated: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Clientid
+             * @description What the device signs in as.
+             */
+            clientId: string;
+            /** Name */
+            name: string;
+            /** Location */
+            location: string | null;
+            /**
+             * Status
+             * @description `online` when it reported in within the last three heartbeats; `out_of_service` when switched off in its settings, whether or not it is reachable.
+             * @enum {string}
+             */
+            status: "never_paired" | "online" | "offline" | "out_of_service";
+            settings: components["schemas"]["KioskSettings"];
+            /** Pairedat */
+            pairedAt: string | null;
+            /** Lastseenat */
+            lastSeenAt: string | null;
+            /**
+             * Lastseenversion
+             * @description Kiosk software version.
+             */
+            lastSeenVersion: string | null;
+            /**
+             * Lastseencamera
+             * @description The camera it last reported, or null when it had none.
+             */
+            lastSeenCamera: string | null;
+            /** Lastseenaddress */
+            lastSeenAddress: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+            pairing: components["schemas"]["PairingCode"];
         };
         /** KioskEnrolment */
         KioskEnrolment: {
@@ -2851,6 +3083,116 @@ export interface components {
              * @description How many face samples were stored.
              */
             samples: number;
+        };
+        /** KioskEnrolmentEvent */
+        KioskEnrolmentEvent: {
+            /**
+             * Occurredat
+             * Format: date-time
+             */
+            occurredAt: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "enrolled" | "failed";
+            /**
+             * Error
+             * @description Why it failed: `poor_capture`, `not_live`, `enrolment_ticket_invalid`, …
+             */
+            error: string | null;
+            /**
+             * Userid
+             * @description Whose face. Null when the ticket did not name anyone.
+             */
+            userId: string | null;
+            /**
+             * Userlabel
+             * @description Their display name, as it is now.
+             */
+            userLabel: string | null;
+        };
+        /** KioskResponse */
+        KioskResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Clientid
+             * @description What the device signs in as.
+             */
+            clientId: string;
+            /** Name */
+            name: string;
+            /** Location */
+            location: string | null;
+            /**
+             * Status
+             * @description `online` when it reported in within the last three heartbeats; `out_of_service` when switched off in its settings, whether or not it is reachable.
+             * @enum {string}
+             */
+            status: "never_paired" | "online" | "offline" | "out_of_service";
+            settings: components["schemas"]["KioskSettings"];
+            /** Pairedat */
+            pairedAt: string | null;
+            /** Lastseenat */
+            lastSeenAt: string | null;
+            /**
+             * Lastseenversion
+             * @description Kiosk software version.
+             */
+            lastSeenVersion: string | null;
+            /**
+             * Lastseencamera
+             * @description The camera it last reported, or null when it had none.
+             */
+            lastSeenCamera: string | null;
+            /** Lastseenaddress */
+            lastSeenAddress: string | null;
+            /**
+             * Createdat
+             * Format: date-time
+             */
+            createdAt: string;
+        };
+        /**
+         * KioskSettings
+         * @description Set in the dashboard, picked up by the device at its next heartbeat.
+         */
+        KioskSettings: {
+            /**
+             * Idleseconds
+             * @description Seconds without a touch before the kiosk clears the screen and returns to its welcome screen.
+             * @default 90
+             */
+            idleSeconds: number;
+            /**
+             * Inservice
+             * @description Off: the kiosk shows *out of service* and IDEN refuses its enrolments.
+             * @default true
+             */
+            inService: boolean;
+            /**
+             * Notice
+             * @description A line shown on the welcome screen — opening hours, where to get help.
+             */
+            notice?: string | null;
+            /**
+             * Cameralabel
+             * @description Part of the camera's name, to choose it when several are attached. Empty uses the first camera.
+             */
+            cameraLabel?: string | null;
+        };
+        /** KioskUpdate */
+        KioskUpdate: {
+            /** Name */
+            name?: string | null;
+            /** Location */
+            location?: string | null;
+            /** @description Replaces the settings as a whole. */
+            settings?: components["schemas"]["KioskSettings"] | null;
         };
         /** LivenessResponse */
         LivenessResponse: {
@@ -3054,6 +3396,18 @@ export interface components {
             items: components["schemas"]["GroupResponse"][];
             meta: components["schemas"]["PageMeta"];
         };
+        /** Page[KioskEnrolmentEvent] */
+        Page_KioskEnrolmentEvent_: {
+            /** Items */
+            items: components["schemas"]["KioskEnrolmentEvent"][];
+            meta: components["schemas"]["PageMeta"];
+        };
+        /** Page[KioskResponse] */
+        Page_KioskResponse_: {
+            /** Items */
+            items: components["schemas"]["KioskResponse"][];
+            meta: components["schemas"]["PageMeta"];
+        };
         /** Page[MemberSummary] */
         Page_MemberSummary_: {
             /** Items */
@@ -3083,6 +3437,39 @@ export interface components {
             /** Items */
             items: components["schemas"]["UserResponse"][];
             meta: components["schemas"]["PageMeta"];
+        };
+        /** PairRequest */
+        PairRequest: {
+            /**
+             * Code
+             * @description The pairing code from the dashboard. Case, spaces and the dash do not matter.
+             */
+            code: string;
+        };
+        /** PairedKiosk */
+        PairedKiosk: {
+            /** Clientid */
+            clientId: string;
+            /**
+             * Clientsecret
+             * @description Shown once. Store it on the device; it cannot be recovered, only replaced by pairing again.
+             */
+            clientSecret: string;
+            /** Name */
+            name: string;
+        };
+        /** PairingCode */
+        PairingCode: {
+            /**
+             * Code
+             * @description Shown once. Enter or scan it on the kiosk; single use. The QR form is `iden-kiosk-pair:<code>`.
+             */
+            code: string;
+            /**
+             * Expiresat
+             * Format: date-time
+             */
+            expiresAt: string;
         };
         /** PasswordChange */
         PasswordChange: {
@@ -6737,7 +7124,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Bootstrap client */
+            /** @description A bootstrap client, or one that belongs to a kiosk */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6799,6 +7186,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description The client belongs to a kiosk; manage it at `/admin/kiosks` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description Authorization code grant without a redirect URI */
             422: {
                 headers: {
@@ -6852,6 +7248,15 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description The client belongs to a kiosk; manage it at `/admin/kiosks` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description A restricted scope on a developer's application */
             422: {
                 headers: {
@@ -6894,6 +7299,15 @@ export interface operations {
             };
             /** @description No such client */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The client belongs to a kiosk; manage it at `/admin/kiosks` */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7966,6 +8380,108 @@ export interface operations {
             };
         };
     };
+    pair_biometric_kiosk_pair_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PairRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairedKiosk"];
+                };
+            };
+            /** @description Code expired or already used */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description Too many attempts */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    heartbeat_biometric_kiosk_heartbeat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Heartbeat"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KioskConfig"];
+                };
+            };
+            /** @description No valid kiosk token, or the kiosk was revoked */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Token lacks `biometric:device` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     start_enrolment_biometric_enroll_challenge_post: {
         parameters: {
             query?: never;
@@ -7988,7 +8504,7 @@ export interface operations {
                     "application/json": components["schemas"]["KioskChallengeResponse"];
                 };
             };
-            /** @description No valid kiosk token */
+            /** @description No valid kiosk token, or the kiosk was revoked */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -7997,7 +8513,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Token lacks `biometric:enroll` */
+            /** @description Token lacks `biometric:enroll`, or the kiosk is out of service (`kiosk_out_of_service`) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8048,7 +8564,7 @@ export interface operations {
                     "application/json": components["schemas"]["KioskEnrolment"];
                 };
             };
-            /** @description No valid kiosk token */
+            /** @description No valid kiosk token, or the kiosk was revoked */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -8057,7 +8573,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Token lacks `biometric:enroll` */
+            /** @description Token lacks `biometric:enroll`, or the kiosk is out of service (`kiosk_out_of_service`) */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8091,6 +8607,280 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    list_kiosks_admin_kiosks_get: {
+        parameters: {
+            query?: {
+                /** @description Maximum records to return. */
+                limit?: number;
+                /** @description Records to skip. */
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_KioskResponse_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_kiosk_admin_kiosks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KioskCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KioskCreated"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    read_kiosk_admin_kiosks__kiosk_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kiosk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KioskResponse"];
+                };
+            };
+            /** @description No such kiosk */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_kiosk_admin_kiosks__kiosk_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kiosk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such kiosk */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_kiosk_admin_kiosks__kiosk_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kiosk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KioskUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KioskResponse"];
+                };
+            };
+            /** @description No such kiosk */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    new_pairing_code_admin_kiosks__kiosk_id__pairing_code_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                kiosk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PairingCode"];
+                };
+            };
+            /** @description No such kiosk */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_enrolments_admin_kiosks__kiosk_id__enrolments_get: {
+        parameters: {
+            query?: {
+                /** @description Maximum records to return. */
+                limit?: number;
+                /** @description Records to skip. */
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                kiosk_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Page_KioskEnrolmentEvent_"];
+                };
+            };
+            /** @description No such kiosk */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
