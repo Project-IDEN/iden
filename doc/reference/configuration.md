@@ -83,7 +83,8 @@ for as long as the container lives, where `docker inspect` reads it.
 
 ## The biometric engine
 
-Read by the `engine` service, not the provider. `engine/deploy/compose.yml` sets the first three.
+Read by the `engine` service, not the provider. `engine/deploy/compose.yml` sets the token, the
+model directory, `ENGINE_ENV` and `ENGINE_WORKERS`; each image sets `ENGINE_DEVICE` for its build.
 
 | Variable | Default | Notes |
 |---|---|---|
@@ -94,6 +95,25 @@ Read by the `engine` service, not the provider. `engine/deploy/compose.yml` sets
 | `ENGINE_MANIFEST` | `models.toml` | The models, their checksums, and the thresholds calibrated for them. |
 | `ENGINE_ENV` | `dev` | `prod` hides `/docs` and requires the token. |
 | `ENGINE_TLS_CERT_FILE`, `ENGINE_TLS_KEY_FILE` | *empty* | Serve TLS, for a provider on another host. Both or neither; `engine/deploy/compose.tls.yml` sets them. |
+| `ENGINE_LOG_LEVEL` | `info` | |
+| `ENGINE_MAX_FRAMES` | `16` | Frames accepted in one capture. A capture is 13; this is the ceiling. |
+| `ENGINE_MAX_FRAME_BYTES` | `400000` | Size of one encoded frame. |
+| `ENGINE_MAX_PIXELS` | `4000000` | Decoded pixels in one frame — a small file can declare a huge canvas. |
+
+## The kiosk server
+
+Read by the kiosk server on each kiosk, not the provider. `install.sh` writes `KIOSK_ISSUER` into
+`/opt/iden-kiosk/.env`; the image sets the rest. See [Kiosks](../operations/kiosks.md).
+
+| Variable | Default | Notes |
+|---|---|---|
+| `KIOSK_ISSUER` | `http://localhost:8000` | IDEN's public address — where the device pairs and sends captures. |
+| `KIOSK_DATA_DIR` | `data` | Holds `credentials.json`, the kiosk's client secret. A volume in Docker, so it survives an update. |
+| `KIOSK_UI_DIR` | *empty* | The built kiosk app. Empty in development, where Vite serves it. |
+| `KIOSK_TIMEOUT` | `30` (seconds) | How long to wait for IDEN. Above `IDEN_ENGINE_TIMEOUT`, so the provider's answer arrives first. |
+| `KIOSK_ENV` | `dev` | `prod` in the image: logs as JSON. |
+| `KIOSK_LOG_LEVEL` | `info` | |
+| `KIOSK_VERSION` | `dev` | Reported to the dashboard. The image takes it from the `VERSION` build argument. |
 
 ## The two frontends
 

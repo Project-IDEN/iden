@@ -91,7 +91,7 @@ If the status is `degraded`, the response names the dependency that isn't answer
 ## 4. Create the first administrator
 
 The schema is there but empty. The seed fills it with IDEN's own permission catalogue, the starting
-roles, one administrator, and two clients.
+roles, one administrator, and the dashboard's client.
 
 ```bash
 docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed

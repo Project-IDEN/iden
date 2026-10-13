@@ -635,7 +635,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
 
 docker compose -f deploy/docker-compose.yml up -d --build
 
-# Permissions, the starting roles, the bootstrap administrator, two clients.
+# Permissions, the starting roles, the bootstrap administrator, the dashboard client.
 docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed
 ```
 

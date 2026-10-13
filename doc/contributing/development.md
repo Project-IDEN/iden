@@ -5,14 +5,16 @@ code.
 
 ## The scripts
 
-Four, all run from `provider/` as `uv run python -m scripts.<name>`.
+Six, all run from `provider/` as `uv run python -m scripts.<name>`.
 
 | Script | Does |
 |---|---|
-| `gen_keys` | Writes a date-stamped RSA signing key and, beside it, `totp.key` — which encrypts TOTP secrets at rest. Refuses to overwrite either. |
-| `seed` | Upserts the system catalogue and the bootstrap clients and administrator. Idempotent, and refuses to run against an unmigrated database. |
+| `gen_keys` | Writes a date-stamped RSA signing key and, beside it, `totp.key` — which encrypts TOTP secrets at rest — and `engine.token`, which the provider presents to the biometric engine. Refuses to overwrite any of them. |
+| `seed` | Upserts the system catalogue, the dashboard's client, and the bootstrap administrator. Idempotent, and refuses to run against an unmigrated database. |
 | `reset` | Drops the schema, flushes Redis, migrates, and seeds. Asks first; `--yes` skips the prompt. Refuses when `IDEN_ENV=prod`. |
 | `cleanup` | Deletes expired authorization codes and refresh tokens. `--dry-run` counts instead. Meant for a schedule — see [Deployment](../operations/deployment.md#housekeeping). |
+| `reembed_faces` | Moves enrolled faces onto the engine's current model, from the photos kept under `IDEN_BIOMETRIC_KEEP_IMAGES`. `--dry-run` counts instead. See [the biometric engine](../operations/biometric-engine.md). |
+| `change_pass` | Sets one account's password from `EMAIL` and `PASSWORD` in the environment, and signs it out everywhere. For the administrator who cannot get back in any other way. |
 
 `reset` flushes Redis as well as dropping the schema, and that is the part people forget doing it by
 hand: sessions outlive the rows they point at, so a database-only reset leaves live cookies naming
@@ -43,6 +45,14 @@ being committed. A hook that rewrites a file fails the commit: stage the result 
 `pytest` is deliberately **not** in the hook. It needs PostgreSQL and Redis running and takes about
 twenty seconds; a gate that fails because Docker is down teaches people to reach for `--no-verify`,
 and a hook everyone bypasses is worse than no hook.
+
+The other packages have their own checks, run from their own directories:
+
+| Package | Checks |
+|---|---|
+| `engine/`, `kiosk/server/` | The same four. Their format, lint and type checks are in the hook too, each scoped to its own files. The engine's model-dependent tests skip until `uv run python -m scripts.fetch_models` has run. |
+| `web/` | `pnpm typecheck && pnpm lint && pnpm build` — see [Develop the frontends](../guides/run-the-frontends.md). |
+| `kiosk/client/` | The same three, in its own pnpm project. |
 
 ## Two disabled lint rules
 
@@ -79,7 +89,7 @@ uv run --project provider zensical serve -a localhost:8001
 ```
 
 Live reload at <http://localhost:8001>. The site lives at the repository root rather than under
-`provider/` because it will grow sections for the kiosk, the engine, and the front ends.
+`provider/` because it covers the whole system — the engine, the kiosks and the frontends as well.
 
 ```bash
 uv run --project provider zensical build --strict

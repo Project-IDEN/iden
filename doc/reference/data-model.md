@@ -48,11 +48,15 @@ job rather than a cleanup job's.
 |---|---|
 | `session:{hash}` | Sliding, 24 hours, and never more than 7 days after sign-in |
 | `session_clients:{hash}` | With the session — which applications it reached |
+| `user_sessions:{user_id}` | With the newest session — every session one person holds, for signing out everywhere |
 | `challenge:{hash}` | 10 minutes — a pending sign-in or consent page |
 | `denylist:{jti}` | Until the access token would have expired |
 | `refresh_replay:{hash}` | 30 seconds — see [refresh rotation](../concepts/tokens.md#the-honest-double-use-problem) |
+| `refresh_lock:{hash}` | Held while one refresh token is exchanged; 10 seconds at most |
 | `password_reset:{hash}` | 15 minutes, single use |
-| `face-ticket:{hash}` | 15 minutes — lets a kiosk enrol one person's face, until used |
+| `face-ticket:{hash}` | 15 minutes — lets a kiosk enrol one person's face, until used or after five attempts |
+| `face-ticket-user:{user_id}` | With the ticket — so a new ticket retires the last |
 | `kiosk-pairing:{hash}` | 15 minutes, single use — pairs a new device with its kiosk |
+| `kiosk-pairing-kiosk:{kiosk_id}` | With the code — so a new code retires the last |
 | `face-challenge:{hash}` | 2 minutes, single use — the movements and colours asked of one capture |
 | `ratelimit:{bucket}:{identity}` | The window |

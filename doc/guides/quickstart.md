@@ -39,19 +39,20 @@ cd provider
 uv sync                              # install dependencies
 cp .env.example .env                 # then read it — every setting is commented
 
-uv run python -m scripts.gen_keys    # signing key + totp.key; the provider will not start without them
+uv run python -m scripts.gen_keys    # signing key, totp.key, engine.token; the provider needs them
 uv run alembic upgrade head          # create the schema
-uv run python -m scripts.seed        # permissions, bootstrap admin, two clients
+uv run python -m scripts.seed        # permissions, bootstrap admin, the dashboard client
 
 uv run provider                      # http://localhost:8000
 ```
 
 Two of those deserve a note.
 
-**`gen_keys`** writes one date-stamped PEM into `provider/keys/`, plus `totp.key` beside it. IDEN
+**`gen_keys`** writes one date-stamped PEM into `provider/keys/`, with `totp.key` and `engine.token` beside it. IDEN
 refuses to start without a signing key and will not invent one silently, because a key nobody can
 account for is not a key you want signing tokens. `totp.key` encrypts TOTP secrets at rest — the one
-credential IDEN cannot hash, since verifying a code means recomputing it. Back both up together.
+credential IDEN cannot hash, since verifying a code means recomputing it. Back the key and `totp.key` up together.
+`engine.token` is what the provider presents to the biometric engine; losing it costs nothing.
 
 **`seed`** prints the administrator's password, **once**:
 
