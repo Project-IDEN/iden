@@ -17,7 +17,10 @@ export function Maintenance({
   const rows: [string, string][] = [
     ["Kiosk", state?.name ?? "Not paired"],
     ["Location", state?.location ?? "—"],
-    ["IDEN", state?.online ? "Reachable" : "Not reachable"],
+    [
+      "IDEN",
+      state?.online == null ? "Not checked yet" : state.online ? "Reachable" : "Not reachable",
+    ],
     ["Kiosk server", reachable ? "Running" : "Not running"],
     ["Software", state?.version ?? "—"],
   ];

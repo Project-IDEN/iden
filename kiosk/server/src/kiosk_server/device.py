@@ -27,7 +27,7 @@ class NotPaired(Exception):
 
 
 class Unreachable(Exception):
-    """IDEN did not answer."""
+    """IDEN did not answer, or answered in a way the kiosk cannot use."""
 
 
 class Device:
@@ -36,7 +36,9 @@ class Device:
         self.credentials = credentials.load()
         self.config: dict[str, Any] = {}
         self.camera: str | None = None
-        self.online = False
+        # None until IDEN has been asked anything: "not yet known" is not
+        # "unreachable", and the screen says so differently.
+        self.online: bool | None = None
         self._token: str | None = None
         self._token_expires = 0.0
 
@@ -97,11 +99,16 @@ class Device:
                 "scope": SCOPE,
             },
         )
-        if response.status_code in (400, 401):
-            # The kiosk was revoked, or paired again on another device.
+        if response.status_code == 401:
+            # `invalid_client`: the kiosk was revoked, or paired again on
+            # another device. Anything else — a scope IDEN has not seeded, a
+            # 5xx — is IDEN's problem, and must not cost the kiosk its pairing.
             self._forget()
             raise NotPaired
-        response.raise_for_status()
+        if response.status_code != 200:
+            logger.error("IDEN refused a token", status=response.status_code)
+            self.online = False
+            raise Unreachable
         body = response.json()
         self._token = body["access_token"]
         self._token_expires = (

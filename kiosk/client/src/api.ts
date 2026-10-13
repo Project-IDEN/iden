@@ -10,7 +10,8 @@ export interface KioskState {
     notice?: string | null;
     cameraLabel?: string | null;
   };
-  online: boolean;
+  /** null until the kiosk server has asked IDEN anything. */
+  online: boolean | null;
   version: string;
 }
 

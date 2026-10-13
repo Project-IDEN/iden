@@ -26,7 +26,9 @@ class KioskState(CamelCaseBaseModel):
         description="As set in the dashboard: `idleSeconds`, `inService`, "
         "`notice`, `cameraLabel`. Empty until the first heartbeat answers."
     )
-    online: bool = Field(description="Whether IDEN answered the last heartbeat.")
+    online: bool | None = Field(
+        description="Whether IDEN answered the last request; null before the first."
+    )
     version: str
 
 

@@ -48,6 +48,8 @@ export function App() {
     screen = <Unavailable title="Starting up…">One moment.</Unavailable>;
   } else if (!state.paired) {
     screen = <Setup onPaired={paired} />;
+  } else if (state.online === null) {
+    screen = <Unavailable title="Starting up…">Connecting to IDEN.</Unavailable>;
   } else if (!state.online) {
     screen = (
       <Unavailable name={state.name} title="Out of order">

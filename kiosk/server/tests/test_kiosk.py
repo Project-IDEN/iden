@@ -24,6 +24,8 @@ class FakeIden:
         self.valid_tokens: set[str] = set()
         self.revoked = False
         self.reachable = True
+        # Answers the token endpoint with this instead, when set.
+        self.token_failure: httpx.Response | None = None
         self.requests: list[httpx.Request] = []
         self.heartbeats: list[dict] = []
 
@@ -46,6 +48,8 @@ class FakeIden:
             )
 
         if path == "/oauth2/token":
+            if self.token_failure is not None:
+                return self.token_failure
             form = dict(httpx.QueryParams(request.content.decode()))
             if self.revoked or form["client_secret"] != self.secret:
                 return httpx.Response(401, json={"error": "invalid_client"})
@@ -159,6 +163,30 @@ def test_a_revoked_kiosk_forgets_its_credentials(paired, iden, data_dir):
     assert response.status_code == 409
     assert paired.get("/api/state").json()["paired"] is False
     assert not (data_dir / "credentials.json").exists()
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        httpx.Response(400, json={"error": "invalid_scope"}),
+        httpx.Response(500, text="Internal Server Error"),
+    ],
+)
+def test_a_token_failure_that_is_not_a_revocation_keeps_the_pairing(
+    paired, iden, data_dir, failure
+):
+    iden.token_failure = failure
+    iden.valid_tokens.clear()
+
+    response = paired.post("/api/enrol/start", json={"ticket": "good-ticket"})
+    assert response.status_code == 503
+    assert response.json()["code"] == "iden_unreachable"
+    assert (data_dir / "credentials.json").exists()
+    assert paired.get("/api/state").json()["online"] is False
+
+
+def test_iden_is_not_called_unreachable_before_it_was_asked(kiosk):
+    assert kiosk.get("/api/state").json()["online"] is None
 
 
 def test_iden_errors_reach_the_ui_unchanged(paired):
