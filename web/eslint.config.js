@@ -22,4 +22,11 @@ export default tseslint.config(
       "@typescript-eslint/consistent-type-imports": "error",
     },
   },
+  {
+    // The component library exports each component's variants beside it, the
+    // shadcn shape. Nothing here is a hot-reload boundary of its own: an edit
+    // reloads the screen that imports it either way.
+    files: ["shared/ui/**/*.tsx"],
+    rules: { "react-refresh/only-export-components": "off" },
+  },
 );

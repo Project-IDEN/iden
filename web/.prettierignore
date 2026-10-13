@@ -7,3 +7,6 @@ shared/api/schema.d.ts
 
 dist
 node_modules
+
+# nginx configuration. Prettier has no parser for it and reflows it as Markdown.
+*.inc
