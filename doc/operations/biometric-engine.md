@@ -31,18 +31,80 @@ It is optional. Without it, and with `IDEN_BIOMETRIC_ENABLED=false`, IDEN is com
     IDEN_BIOMETRIC_ENABLED=true
     ```
 
-4. **Start with the engine**, then re-run the seed so the face and kiosk permissions exist:
+4. **Start the engine**, on the provider's host or on another machine — one of the two sections
+   below.
+
+5. **Re-run the seed**, so the face and kiosk permissions exist:
 
     ```bash
-    docker compose -f deploy/docker-compose.yml --profile biometric up -d --build
     docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed
     ```
 
-5. **Sign out of the dashboard and back in.** The face section appears under Security once your
+6. **Sign out of the dashboard and back in.** The face section appears under Security once your
    token carries `entity:face:read`, and Kiosks under Administration once it carries
    `admin:kiosks:read`.
 
-6. **Set up a kiosk** — see [Kiosks](kiosks.md).
+7. **Set up a kiosk** — see [Kiosks](kiosks.md).
+
+Each way of running it has a CPU file and a GPU file. Pick one; they are not layered on each other.
+
+| | CPU | NVIDIA GPU |
+|---|---|---|
+| On the provider's host | `deploy/docker-compose.engine-cpu.yml` | `deploy/docker-compose.engine-gpu.yml` |
+| On another machine | `engine/deploy/compose.cpu.yml` | `engine/deploy/compose.gpu.yml` |
+
+## On the provider's host
+
+Add the engine's file to the command that starts the deployment:
+
+```bash
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.engine-cpu.yml up -d --build
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.engine-gpu.yml up -d --build   # on a GPU
+```
+
+With the tunnel, it is a third `-f` after `deploy/docker-compose.tunnel.yml`. Keep it in every `up`
+from then on; left out, Compose leaves the engine running but no longer manages it.
+
+The engine joins the provider's Docker network and publishes no port. The provider reaches it at
+`http://engine:8000`, the default for `IDEN_ENGINE_BASE_URL`, presenting the token from
+`provider/keys/engine.token`. `IDEN_ENGINE_WORKERS` in `deploy/.env` sets how many captures it
+checks at once.
+
+## On another machine
+
+The engine can run on a different server from the provider — a GPU machine, while the provider and
+the web apps stay where they are. `engine/` holds everything it needs: the code, the `Dockerfile`,
+and `engine/deploy/`, its compose files. Only `engine/` goes to that machine.
+
+**On the engine's machine,** in `engine/`:
+
+1. Fetch the models: `uv sync --extra cpu && uv run python -m scripts.fetch_models`.
+2. Copy the provider's `provider/keys/engine.token` to `engine/deploy/engine.token`. Both sides must
+   hold the same token.
+3. `cp deploy/.env.example deploy/.env` and check `ENGINE_PUBLISH`, the port it listens on, and
+   `ENGINE_WORKERS`.
+4. Start it:
+
+    ```bash
+    cd deploy
+    docker compose -f compose.cpu.yml up -d --build
+    docker compose -f compose.gpu.yml up -d --build   # on a GPU
+    ```
+
+**On the provider's host,** in `deploy/.env`, with no engine file in the `up` command:
+
+```bash
+IDEN_ENGINE_BASE_URL=http://10.0.0.5:8000
+```
+
+and `docker compose -f deploy/docker-compose.yml up -d` to restart the provider with it.
+
+!!! warning "The link is not encrypted"
+    The engine speaks plain HTTP, and what the provider sends it is faces and face templates. Run
+    the two machines on a network you trust — a private LAN, or a VPN such as WireGuard or
+    Tailscale between them — and let only the provider's machine reach the engine's port. Docker's
+    published ports bypass host firewalls such as `ufw`, so bind the port to the private interface
+    in `ENGINE_PUBLISH` (`10.0.0.5:8000`) rather than relying on one.
 
 ## On an NVIDIA GPU
 
@@ -63,80 +125,18 @@ The image stays on CUDA 12 deliberately. CUDA 13 dropped Maxwell, Pascal and Vol
 moved to it from 1.27, so the GPU build is held at onnxruntime-gpu 1.26. On a Turing (RTX 20) card
 or newer it can move forward; see the note in `engine/pyproject.toml`.
 
-Then add the GPU overlay:
-
-```bash
-docker compose -f deploy/docker-compose.yml -f engine/deploy/compose.gpu.yml \
-  --profile biometric up -d --build
-```
-
-The engine logs which device it chose when it starts:
+Then start the engine with one of the two GPU files. It logs which device it chose:
 
 ```
 Engine ready  calibrated=False device=cuda model_version=antelopev2-minifasnet-1
 ```
 
-With the overlay, `ENGINE_DEVICE=cuda` makes the engine **refuse to start** when it cannot see a
-GPU, instead of falling back to the CPU and serving twenty times slower without anyone noticing.
+The GPU files set `ENGINE_DEVICE=cuda`, which makes the engine **refuse to start** when it cannot
+see a GPU, instead of falling back to the CPU and serving twenty times slower without anyone
+noticing.
 
-`IDEN_ENGINE_WORKERS` sets how many captures are checked at once. Each worker holds its own copy of
+The number of workers sets how many captures are checked at once. Each worker holds its own copy of
 the models — up to about 1 GB of GPU memory — so size it to the card.
-
-## On a host of its own
-
-The engine can run on a different server from the provider — the GPU machine, while the provider
-and the web apps stay where they are. `engine/` holds everything it needs: the code, the
-`Dockerfile`, and `engine/deploy/`, its own compose files. Only that folder goes to the engine host.
-
-Because the provider sends it faces, **the link between them must be encrypted**. With
-`IDEN_ENV=prod`, the provider refuses to start with an `http://` engine address unless it is
-`localhost` or a name on its own Docker network.
-
-**On the engine host,** in `engine/`:
-
-1. Fetch the models: `uv sync --extra cpu && uv run python -m scripts.fetch_models`.
-2. Copy the provider's `provider/keys/engine.token` to `engine/deploy/engine.token`. Both sides must
-   hold the same token.
-3. Give the engine a TLS certificate for the name the provider will use, as `deploy/tls/cert.pem`
-   and `deploy/tls/key.pem`. A public one works as it is. For a private network, make a small CA of
-   your own — with **OpenSSL 3** (the LibreSSL on a Mac writes certificates Python refuses):
-
-    ```bash
-    HOST=engine.internal.example.org     # what the provider will connect to
-    mkdir -p deploy/tls && cd deploy/tls
-    openssl req -x509 -newkey rsa:3072 -nodes -days 3650 -subj "/CN=IDEN engine CA" \
-      -keyout ca.key -out ca.pem \
-      -addext "basicConstraints=critical,CA:TRUE" -addext "keyUsage=critical,keyCertSign,cRLSign"
-    openssl req -x509 -newkey rsa:3072 -nodes -days 825 -subj "/CN=$HOST" \
-      -CA ca.pem -CAkey ca.key -keyout key.pem -out cert.pem \
-      -addext "basicConstraints=critical,CA:FALSE" -addext "subjectAltName=DNS:$HOST" \
-      -addext "keyUsage=critical,digitalSignature,keyEncipherment" \
-      -addext "extendedKeyUsage=serverAuth"
-    ```
-
-    For an address rather than a name, use `subjectAltName=IP:10.0.0.5`. Keep `ca.key` off the
-    engine host once the certificate is made.
-
-4. `cp deploy/.env.example deploy/.env`, check `ENGINE_PUBLISH` — the address and port it listens
-   on — and start it:
-
-    ```bash
-    cd deploy
-    docker compose -f compose.yml -f compose.tls.yml up -d --build
-    docker compose -f compose.yml -f compose.gpu.yml -f compose.tls.yml up -d --build   # on a GPU
-    ```
-
-    Let only the provider's host reach that port: a firewall rule, or a private network.
-
-**On the provider's host,** in `deploy/.env`, and without `--profile biometric`:
-
-```bash
-IDEN_ENGINE_BASE_URL=https://engine.internal.example.org:8443
-IDEN_ENGINE_CA_FILE=/keys/engine-ca.pem    # only for a private CA: copy ca.pem to provider/keys/engine-ca.pem
-```
-
-Restart the provider. A face sign-in that answers *Face checks are unavailable right now* means it
-cannot reach or does not trust the engine; its log says which.
 
 ## Calibrate the threshold
 
@@ -162,10 +162,12 @@ A threshold is only meaningful for the cameras and people it was measured on, so
    scores:
 
     ```bash
-    docker compose -f deploy/docker-compose.yml -f engine/deploy/compose.gpu.yml \
-      --profile biometric run --rm -v "$PWD/dataset:/data:ro" engine \
+    docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.engine-gpu.yml \
+      run --rm -v "$PWD/dataset:/data:ro" engine \
       python -m eval.run /data --out /tmp/reports
     ```
+
+    On another machine it is the same `run` from `engine/deploy`, with `-f compose.gpu.yml` alone.
 
     It prints the threshold for the target false match rate (`--fmr`, default `1e-4`), the share of
     genuine attempts that threshold would reject, and how often each kind of attack passed the
@@ -216,9 +218,8 @@ To enrol a face in development, run the kiosk app against it on your laptop — 
 
 | Symptom | Cause |
 |---|---|
-| Sign-in shows *Face checks are unavailable right now* (`503 engine_unavailable`) | The provider cannot reach the engine, or the engine refused its token. Check the engine is running under `--profile biometric` and that both read the same `engine.token`. |
+| Sign-in shows *Face checks are unavailable right now* (`503 engine_unavailable`) | The provider cannot reach the engine, or the engine refused its token. Check the engine is running, that `IDEN_ENGINE_BASE_URL` is its address, and that both read the same `engine.token`. |
 | *Your face enrolment is out of date* (`409 face_enrolment_outdated`) | The model changed since this person enrolled. Re-embed, or have them enrol again. |
-| `certificate verify failed` in the provider's log | The engine's certificate is not for the name in `IDEN_ENGINE_BASE_URL`, or its CA is not in `IDEN_ENGINE_CA_FILE`. *Missing Authority Key Identifier* means it was made with LibreSSL; remake it with OpenSSL 3. |
-| The engine exits with `ENGINE_DEVICE=cuda but onnxruntime cannot see a GPU` | The driver or the container toolkit is missing, or the GPU overlay is in use on a host without one. |
+| The engine exits with `ENGINE_DEVICE=cuda but onnxruntime cannot see a GPU` | The driver or the container toolkit is missing, or a GPU file is in use on a host without one. |
 | The engine exits saying a model `does not match the sha256` | A model file is not the reviewed one. Delete it and fetch again. |
 | Enrolment keeps failing with `not_live` at one kiosk | Usually the light: a window behind the person, or a screen too dim for the colour flashes to register. Each failure lists the checks that failed. |

@@ -73,9 +73,8 @@ for as long as the container lives, where `docker inspect` reads it.
 | `IDEN_BOOTSTRAP_ADMIN_EMAIL` | `admin@localhost` | The first administrator's address. Read only when the seed **creates** the account; changing it later seeds a second administrator rather than renaming the first. |
 | `IDEN_BOOTSTRAP_ADMIN_PASSWORD` | *empty* | Left empty, the seed generates one and prints it once. `deploy/docker-compose.yml` deliberately does not carry it — a password there would outlive its one use, in an environment `docker inspect` reads. Pass it to the seed command itself if you want to choose it. Ignored once the account exists. |
 | `IDEN_BIOMETRIC_ENABLED` | `false` | Faces as a second factor, enrolled at a kiosk. Off, `/biometric/*`, `/admin/kiosks*` and `/entity/face*` answer 404 and are absent from `/docs`, and face sign-in answers 501. Re-run the seed after turning it on. See [Faces](../concepts/biometrics.md). |
-| `IDEN_ENGINE_BASE_URL` | `http://engine:8000` | Where the biometric engine listens. Never published outside the deployment. |
+| `IDEN_ENGINE_BASE_URL` | `http://engine:8000` | Where the biometric engine listens. The default is the engine on the provider's host; for one on another machine, its address there, such as `http://10.0.0.5:8000`. |
 | `IDEN_ENGINE_TOKEN_FILE` | `<IDEN_SIGNING_KEY_DIR>/engine.token` | The secret the provider presents to the engine. Written by `scripts.gen_keys`; losing it costs nothing — write a new one and restart both. |
-| `IDEN_ENGINE_CA_FILE` | *empty* | The CA that signed the engine's certificate, for an engine on another host with a private CA. Empty trusts the public CAs. In `prod`, an engine on another host must be `https://`. |
 | `IDEN_ENGINE_TIMEOUT` | `20` (seconds) | How long to wait for the engine to judge a capture. |
 | `IDEN_BIOMETRIC_KEEP_IMAGES` | `false` | Keep enrolment photos, encrypted, in blob storage, so a model upgrade can re-embed them with `scripts.reembed_faces`. Off, only embeddings are stored and people enrol again after an upgrade. Needs blob storage; refused in prod without it. |
 | `IDEN_FACE_TICKET_TTL` | `900` (15 min) | How long the QR code that lets a kiosk enrol someone's face stays usable. |
@@ -83,8 +82,10 @@ for as long as the container lives, where `docker inspect` reads it.
 
 ## The biometric engine
 
-Read by the `engine` service, not the provider. `engine/deploy/compose.yml` sets the token, the
-model directory, `ENGINE_ENV` and `ENGINE_WORKERS`; each image sets `ENGINE_DEVICE` for its build.
+Read by the `engine` service, not the provider. Every engine compose file sets the token, the model
+directory, `ENGINE_ENV` and `ENGINE_WORKERS` — on the provider's host from `IDEN_ENV` and
+`IDEN_ENGINE_WORKERS` in `deploy/.env`. Each image sets `ENGINE_DEVICE` for its build, and the GPU
+files set it to `cuda`.
 
 | Variable | Default | Notes |
 |---|---|---|
@@ -94,7 +95,6 @@ model directory, `ENGINE_ENV` and `ENGINE_WORKERS`; each image sets `ENGINE_DEVI
 | `ENGINE_WORKERS` | `1` | Captures checked at once. Each holds its own copy of the models in memory. |
 | `ENGINE_MANIFEST` | `models.toml` | The models, their checksums, and the thresholds calibrated for them. |
 | `ENGINE_ENV` | `dev` | `prod` hides `/docs` and requires the token. |
-| `ENGINE_TLS_CERT_FILE`, `ENGINE_TLS_KEY_FILE` | *empty* | Serve TLS, for a provider on another host. Both or neither; `engine/deploy/compose.tls.yml` sets them. |
 | `ENGINE_LOG_LEVEL` | `info` | |
 | `ENGINE_MAX_FRAMES` | `16` | Frames accepted in one capture. A capture is 13; this is the ceiling. |
 | `ENGINE_MAX_FRAME_BYTES` | `400000` | Size of one encoded frame. |

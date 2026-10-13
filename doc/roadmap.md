@@ -47,6 +47,7 @@ the real hardware, and the camera settings tuned for the Rapoo C280 it is meant 
 | **KI-7** | `admin:*` is all-or-nothing | No "administrator who cannot create administrators". Anyone with `admin:users:write` can grant themselves anything. |
 | **KI-9** | One token can carry several audiences | Ask for admin and entity scopes together and both are in `aud`. Standard, but a compromised resource server could replay the token at the other. |
 | **KI-17** | An audit row is not atomic with its change | Written just after; a database failure in between loses the record. Logged loudly. |
+| **KI-18** | The engine speaks plain HTTP | On another machine, faces cross the network between it and the provider unencrypted. Until it serves TLS, keep both on a network you trust. |
 
 ## Federation
 
