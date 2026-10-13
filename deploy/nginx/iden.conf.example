@@ -137,6 +137,15 @@ server {
     include /etc/nginx/conf.d/proxy.inc;
   }
 
+  # The kiosks: pairing, heartbeat and enrolment. An enrolment is up to 16
+  # frames of at most 300 KB each, well past the 1m default. Absent here, a
+  # kiosk's every call is answered by the catch-all 404 below.
+  location ^~ /biometric/ {
+    client_max_body_size 6m;
+    proxy_pass http://iden_provider;
+    include /etc/nginx/conf.d/proxy.inc;
+  }
+
   # Profile photos and application logos. Public by design — the URL in the
   # `picture` claim, and the logo on the consent screen, are fetched by <img>
   # tags that cannot present a token.

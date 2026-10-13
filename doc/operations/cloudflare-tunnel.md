@@ -48,6 +48,7 @@ and set by the provider, and one origin makes it unambiguously first-party for b
 | `/oauth2/*` | provider | The protocol endpoints. |
 | `/api/v1/auth/*` | provider | Where a password is checked. |
 | `/admin/*`, `/entity/*`, `/developer/*` | provider | The resource servers. |
+| `/biometric/*` | provider | Where kiosks pair, report in and enrol faces. |
 | `/media/*` | provider | Profile photos. This is the URL in the `picture` claim, fetched by `<img>` tags that cannot present a token. |
 | `/auth/*` | auth-ui | The hosted sign-in page. The provider redirects here by name. |
 | `/console/*` | dashboard | Administration and self-service. |
