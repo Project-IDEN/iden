@@ -1,0 +1,11 @@
+# A user unit: Chromium runs as the desktop user, on their screen. Started by
+# `iden-kiosk start`, and when the desktop signs in if `iden-kiosk enable` was run.
+[Unit]
+Description=IDEN kiosk: the enrolment app, full screen
+# Chromium closed by accident comes straight back, however often.
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/opt/iden-kiosk/browser.sh
+Restart=always
+RestartSec=2

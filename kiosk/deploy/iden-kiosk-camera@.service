@@ -1,6 +1,10 @@
+# Started by 99-iden-kiosk-camera.rules for each camera that appears, at boot
+# or when plugged in, and stopped when it is unplugged.
 [Unit]
-Description=IDEN kiosk: lock the controls of camera %I
+Description=IDEN kiosk: hold camera %I at the settings in camera.conf
+BindsTo=dev-%i.device
+After=dev-%i.device
 
 [Service]
-Type=oneshot
-ExecStart=/opt/iden-kiosk/camera.sh %I
+ExecStart=/opt/iden-kiosk/camera.sh %i
+Restart=on-failure

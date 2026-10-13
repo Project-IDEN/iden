@@ -1,5 +1,5 @@
-# The kiosk server on a Raspberry Pi. install.sh copies this to /opt/iden-kiosk
-# and writes the .env beside it.
+# The kiosk server. install.sh copies this to /opt/iden-kiosk and writes the
+# .env beside it; `iden-kiosk` runs it from there.
 name: iden-kiosk
 
 services:
@@ -13,7 +13,14 @@ services:
       - "127.0.0.1:8080:8080"
     volumes:
       - credentials:/data
+    # A kiosk runs for months on an SD card; keep its log from filling it.
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
 
 volumes:
-  # The kiosk's client secret. Survives image updates; delete it to un-pair.
+  # The kiosk's client secret. Survives image updates; `iden-kiosk unpair`
+  # deletes it.
   credentials:

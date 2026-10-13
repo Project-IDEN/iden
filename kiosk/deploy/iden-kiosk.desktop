@@ -1,0 +1,6 @@
+[Desktop Entry]
+Type=Application
+Name=IDEN kiosk
+Comment=Enters kiosk mode at sign-in, after iden-kiosk enable
+Exec=/opt/iden-kiosk/autostart.sh
+NoDisplay=true

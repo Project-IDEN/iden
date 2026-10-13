@@ -2,10 +2,8 @@
 Description=IDEN kiosk: pull a newer image and restart on it
 After=network-online.target docker.service
 Wants=network-online.target
+Requires=docker.service
 
 [Service]
 Type=oneshot
-WorkingDirectory=/opt/iden-kiosk
-ExecStart=/usr/bin/docker compose pull --quiet
-ExecStart=/usr/bin/docker compose up -d --remove-orphans
-ExecStart=/usr/bin/docker image prune -f
+ExecStart=/usr/local/bin/iden-kiosk update

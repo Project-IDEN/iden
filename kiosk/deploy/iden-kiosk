@@ -1,0 +1,181 @@
+#!/usr/bin/env bash
+# iden-kiosk — run this kiosk from a terminal. Installed by install.sh.
+set -euo pipefail
+
+home=/opt/iden-kiosk
+unit=iden-kiosk-browser.service
+at_boot="$home/start-at-boot"
+
+usage() {
+  cat <<'EOF'
+Usage: iden-kiosk <command>
+
+Kiosk mode (the enrolment app, full screen on the desktop)
+  start         Enter kiosk mode now
+  stop          Leave kiosk mode, back to the desktop
+  restart       Reopen the kiosk app, e.g. after changing the camera
+  enable        Enter kiosk mode by itself at every boot
+  disable       Stop entering kiosk mode at boot
+
+Looking after it
+  status        What is running, whether it is paired, which cameras it sees
+  logs [what]   Follow a log: server (default), browser or camera
+  camera        List each camera's controls and their current values
+  camera edit   Edit camera.conf; a change applies within a second
+  update        Pull the newest kiosk image and restart on it now
+  unpair        Forget this kiosk's credentials, so it can be paired again
+EOF
+}
+
+case "${1:-}" in
+  -h | --help | help | "") usage; exit 0 ;;
+esac
+
+# Everything else touches Docker, systemd or /opt; ask for sudo once, up front.
+if [[ $EUID -ne 0 ]]; then
+  exec sudo "$0" "$@"
+fi
+
+# shellcheck source=/dev/null
+source "$home/.env"
+user="$KIOSK_USER"
+uid="$(id -u "$user")"
+
+compose() { docker compose -f "$home/compose.yml" "$@"; }
+
+# The desktop user's own systemd, where the browser runs.
+as_user() {
+  runuser -u "$user" -- env XDG_RUNTIME_DIR="/run/user/$uid" \
+    DBUS_SESSION_BUS_ADDRESS="unix:path=/run/user/$uid/bus" "$@"
+}
+
+desktop_running() {
+  [[ -S "/run/user/$uid/bus" ]] || return 1
+  compgen -G "/run/user/$uid/wayland-*" >/dev/null || [[ -S /tmp/.X11-unix/X0 ]]
+}
+
+kiosk_mode_on() { desktop_running && as_user systemctl --user --quiet is-active "$unit"; }
+
+start() {
+  if ! desktop_running; then
+    echo "Nobody is signed in to the desktop as $user, so there is no screen to show the kiosk on." >&2
+    echo "Sign in on the kiosk's screen, or run 'iden-kiosk enable' and reboot." >&2
+    exit 1
+  fi
+  as_user systemctl --user daemon-reload
+  as_user systemctl --user start "$unit"
+  echo "Kiosk mode is on. Leave it with: iden-kiosk stop"
+}
+
+stop() {
+  if desktop_running; then as_user systemctl --user stop "$unit"; fi
+  echo "Kiosk mode is off."
+}
+
+enable_at_boot() {
+  touch "$at_boot"
+  # Kiosk mode starts when the desktop does, so the desktop must sign in by
+  # itself — or a power cut leaves the kiosk at a login screen.
+  if command -v raspi-config >/dev/null; then
+    SUDO_USER="$user" raspi-config nonint do_boot_behaviour B4
+    echo "The desktop now signs in as $user by itself."
+  else
+    echo "Turn on automatic sign-in to the desktop for $user in your desktop's settings."
+  fi
+  echo "Kiosk mode will start at every boot. To start it now: iden-kiosk start"
+}
+
+disable_at_boot() {
+  rm -f "$at_boot"
+  echo "Kiosk mode will no longer start at boot. It is still running if it was; 'iden-kiosk stop' leaves it."
+}
+
+cameras() {
+  local device
+  for device in /dev/video*; do
+    [[ -e "$device" ]] || continue
+    # A UVC camera also has a metadata node, which has no controls.
+    v4l2-ctl -d "$device" --list-ctrls 2>/dev/null | grep -q . && echo "$device"
+  done
+}
+
+camera_name() { v4l2-ctl -d "$1" --info 2>/dev/null | sed -n 's/^[[:space:]]*Card type[[:space:]]*: //p'; }
+
+status() {
+  local state server
+  server="$(compose ps --format '{{.State}} ({{.Status}})' kiosk 2>/dev/null || true)"
+  printf '%-14s %s\n' "Server" "${server:-not running}"
+  if state="$(curl -fsS --max-time 3 http://localhost:8080/api/state 2>/dev/null)"; then
+    printf '%-14s %s\n' "Paired" "$(jq -r 'if .paired then "yes, as \(.name // "?")" else "no — pair it from the dashboard" end' <<<"$state")"
+    printf '%-14s %s\n' "IDEN" "$(jq -r 'if .online == null then "not asked yet" elif .online then "reachable" else "NOT reachable — check the network and KIOSK_ISSUER" end' <<<"$state")"
+    printf '%-14s %s\n' "In service" "$(jq -r 'if .settings.inService == false then "no (switched off in the dashboard)" else "yes" end' <<<"$state")"
+    printf '%-14s %s\n' "Version" "$(jq -r .version <<<"$state")"
+  fi
+  printf '%-14s %s\n' "Issuer" "$KIOSK_ISSUER"
+  printf '%-14s %s\n' "Kiosk mode" "$(kiosk_mode_on && echo "on (iden-kiosk stop to leave)" || echo "off (iden-kiosk start to enter)")"
+  printf '%-14s %s\n' "At boot" "$([[ -e "$at_boot" ]] && echo "starts by itself" || echo "does not start (iden-kiosk enable)")"
+  local found=false device
+  for device in $(cameras); do
+    printf '%-14s %s %s\n' "$($found && echo "" || echo "Camera")" "$device" "$(camera_name "$device")"
+    found=true
+  done
+  $found || printf '%-14s %s\n' "Camera" "none found — is it plugged in?"
+}
+
+logs() {
+  case "${1:-server}" in
+    server) compose logs --follow --tail 100 ;;
+    browser) journalctl --follow --lines 100 _SYSTEMD_USER_UNIT="$unit" ;;
+    camera) journalctl --follow --lines 100 --unit 'iden-kiosk-camera@*' ;;
+    *) echo "logs: server, browser or camera" >&2; exit 2 ;;
+  esac
+}
+
+camera() {
+  case "${1:-}" in
+    "")
+      local device found=false
+      for device in $(cameras); do
+        found=true
+        echo "== $device: $(camera_name "$device")"
+        v4l2-ctl -d "$device" --list-ctrls-menus
+        echo
+      done
+      $found || { echo "No camera found. Is it plugged in? (v4l2-ctl --list-devices)" >&2; exit 1; }
+      echo "Lock values in $home/camera.conf (iden-kiosk camera edit)."
+      ;;
+    edit) "${EDITOR:-nano}" "$home/camera.conf" ;;
+    *) echo "camera: no argument, or edit" >&2; exit 2 ;;
+  esac
+}
+
+update() {
+  # A failed pull — no network, or an image built on this device — keeps the
+  # image already here rather than stopping the kiosk.
+  compose pull --quiet --ignore-pull-failures
+  compose up --detach --remove-orphans
+  docker image prune --force >/dev/null
+  echo "Running $(compose ps --format '{{.Image}}' kiosk)."
+}
+
+unpair() {
+  read -rp "This kiosk will forget its credentials and must be paired again. Type 'unpair' to go on: " answer
+  [[ "$answer" == unpair ]] || { echo "Nothing changed."; exit 1; }
+  compose down --volumes
+  compose up --detach
+  echo "Unpaired. The screen asks for a pairing code."
+}
+
+case "${1:-}" in
+  start) start ;;
+  stop) stop ;;
+  restart) stop >/dev/null; start ;;
+  enable) enable_at_boot ;;
+  disable) disable_at_boot ;;
+  status) status ;;
+  logs) logs "${2:-}" ;;
+  camera) camera "${2:-}" ;;
+  update) update ;;
+  unpair) unpair ;;
+  *) echo "iden-kiosk: unknown command '$1'" >&2; usage >&2; exit 2 ;;
+esac
