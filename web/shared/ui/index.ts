@@ -89,6 +89,7 @@ export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tool
 /* Compositions of the above. Each exists because it carries a decision — a
    wording, a responsive behaviour, a rule about what may be shown — rather than
    because shadcn was missing a box. */
+export { AppLogo } from "./app-logo";
 export { Avatar } from "./avatar";
 export { ConfirmDialog, SecretRevealOnce } from "./confirm-dialog";
 export { DataTable, Pagination, type Column } from "./data-table";

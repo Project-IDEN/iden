@@ -1,4 +1,5 @@
 import {
+  AppLogo,
   Badge,
   Button,
   ConfirmDialog,
@@ -14,6 +15,8 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "../../app/api";
+import { LogoControl } from "../../app/logo";
+import { uploadLogo } from "../../app/logo-upload";
 import { PageHeader } from "../../app/shell";
 import { useList, useRecord, useWrite, type ClientRecord } from "./api";
 import { SetPicker } from "./picker";
@@ -26,6 +29,7 @@ const columns: Column<ClientRecord>[] = [
     header: "Application",
     cell: (client) => (
       <span className="inline-flex items-center gap-2">
+        <AppLogo name={client.name} src={client.logoUrl} />
         {client.name}
         {client.isSystem ? <SystemTag /> : null}
         {client.ownerUserId ? <Badge variant="outline">self-registered</Badge> : null}
@@ -118,6 +122,14 @@ export function ClientDetailRoute() {
     await api.delete(`/admin/clients/${clientId}`);
   });
 
+  const setLogo = useWrite<File, void>(invalidates, (file) =>
+    uploadLogo(api, `/admin/clients/${clientId}`, file),
+  );
+
+  const clearLogo = useWrite<void, void>(invalidates, async () => {
+    await api.delete(`/admin/clients/${clientId}/logo`);
+  });
+
   if (client.isPending) return <Spinner label="Loading this client" />;
   if (client.isError)
     return <ErrorState error={client.error} onRetry={() => void client.refetch()} />;
@@ -144,6 +156,15 @@ export function ClientDetailRoute() {
             : "A browser or mobile app. It has no secret and proves itself with PKCE."
         }
       />
+
+      <section className="mb-10">
+        <LogoControl
+          name={record.name}
+          logoUrl={record.logoUrl}
+          upload={setLogo}
+          remove={clearLogo}
+        />
+      </section>
 
       <dl className="mb-10 flex flex-wrap gap-x-12 gap-y-4">
         <div>

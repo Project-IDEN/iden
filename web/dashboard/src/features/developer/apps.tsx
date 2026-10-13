@@ -1,4 +1,5 @@
 import {
+  AppLogo,
   Badge,
   Button,
   ConfirmDialog,
@@ -18,6 +19,8 @@ import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "../../app/api";
 import { config } from "../../app/config";
 import { lines } from "../../app/forms";
+import { LogoControl } from "../../app/logo";
+import { uploadLogo } from "../../app/logo-upload";
 import { PageHeader } from "../../app/shell";
 import {
   APPLICATIONS,
@@ -76,6 +79,7 @@ export function ApplicationsRoute() {
         <RowCard>
           {rows.map((application) => (
             <Row key={application.id} className="flex flex-wrap items-center gap-x-5 gap-y-3">
+              <AppLogo name={application.name} src={application.logoUrl} size="md" />
               <div className="min-w-0 flex-1">
                 <p className="text-title-sm text-ink">{application.name}</p>
                 <p className="mt-1">
@@ -127,6 +131,14 @@ export function ApplicationDetailRoute() {
     await api.delete(`${APPLICATIONS}/${applicationId}`);
   });
 
+  const setLogo = useApplicationWrite<File, void>(applicationId, (file) =>
+    uploadLogo(api, `${APPLICATIONS}/${applicationId}`, file),
+  );
+
+  const clearLogo = useApplicationWrite<void, void>(applicationId, async () => {
+    await api.delete(`${APPLICATIONS}/${applicationId}/logo`);
+  });
+
   if (application.isPending) return <Spinner label="Loading this application" />;
   if (application.isError)
     return <ErrorState error={application.error} onRetry={() => void application.refetch()} />;
@@ -146,6 +158,15 @@ export function ApplicationDetailRoute() {
       </Link>
 
       <PageHeader title={record.name} lede={kind(record)} />
+
+      <section className="mb-10">
+        <LogoControl
+          name={record.name}
+          logoUrl={record.logoUrl}
+          upload={setLogo}
+          remove={clearLogo}
+        />
+      </section>
 
       <section className="mb-10">
         <h2 className="mb-1 text-title-lg text-ink">Connection details</h2>

@@ -1099,7 +1099,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an OAuth client
-         * @description Every token and consent grant belonging to the client goes with it.
+         * @description Every token and consent grant belonging to the client goes with it, and so does its logo.
          *
          *     **Required scope:** every `admin:` scope, plus every `biometric:` scope when that module is enabled.
          *
@@ -1164,6 +1164,40 @@ export interface paths {
          */
         post: operations["rotate_secret_admin_clients__client_id__rotate_secret_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/clients/{client_id}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set a client's logo
+         * @description Uploads an image and makes it the logo the consent screen shows beside the client's name, replacing any previous one.
+         *
+         *     The file is decoded, scaled to fit 256px without cropping, and re-encoded as WebP with its transparency kept. At most 512 KB; SVG is not accepted. The logo is served publicly from a fresh unguessable URL, `logoUrl`.
+         *
+         *     **Required scope:** every `admin:` scope, plus every `biometric:` scope when that module is enabled.
+         *
+         *     Changing an application is a full administrator's action. Its redirect URIs, grants, secret and scopes decide who receives its tokens, so whoever controls them can act as anyone who signs in through it.
+         */
+        put: operations["set_logo_admin_clients__client_id__logo_put"];
+        post?: never;
+        /**
+         * Remove a client's logo
+         * @description Deletes the stored image and clears `logoUrl`. Removing a logo that is not set succeeds and changes nothing.
+         *
+         *     **Required scope:** every `admin:` scope, plus every `biometric:` scope when that module is enabled.
+         *
+         *     Changing an application is a full administrator's action. Its redirect URIs, grants, secret and scopes decide who receives its tokens, so whoever controls them can act as anyone who signs in through it.
+         */
+        delete: operations["delete_logo_admin_clients__client_id__logo_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1699,7 +1733,7 @@ export interface paths {
         post?: never;
         /**
          * Delete one of your applications
-         * @description Every token and consent grant belonging to the application goes with it, and everyone signed in through it is signed out.
+         * @description Every token and consent grant belonging to the application goes with it, as does its logo, and everyone signed in through it is signed out.
          *
          *     **Required scope:** `developer:clients:write`
          */
@@ -1732,6 +1766,36 @@ export interface paths {
          */
         post: operations["rotate_secret_developer_clients__application_id__rotate_secret_post"];
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/developer/clients/{application_id}/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set your application's logo
+         * @description Uploads an image and makes it the logo people see beside your application's name when they are asked to consent, replacing any previous one.
+         *
+         *     The file is decoded, scaled to fit 256px without cropping, and re-encoded as WebP with its transparency kept. At most 512 KB; SVG is not accepted. The logo is served publicly from a fresh unguessable URL, `logoUrl`.
+         *
+         *     **Required scope:** `developer:clients:write`
+         */
+        put: operations["set_logo_developer_clients__application_id__logo_put"];
+        post?: never;
+        /**
+         * Remove your application's logo
+         * @description Deletes the stored image and clears `logoUrl`. Removing a logo that is not set succeeds and changes nothing.
+         *
+         *     **Required scope:** `developer:clients:write`
+         */
+        delete: operations["delete_logo_developer_clients__application_id__logo_delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1959,6 +2023,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/media/logos/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fetch an application's logo
+         * @description The image bytes for one application's logo, as WebP.
+         *
+         *     Public: the consent screen shows it before anyone is signed in. The file name is unguessable and is replaced whenever the logo is.
+         *
+         *     **Required scope:** none — this endpoint is public.
+         */
+        get: operations["read_logo_media_logos__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/health": {
         parameters: {
             query?: never;
@@ -2155,6 +2243,11 @@ export interface components {
              */
             hasSecret: boolean;
             /**
+             * Logourl
+             * @description Shown beside the name on the consent screen. Set it with `PUT /developer/clients/{id}/logo`; null when there is none.
+             */
+            logoUrl: string | null;
+            /**
              * Createdat
              * Format: date-time
              */
@@ -2213,6 +2306,11 @@ export interface components {
              * @description Whether a client secret exists. Its value is never readable.
              */
             hasSecret: boolean;
+            /**
+             * Logourl
+             * @description Shown beside the name on the consent screen. Set it with `PUT /developer/clients/{id}/logo`; null when there is none.
+             */
+            logoUrl: string | null;
             /**
              * Createdat
              * Format: date-time
@@ -2372,6 +2470,22 @@ export interface components {
             /** Client Secret */
             client_secret?: string | null;
         };
+        /** Body_set_logo_admin_clients__client_id__logo_put */
+        Body_set_logo_admin_clients__client_id__logo_put: {
+            /**
+             * File
+             * @description The logo. PNG, JPEG, WebP or GIF.
+             */
+            file: string;
+        };
+        /** Body_set_logo_developer_clients__application_id__logo_put */
+        Body_set_logo_developer_clients__application_id__logo_put: {
+            /**
+             * File
+             * @description The logo. PNG, JPEG, WebP or GIF.
+             */
+            file: string;
+        };
         /** Body_set_photo_entity_profile_photo_put */
         Body_set_photo_entity_profile_photo_put: {
             /**
@@ -2412,6 +2526,11 @@ export interface components {
         ChallengeResponse: {
             /** Clientname */
             clientName: string;
+            /**
+             * Clientlogourl
+             * @description The application's logo, to show beside its name. Null when it has none.
+             */
+            clientLogoUrl?: string | null;
             /**
              * Scopes
              * @description Scopes the client is asking for.
@@ -2537,6 +2656,11 @@ export interface components {
              * @description Who registered it through `/developer/clients`. Null means the organization owns it — a bootstrap client, or one an administrator registered here.
              */
             ownerUserId: string | null;
+            /**
+             * Logourl
+             * @description Shown beside the name on the consent screen. Set it with `PUT /admin/clients/{id}/logo`; null when there is none.
+             */
+            logoUrl: string | null;
             /** Grantablescopes */
             grantableScopes: components["schemas"]["provider__admin__clients__schemas__ScopeSummary"][];
             /** Grantedscopes */
@@ -2584,6 +2708,11 @@ export interface components {
              * @description Who registered it through `/developer/clients`. Null means the organization owns it — a bootstrap client, or one an administrator registered here.
              */
             ownerUserId: string | null;
+            /**
+             * Logourl
+             * @description Shown beside the name on the consent screen. Set it with `PUT /admin/clients/{id}/logo`; null when there is none.
+             */
+            logoUrl: string | null;
             /** Grantablescopes */
             grantableScopes: components["schemas"]["provider__admin__clients__schemas__ScopeSummary"][];
             /** Grantedscopes */
@@ -7326,6 +7455,144 @@ export interface operations {
             };
         };
     };
+    set_logo_admin_clients__client_id__logo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_set_logo_admin_clients__client_id__logo_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientResponse"];
+                };
+            };
+            /** @description The caller is not a full administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such client */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The client belongs to a kiosk; manage it at `/admin/kiosks` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The file is not a readable image, or is too large */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This deployment has no file storage configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_logo_admin_clients__client_id__logo_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                client_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientResponse"];
+                };
+            };
+            /** @description The caller is not a full administrator */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description No such client */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The client belongs to a kiosk; manage it at `/admin/kiosks` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description This deployment has no file storage configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     list_fields_admin_profile_fields_get: {
         parameters: {
             query?: {
@@ -8380,6 +8647,108 @@ export interface operations {
             };
         };
     };
+    set_logo_developer_clients__application_id__logo_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": components["schemas"]["Body_set_logo_developer_clients__application_id__logo_put"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description No such application of yours */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The file is not a readable image, or is too large */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description This deployment has no file storage configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    delete_logo_developer_clients__application_id__logo_delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                application_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApplicationResponse"];
+                };
+            };
+            /** @description No such application of yours */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description This deployment has no file storage configured */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     pair_biometric_kiosk_pair_post: {
         parameters: {
             query?: never;
@@ -8907,6 +9276,52 @@ export interface operations {
                 };
             };
             /** @description No photo is stored under that name. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description This deployment has no file storage configured. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    read_logo_media_logos__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The file name from `logoUrl`. */
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/webp": unknown;
+                };
+            };
+            /** @description No logo is stored under that name. */
             404: {
                 headers: {
                     [name: string]: unknown;

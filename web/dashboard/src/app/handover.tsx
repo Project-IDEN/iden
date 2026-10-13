@@ -19,6 +19,7 @@ export function SecretHandover({
   listLabel,
   recordTo,
   recordLabel,
+  notice,
 }: {
   name: string;
   clientId?: string;
@@ -27,6 +28,8 @@ export function SecretHandover({
   listLabel: string;
   recordTo: string;
   recordLabel: string;
+  /** Something that went wrong after the registration itself succeeded. */
+  notice?: string;
 }) {
   return (
     <div className="max-w-xl">
@@ -40,6 +43,12 @@ export function SecretHandover({
         {clientId ? <SecretRevealOnce label="Client ID" secret={clientId} /> : null}
         <SecretRevealOnce label="Client secret" secret={clientSecret} />
       </div>
+
+      {notice ? (
+        <p role="alert" className="mt-4 text-body-sm text-destructive">
+          {notice}
+        </p>
+      ) : null}
 
       <div className="mt-8 flex gap-3">
         <Button variant="outline" asChild>

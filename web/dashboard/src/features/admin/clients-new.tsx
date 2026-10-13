@@ -21,6 +21,8 @@ import { useApi } from "../../app/api";
 import { APP_TYPES, type AppType } from "../../app/app-types";
 import { isAbsoluteUri, lines } from "../../app/forms";
 import { SecretHandover } from "../../app/handover";
+import { LogoPicker } from "../../app/logo";
+import { uploadLogo, type LogoNotice } from "../../app/logo-upload";
 import { NotSet, ReviewItem, ReviewList, Wizard, type Step } from "../../app/wizard";
 import { useWrite, type ClientCreated } from "./api";
 import { useScopeOptions } from "./options";
@@ -57,11 +59,20 @@ const schema = z
 
 type Values = z.infer<typeof schema>;
 
+interface Registered {
+  record: ClientCreated;
+  logoFailed: boolean;
+}
+
+const LOGO_FAILED_HERE =
+  "Its logo could not be stored. Add it from the client's page once the secret is saved.";
+
 export function ClientCreateRoute() {
   const api = useApi();
   const navigate = useNavigate();
   const scopeOptions = useScopeOptions();
-  const [created, setCreated] = useState<ClientCreated | null>(null);
+  const [created, setCreated] = useState<Registered | null>(null);
+  const [logo, setLogo] = useState<File | null>(null);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -80,7 +91,19 @@ export function ClientCreateRoute() {
     },
   });
 
-  const create = useWrite<Values, ClientCreated>(["/admin/clients"], async (values) => {
+  // The client exists by now, so a logo that fails to upload must not lose it —
+  // least of all a secret shown only once. It is reported where it can be fixed.
+  async function storeLogo(id: string) {
+    if (!logo) return true;
+    try {
+      await uploadLogo(api, `/admin/clients/${id}`, logo);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const create = useWrite<Values, Registered>(["/admin/clients"], async (values) => {
     const kind = APP_TYPES[values.appType];
     const response = await api.post<ClientCreated>("/admin/clients", {
       clientId: values.clientId,
@@ -95,10 +118,11 @@ export function ClientCreateRoute() {
       grantableScopeIds: values.grantableScopeIds,
       grantedScopeIds: values.grantedScopeIds,
     });
-    return response.data;
+    return { record: response.data, logoFailed: !(await storeLogo(response.data.id)) };
   });
 
   const appType = useWatch({ control: form.control, name: "appType" }) as AppType;
+  const name = useWatch({ control: form.control, name: "name" });
   const usesCode = appType !== "service";
   const options = scopeOptions.data ?? [];
   const labelFor = (ids: string[]) =>
@@ -109,11 +133,12 @@ export function ClientCreateRoute() {
   if (created) {
     return (
       <SecretHandover
-        name={created.name}
-        clientSecret={created.clientSecret ?? ""}
+        name={created.record.name}
+        clientSecret={created.record.clientSecret ?? ""}
+        notice={created.logoFailed ? LOGO_FAILED_HERE : undefined}
         listTo="/admin/clients"
         listLabel="Back to clients"
-        recordTo={`/admin/clients/${created.id}`}
+        recordTo={`/admin/clients/${created.record.id}`}
         recordLabel="Open this client"
       />
     );
@@ -124,13 +149,18 @@ export function ClientCreateRoute() {
       id: "basics",
       label: "Basics",
       title: "What is this application?",
-      lede: "The name is what people see on the consent screen. The client ID is what the application sends to IDEN.",
+      lede: "The name and logo are what people see on the consent screen. The client ID is what the application sends to IDEN.",
       fields: ["name", "clientId", "appType"],
       render: (f) => (
         <div className="flex max-w-xl flex-col gap-6">
           <Field label="Name" required error={f.formState.errors.name?.message}>
             {(props) => <Input {...props} {...f.register("name")} placeholder="Attendance" />}
           </Field>
+
+          <div>
+            <p className="mb-2 text-body-sm text-foreground">Logo</p>
+            <LogoPicker name={name} file={logo} onChange={setLogo} />
+          </div>
 
           <Field
             label="Client ID"
@@ -311,6 +341,7 @@ export function ClientCreateRoute() {
         return (
           <ReviewList>
             <ReviewItem label="Name">{v.name}</ReviewItem>
+            <ReviewItem label="Logo">{logo ? logo.name : <NotSet />}</ReviewItem>
             <ReviewItem label="Client ID">
               <ScopeChip value={v.clientId} />
             </ReviewItem>
@@ -368,9 +399,12 @@ export function ClientCreateRoute() {
       error={create.error}
       onSubmit={(values) =>
         create.mutate(values, {
-          onSuccess: (record) => {
-            if (record.clientSecret) setCreated(record);
-            else void navigate(`/admin/clients/${record.id}`);
+          onSuccess: (result) => {
+            if (result.record.clientSecret) setCreated(result);
+            else
+              void navigate(`/admin/clients/${result.record.id}`, {
+                state: { logoFailed: result.logoFailed } satisfies LogoNotice,
+              });
           },
         })
       }

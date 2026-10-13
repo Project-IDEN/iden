@@ -18,6 +18,8 @@ import { useApi } from "../../app/api";
 import { APP_TYPES, SELF_SERVICE_TYPES, type AppType } from "../../app/app-types";
 import { isAbsoluteUri, lines } from "../../app/forms";
 import { SecretHandover } from "../../app/handover";
+import { LogoPicker } from "../../app/logo";
+import { uploadLogo, type LogoNotice } from "../../app/logo-upload";
 import { NotSet, ReviewItem, ReviewList, Wizard, type Step } from "../../app/wizard";
 import { APPLICATIONS, useApplicationWrite, type ApplicationCreated } from "./api";
 
@@ -37,10 +39,19 @@ const schema = z.object({
 
 type Values = z.infer<typeof schema>;
 
+interface Registered {
+  record: ApplicationCreated;
+  logoFailed: boolean;
+}
+
+const LOGO_FAILED_HERE =
+  "Its logo could not be stored. Add it from the app's page once the secret is saved.";
+
 export function ApplicationCreateRoute() {
   const api = useApi();
   const navigate = useNavigate();
-  const [created, setCreated] = useState<ApplicationCreated | null>(null);
+  const [created, setCreated] = useState<Registered | null>(null);
+  const [logo, setLogo] = useState<File | null>(null);
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
@@ -56,7 +67,19 @@ export function ApplicationCreateRoute() {
     },
   });
 
-  const create = useApplicationWrite<Values, ApplicationCreated>(null, async (values) => {
+  // The app exists by now, so a logo that fails to upload must not lose it —
+  // least of all a secret shown only once. It is reported where it can be fixed.
+  async function storeLogo(id: string) {
+    if (!logo) return true;
+    try {
+      await uploadLogo(api, `${APPLICATIONS}/${id}`, logo);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  const create = useApplicationWrite<Values, Registered>(null, async (values) => {
     const response = await api.post<ApplicationCreated>(APPLICATIONS, {
       name: values.name,
       // `/developer/clients` takes the client type and fixes the grants itself,
@@ -65,20 +88,22 @@ export function ApplicationCreateRoute() {
       redirectUris: lines(values.redirectUris),
       postLogoutRedirectUris: lines(values.postLogoutRedirectUris),
     });
-    return response.data;
+    return { record: response.data, logoFailed: !(await storeLogo(response.data.id)) };
   });
 
   const appType = useWatch({ control: form.control, name: "appType" }) as AppType;
+  const name = useWatch({ control: form.control, name: "name" });
 
-  if (created?.clientSecret) {
+  if (created?.record.clientSecret) {
     return (
       <SecretHandover
-        name={created.name}
-        clientId={created.clientId}
-        clientSecret={created.clientSecret}
+        name={created.record.name}
+        clientId={created.record.clientId}
+        clientSecret={created.record.clientSecret}
+        notice={created.logoFailed ? LOGO_FAILED_HERE : undefined}
         listTo="/developer/applications"
         listLabel="Back to applications"
-        recordTo={`/developer/applications/${created.id}`}
+        recordTo={`/developer/applications/${created.record.id}`}
         recordLabel="Open this application"
       />
     );
@@ -89,13 +114,18 @@ export function ApplicationCreateRoute() {
       id: "basics",
       label: "Basics",
       title: "What are you registering?",
-      lede: "The name is what people see when they are asked to consent, so name it after the app rather than the project.",
+      lede: "The name and logo are what people see when they are asked to consent, so name it after the app rather than the project.",
       fields: ["name", "appType"],
       render: (f) => (
         <div className="flex max-w-xl flex-col gap-6">
           <Field label="Name" required error={f.formState.errors.name?.message}>
             {(props) => <Input {...props} {...f.register("name")} placeholder="Attendance" />}
           </Field>
+
+          <div>
+            <p className="mb-2 text-body-sm text-foreground">Logo</p>
+            <LogoPicker name={name} file={logo} onChange={setLogo} />
+          </div>
 
           <Field label="Application type" hint={APP_TYPES[appType].hint}>
             {(props) => (
@@ -184,6 +214,7 @@ export function ApplicationCreateRoute() {
         return (
           <ReviewList>
             <ReviewItem label="Name">{v.name}</ReviewItem>
+            <ReviewItem label="Logo">{logo ? logo.name : <NotSet />}</ReviewItem>
             <ReviewItem label="Type">{APP_TYPES[v.appType].label}</ReviewItem>
             <ReviewItem label="Authentication">{APP_TYPES[v.appType].summary}</ReviewItem>
             <ReviewItem label="Redirect URIs">
@@ -213,10 +244,13 @@ export function ApplicationCreateRoute() {
       error={create.error}
       onSubmit={(values) =>
         create.mutate(values, {
-          onSuccess: (record) => {
+          onSuccess: (result) => {
             // A public app has no secret, so there is nothing to hand over.
-            if (record.clientSecret) setCreated(record);
-            else void navigate(`/developer/applications/${record.id}`);
+            if (result.record.clientSecret) setCreated(result);
+            else
+              void navigate(`/developer/applications/${result.record.id}`, {
+                state: { logoFailed: result.logoFailed } satisfies LogoNotice,
+              });
           },
         })
       }

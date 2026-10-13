@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Button, ErrorState, IdenError, ScopeChip, Spinner } from "@iden/shared";
+import { AppLogo, Button, ErrorState, IdenError, ScopeChip, Spinner } from "@iden/shared";
 import { useSearchParams } from "react-router";
 import { decideConsent, readChallenge } from "../api";
 import { AuthLayout } from "../AuthLayout";
@@ -63,17 +63,20 @@ function ConsentFlow({ challengeId }: { challengeId: string }) {
     );
   }
 
-  const { clientName, scopes } = challenge.data;
+  const { clientName, clientLogoUrl, scopes } = challenge.data;
 
   return (
     <AuthLayout
       eyebrow={clientName}
       title="Allow access?"
       lede={
-        <>
-          <span className="text-body-strong">{clientName}</span> is asking to act on your behalf. It
-          will be able to:
-        </>
+        <div className="flex items-center gap-4">
+          <AppLogo name={clientName} src={clientLogoUrl} size="md" />
+          <p className="m-0">
+            <span className="text-body-strong">{clientName}</span> is asking to act on your behalf.
+            It will be able to:
+          </p>
+        </div>
       }
     >
       <ul className="m-0 list-none p-0">
