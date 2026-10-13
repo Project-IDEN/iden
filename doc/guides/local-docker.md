@@ -49,9 +49,10 @@ docker run --rm --user "$(id -u):$(id -g)" \
 ```text
 Wrote signing key: /keys/iden-20260927.pem (kid: iden-20260927)
 Wrote secret-encryption key: /keys/totp.key
+Wrote engine token: /keys/engine.token
 ```
 
-**Check it worked:** `ls provider/keys/` shows one `.pem` file and `totp.key`.
+**Check it worked:** `ls provider/keys/` shows one `.pem` file, `totp.key` and `engine.token`.
 
 !!! info "Why `mkdir` and `--user`"
     The image runs as uid **1000**, which is almost certainly not your uid. Without these two flags,

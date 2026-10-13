@@ -194,9 +194,10 @@ docker run --rm --user "$(id -u):$(id -g)" \
 ```text
 Wrote signing key: /keys/iden-20260927.pem (kid: iden-20260927)
 Wrote secret-encryption key: /keys/totp.key
+Wrote engine token: /keys/engine.token
 ```
 
-**Check it worked:** `ls provider/keys/` shows one `.pem` file and `totp.key`.
+**Check it worked:** `ls provider/keys/` shows one `.pem` file, `totp.key` and `engine.token`.
 
 `mkdir` and `--user` are required on Linux. The image runs as uid 1000, and without them Docker
 creates the directory as `root` and the generator fails with `Permission denied`.
