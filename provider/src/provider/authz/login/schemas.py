@@ -59,6 +59,10 @@ class ChallengeResponse(CamelCaseBaseModel):
     the minimum, so the UI never has to understand OAuth."""
 
     client_name: str
+    client_logo_url: str | None = Field(
+        default=None,
+        description="The application's logo, to show beside its name. Null when it has none.",
+    )
     scopes: list[ChallengeScope] = Field(description="Scopes the client is asking for.")
     acr_values: str | None = Field(
         default=None, description="Minimum assurance the client requested."

@@ -253,6 +253,9 @@ class Client(Base, TimestampMixin):
     )
     skip_consent: Mapped[bool] = mapped_column(Boolean, default=False)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False)
+    # The stored logo's file name, shown on the consent screen. See
+    # `shared.logos`.
+    logo_key: Mapped[str | None] = mapped_column(String(64))
     # Who registered it through developer self-service; null means the
     # organization owns it. `/developer/clients` only ever sees rows carrying the
     # caller's own id, which keeps one registrant out of another's application.

@@ -15,12 +15,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from provider.authz.services.scope_resolver import OIDC_SCOPES, grantable_scopes
 from provider.core.config import settings
 from provider.core.security import generate_token, hash_secret_async
+from provider.core.storage import Storage
 from provider.developer.clients.errors import (
     ApplicationNotFound,
     ApplicationQuotaReached,
     PublicClientHasNoSecret,
 )
 from provider.developer.clients.schemas import ApplicationCreate, ApplicationUpdate
+from provider.shared import logos
 from provider.shared.enums import ClientType, GrantType
 from provider.shared.models import Client, User
 
@@ -154,9 +156,34 @@ async def rotate_secret(
     return secret
 
 
+async def set_logo(
+    session: AsyncSession,
+    owner: User,
+    application_id: uuid.UUID,
+    storage: Storage,
+    data: bytes,
+) -> Client:
+    client = await get_application(session, owner, application_id)
+    await logos.replace(session, client, storage, data)
+    return client
+
+
+async def clear_logo(
+    session: AsyncSession, owner: User, application_id: uuid.UUID, storage: Storage
+) -> Client:
+    client = await get_application(session, owner, application_id)
+    await logos.remove(session, client, storage)
+    return client
+
+
 async def delete_application(
-    session: AsyncSession, owner: User, application_id: uuid.UUID
+    session: AsyncSession,
+    owner: User,
+    application_id: uuid.UUID,
+    storage: Storage | None,
 ) -> None:
     client = await get_application(session, owner, application_id)
+    logo = client.logo_key
     await session.delete(client)
     await session.commit()
+    await logos.forget(logo, storage)

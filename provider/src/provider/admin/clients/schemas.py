@@ -150,6 +150,12 @@ class ClientResponse(CamelCaseBaseModel):
             "registered here."
         )
     )
+    logo_url: str | None = Field(
+        description=(
+            "Shown beside the name on the consent screen. Set it with "
+            "`PUT /admin/clients/{id}/logo`; null when there is none."
+        )
+    )
     grantable_scopes: list[ScopeSummary]
     granted_scopes: list[ScopeSummary]
     created_at: datetime

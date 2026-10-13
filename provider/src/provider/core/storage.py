@@ -123,6 +123,15 @@ def get_storage() -> Storage:
 StorageDep = Depends(get_storage)
 
 
+def get_optional_storage() -> Storage | None:
+    """For a route that only sometimes touches the store — deleting a client
+    whose logo may not exist — and must not fail where there is no store."""
+    return _storage
+
+
+OptionalStorageDep = Depends(get_optional_storage)
+
+
 async def ensure_ready() -> None:
     """Create the bucket at startup, when there is a store to create it in.
 

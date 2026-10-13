@@ -15,6 +15,8 @@ from provider.admin.clients.errors import (
 )
 from provider.admin.clients.schemas import ClientCreate, ClientUpdate
 from provider.core.security import generate_token, hash_secret_async
+from provider.core.storage import Storage
+from provider.shared import logos
 from provider.shared.enums import ClientType, GrantType
 from provider.shared.models import Client, ClientScope, Kiosk, Scope
 from provider.shared.scopes import RESTRICTED_PREFIXES
@@ -176,11 +178,33 @@ async def rotate_secret(session: AsyncSession, client_id: UUID) -> str:
     return secret
 
 
-async def delete_client(session: AsyncSession, client_id: UUID) -> None:
+async def set_logo(
+    session: AsyncSession, client_id: UUID, storage: Storage, data: bytes
+) -> Client:
+    client = await get_client(session, client_id)
+    await _refuse_kiosk(session, client)
+    await logos.replace(session, client, storage, data)
+    return client
+
+
+async def clear_logo(
+    session: AsyncSession, client_id: UUID, storage: Storage
+) -> Client:
+    client = await get_client(session, client_id)
+    await _refuse_kiosk(session, client)
+    await logos.remove(session, client, storage)
+    return client
+
+
+async def delete_client(
+    session: AsyncSession, client_id: UUID, storage: Storage | None
+) -> None:
     client = await get_client(session, client_id)
     await _refuse_kiosk(session, client)
     if client.is_system:
         raise SystemClientImmutable
 
+    logo = client.logo_key
     await session.delete(client)
     await session.commit()
+    await logos.forget(logo, storage)

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 
 from provider.admin.clients import service
 from provider.admin.clients.schemas import (
@@ -15,6 +15,12 @@ from provider.admin.clients.schemas import (
 from provider.core.auth import require_scope
 from provider.core.db import DBSessionDep
 from provider.core.schemas import ErrorResponse, Page, PageMeta, PaginationDep
+from provider.core.storage import (
+    OptionalStorageDep,
+    Storage,
+    StorageDep,
+)
+from provider.shared import logos
 from provider.shared.scopes import FULL_ADMIN_SCOPES
 
 router = APIRouter(prefix="/admin/clients", tags=["admin: clients"])
@@ -55,6 +61,7 @@ def to_response(client) -> ClientResponse:
         skip_consent=client.skip_consent,
         is_system=client.is_system,
         owner_user_id=client.owner_user_id,
+        logo_url=logos.public_url(client.logo_key),
         grantable_scopes=[
             ScopeSummary(id=link.scope.id, value=link.scope.value)
             for link in sorted(client.scopes, key=lambda link: link.scope.value)
@@ -214,13 +221,79 @@ async def rotate_secret(client_id: UUID, session: DBSessionDep) -> SecretRotated
     return SecretRotated(client_secret=await service.rotate_secret(session, client_id))
 
 
+LOGO_DESCRIPTION = (
+    "Uploads an image and makes it the logo the consent screen shows beside "
+    "the client's name, replacing any previous one.\n\n"
+    "The file is decoded, scaled to fit 256px without cropping, and re-encoded "
+    "as WebP with its transparency kept. At most 512 KB; SVG is not accepted. "
+    "The logo is served publicly from a fresh unguessable URL, `logoUrl`.\n\n"
+)
+
+
+@router.put(
+    "/{client_id}/logo",
+    response_model=ClientResponse,
+    summary="Set a client's logo",
+    description=LOGO_DESCRIPTION + FULL_ADMIN_NOTE,
+    responses={
+        404: {"model": ErrorResponse, "description": "No such client"},
+        422: {
+            "model": ErrorResponse,
+            "description": "The file is not a readable image, or is too large",
+        },
+        409: KIOSK_MANAGED,
+        403: NOT_FULL_ADMIN,
+        503: {
+            "model": ErrorResponse,
+            "description": "This deployment has no file storage configured",
+        },
+    },
+    dependencies=[FULL_ADMIN],
+)
+async def set_logo(
+    client_id: UUID,
+    session: DBSessionDep,
+    storage: Storage = StorageDep,
+    file: UploadFile = File(description="The logo. PNG, JPEG, WebP or GIF."),
+) -> ClientResponse:
+    data = await file.read(logos.MAX_BYTES + 1)
+    if len(data) > logos.MAX_BYTES:
+        raise logos.LogoTooLarge
+    return to_response(await service.set_logo(session, client_id, storage, data))
+
+
+@router.delete(
+    "/{client_id}/logo",
+    response_model=ClientResponse,
+    summary="Remove a client's logo",
+    description=(
+        "Deletes the stored image and clears `logoUrl`. Removing a logo that is "
+        "not set succeeds and changes nothing.\n\n" + FULL_ADMIN_NOTE
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "No such client"},
+        409: KIOSK_MANAGED,
+        403: NOT_FULL_ADMIN,
+        503: {
+            "model": ErrorResponse,
+            "description": "This deployment has no file storage configured",
+        },
+    },
+    dependencies=[FULL_ADMIN],
+)
+async def delete_logo(
+    client_id: UUID, session: DBSessionDep, storage: Storage = StorageDep
+) -> ClientResponse:
+    return to_response(await service.clear_logo(session, client_id, storage))
+
+
 @router.delete(
     "/{client_id}",
     status_code=204,
     summary="Delete an OAuth client",
     description=(
-        "Every token and consent grant belonging to the client goes with it.\n\n"
-        + FULL_ADMIN_NOTE
+        "Every token and consent grant belonging to the client goes with it, "
+        "and so does its logo.\n\n" + FULL_ADMIN_NOTE
     ),
     responses={
         404: {"model": ErrorResponse, "description": "No such client"},
@@ -232,6 +305,10 @@ async def rotate_secret(client_id: UUID, session: DBSessionDep) -> SecretRotated
     },
     dependencies=[FULL_ADMIN],
 )
-async def delete_client(client_id: UUID, session: DBSessionDep) -> Response:
-    await service.delete_client(session, client_id)
+async def delete_client(
+    client_id: UUID,
+    session: DBSessionDep,
+    storage: Storage | None = OptionalStorageDep,
+) -> Response:
+    await service.delete_client(session, client_id, storage)
     return Response(status_code=204)

@@ -1,12 +1,13 @@
 from typing import Literal, cast
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, File, Response, UploadFile
 
 from provider.core.auth import CurrentUserDep, require_scope
 from provider.core.config import settings
 from provider.core.db import DBSessionDep
 from provider.core.schemas import ErrorResponse
+from provider.core.storage import OptionalStorageDep, Storage, StorageDep
 from provider.developer.clients import service
 from provider.developer.clients.schemas import (
     ApplicationCreate,
@@ -16,6 +17,7 @@ from provider.developer.clients.schemas import (
     ApplicationUpdate,
     SecretRotated,
 )
+from provider.shared import logos
 from provider.shared.models import Client
 
 router = APIRouter(prefix="/developer/clients", tags=["developer: applications"])
@@ -48,6 +50,7 @@ def to_response(client: Client) -> ApplicationResponse:
         post_logout_redirect_uris=client.post_logout_redirect_uris,
         grantable_scopes=service.visible_scopes(client),
         has_secret=client.client_secret_hash is not None,
+        logo_url=logos.public_url(client.logo_key),
         created_at=client.created_at,
     )
 
@@ -172,13 +175,82 @@ async def rotate_secret(
     return SecretRotated(client_secret=secret)
 
 
+@router.put(
+    "/{application_id}/logo",
+    response_model=ApplicationResponse,
+    summary="Set your application's logo",
+    description=(
+        "Uploads an image and makes it the logo people see beside your "
+        "application's name when they are asked to consent, replacing any "
+        "previous one.\n\n"
+        "The file is decoded, scaled to fit 256px without cropping, and "
+        "re-encoded as WebP with its transparency kept. At most 512 KB; SVG is "
+        "not accepted. The logo is served publicly from a fresh unguessable "
+        "URL, `logoUrl`.\n\n"
+        "**Required scope:** `developer:clients:write`"
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "No such application of yours"},
+        422: {
+            "model": ErrorResponse,
+            "description": "The file is not a readable image, or is too large",
+        },
+        503: {
+            "model": ErrorResponse,
+            "description": "This deployment has no file storage configured",
+        },
+    },
+    dependencies=[WRITE],
+)
+async def set_logo(
+    application_id: UUID,
+    user: CurrentUserDep,
+    session: DBSessionDep,
+    storage: Storage = StorageDep,
+    file: UploadFile = File(description="The logo. PNG, JPEG, WebP or GIF."),
+) -> ApplicationResponse:
+    data = await file.read(logos.MAX_BYTES + 1)
+    if len(data) > logos.MAX_BYTES:
+        raise logos.LogoTooLarge
+    client = await service.set_logo(session, user, application_id, storage, data)
+    return to_response(client)
+
+
+@router.delete(
+    "/{application_id}/logo",
+    response_model=ApplicationResponse,
+    summary="Remove your application's logo",
+    description=(
+        "Deletes the stored image and clears `logoUrl`. Removing a logo that is "
+        "not set succeeds and changes nothing.\n\n"
+        "**Required scope:** `developer:clients:write`"
+    ),
+    responses={
+        404: {"model": ErrorResponse, "description": "No such application of yours"},
+        503: {
+            "model": ErrorResponse,
+            "description": "This deployment has no file storage configured",
+        },
+    },
+    dependencies=[WRITE],
+)
+async def delete_logo(
+    application_id: UUID,
+    user: CurrentUserDep,
+    session: DBSessionDep,
+    storage: Storage = StorageDep,
+) -> ApplicationResponse:
+    client = await service.clear_logo(session, user, application_id, storage)
+    return to_response(client)
+
+
 @router.delete(
     "/{application_id}",
     status_code=204,
     summary="Delete one of your applications",
     description=(
         "Every token and consent grant belonging to the application goes with "
-        "it, and everyone signed in through it is signed out.\n\n"
+        "it, as does its logo, and everyone signed in through it is signed out.\n\n"
         "**Required scope:** `developer:clients:write`"
     ),
     responses={
@@ -187,7 +259,10 @@ async def rotate_secret(
     dependencies=[WRITE],
 )
 async def delete_application(
-    application_id: UUID, user: CurrentUserDep, session: DBSessionDep
+    application_id: UUID,
+    user: CurrentUserDep,
+    session: DBSessionDep,
+    storage: Storage | None = OptionalStorageDep,
 ) -> Response:
-    await service.delete_application(session, user, application_id)
+    await service.delete_application(session, user, application_id, storage)
     return Response(status_code=204)

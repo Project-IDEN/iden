@@ -56,7 +56,7 @@ from provider.core.config import settings
 from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse
-from provider.shared import user_agent
+from provider.shared import logos, user_agent
 from provider.shared.enums import AmrMethod
 from provider.shared.models import Client, Scope, User
 
@@ -128,6 +128,7 @@ async def read_challenge(
 
     return ChallengeResponse(
         client_name=client.name if client else challenge.params["client_id"],
+        client_logo_url=logos.public_url(client.logo_key) if client else None,
         scopes=[
             ChallengeScope(value=value, description=descriptions.get(value, value))
             for value in sorted(requested)

@@ -24,7 +24,7 @@ from provider.core.config import settings
 from provider.core.db import Base, get_db_session
 from provider.core.redis import get_redis
 from provider.core.security import hash_secret
-from provider.core.storage import get_storage
+from provider.core.storage import get_optional_storage, get_storage
 from provider.shared.enums import ClientType, GrantType
 from provider.shared.models import Client, ClientScope, ResourceApi, Scope, User
 
@@ -209,6 +209,7 @@ async def client(engine, redis, storage, monkeypatch) -> AsyncGenerator[AsyncCli
     app.dependency_overrides[get_db_session] = override_db
     app.dependency_overrides[get_redis] = lambda: redis
     app.dependency_overrides[get_storage] = lambda: storage
+    app.dependency_overrides[get_optional_storage] = lambda: storage
     # The audit middleware runs outside the dependency system, so its session
     # factory has to be redirected separately — otherwise it writes to the
     # developer's own database while the rest of the test uses iden_test.

@@ -16,13 +16,14 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from provider.biometric.deps import MAX_FRAME_BYTES, MAX_FRAMES
 from provider.core.config import settings
+from provider.shared import logos
 
 # Ample for any JSON this API accepts; the largest is a client registration with
 # twenty redirect URIs.
 MAX_BODY_BYTES = 64 * 1024
 
-# Room for the multipart framing around a photo, whose own limit is
-# IDEN_AVATAR_MAX_BYTES applied to the decoded upload.
+# Room for the multipart framing around a photo or a logo, whose own limits
+# are applied to the decoded upload.
 MULTIPART_HEADROOM = 64 * 1024
 
 
@@ -35,6 +36,8 @@ FACE_CAPTURE_PATHS = ("/biometric/enroll", "/api/v1/auth/biometric")
 def _limit_for(path: str) -> int:
     if path.endswith("/entity/profile/photo"):
         return settings.iden_avatar_max_bytes + MULTIPART_HEADROOM
+    if path.endswith("/logo"):
+        return logos.MAX_BYTES + MULTIPART_HEADROOM
     if path.endswith(FACE_CAPTURE_PATHS):
         return FACE_CAPTURE_BYTES
     return MAX_BODY_BYTES

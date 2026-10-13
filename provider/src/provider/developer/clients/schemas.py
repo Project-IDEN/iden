@@ -88,6 +88,12 @@ class ApplicationResponse(CamelCaseBaseModel):
     has_secret: bool = Field(
         description="Whether a client secret exists. Its value is never readable."
     )
+    logo_url: str | None = Field(
+        description=(
+            "Shown beside the name on the consent screen. Set it with "
+            "`PUT /developer/clients/{id}/logo`; null when there is none."
+        )
+    )
     created_at: datetime
 
 
