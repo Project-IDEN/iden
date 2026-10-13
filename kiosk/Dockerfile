@@ -1,12 +1,15 @@
 # syntax=docker/dockerfile:1
 
 # The kiosk server with the kiosk client built into it. Everything it needs is
-# in kiosk/, which is the build context:
+# in kiosk/, which is the build context. Build it with kiosk/build.sh, which
+# sets up a multi-platform builder first:
 #
-#     docker buildx build --platform linux/arm64,linux/amd64 \
-#       --build-arg VERSION=$(git describe --always) -t <registry>/iden-kiosk --push kiosk
+#     kiosk/build.sh ghcr.io/<you>/iden-kiosk:latest
 
-FROM node:22-alpine AS client
+# The client is JavaScript and CSS, the same on every platform, so it is built
+# once on the build machine's own architecture. Run under emulation instead —
+# arm64 on an x86 laptop — Node is slow and its native tools can crash.
+FROM --platform=$BUILDPLATFORM node:22-alpine AS client
 RUN corepack enable
 WORKDIR /app
 COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./
