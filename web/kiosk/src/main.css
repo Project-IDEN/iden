@@ -1,0 +1,12 @@
+@import "@iden/shared/tokens.css";
+
+/* A touchscreen with nobody to help: no text selection to get stuck in, no
+   long-press menus, no pull-to-refresh. */
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}

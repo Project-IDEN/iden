@@ -1,7 +1,8 @@
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, ScanFace } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useRef, useState, type ReactNode } from "react";
 import { Button } from "./button";
 import { cn } from "./cn";
+import { useCamera } from "./use-camera";
 
 /**
  * A face capture that follows the provider's challenge, frame by frame.
@@ -38,8 +39,6 @@ const ACTIONS: Record<string, { label: string; icon: ReactNode }> = {
   look_down: { label: "Tilt your head down", icon: <ArrowDown /> },
 };
 
-type Phase = "starting" | "denied" | "ready" | "capturing";
-
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Consecutive identical steps, so a prompt is shown once for its frames. */
@@ -56,40 +55,22 @@ export function FaceCapture({
   challenge,
   onCaptured,
   startLabel = "Start",
+  camera: prefer,
+  className,
 }: {
   challenge: FaceCaptureChallenge;
   onCaptured: (frames: Blob[]) => void;
   startLabel?: string;
+  /** Part of the camera's name, to choose one of several. */
+  camera?: string | null;
+  className?: string;
 }) {
-  const video = useRef<HTMLVideoElement>(null);
+  const { video, status } = useCamera(prefer);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [phase, setPhase] = useState<Phase>(() => (navigator.mediaDevices ? "starting" : "denied"));
+  const [capturing, setCapturing] = useState(false);
   const [prompt, setPrompt] = useState<string>("Centre your face in the oval.");
   const [icon, setIcon] = useState<ReactNode>(<ScanFace />);
   const [flash, setFlash] = useState<string | null>(null);
-
-  useEffect(() => {
-    let stream: MediaStream | undefined;
-    let cancelled = false;
-    // Absent outside a secure context: http on anything but localhost.
-    if (!navigator.mediaDevices) return;
-    navigator.mediaDevices
-      .getUserMedia({
-        video: { facingMode: "user", width: { ideal: WIDTH }, height: { ideal: HEIGHT } },
-        audio: false,
-      })
-      .then((media) => {
-        if (cancelled) return media.getTracks().forEach((track) => track.stop());
-        stream = media;
-        if (video.current) video.current.srcObject = media;
-        setPhase("ready");
-      })
-      .catch(() => setPhase("denied"));
-    return () => {
-      cancelled = true;
-      stream?.getTracks().forEach((track) => track.stop());
-    };
-  }, []);
 
   const frame = useCallback(async (): Promise<Blob> => {
     const source = video.current;
@@ -105,10 +86,10 @@ export function FaceCapture({
         0.85,
       ),
     );
-  }, []);
+  }, [video]);
 
   async function run() {
-    setPhase("capturing");
+    setCapturing(true);
     const frames: Blob[] = [];
     try {
       for (const { step, count } of groups(challenge.steps)) {
@@ -142,7 +123,7 @@ export function FaceCapture({
     onCaptured(frames);
   }
 
-  if (phase === "denied") {
+  if (status === "denied") {
     return (
       <p role="alert" className="text-body-sm text-error">
         The camera is unavailable. Allow camera access for this page in your browser, or use another
@@ -152,7 +133,7 @@ export function FaceCapture({
   }
 
   return (
-    <div className="flex flex-col items-center gap-5">
+    <div className={cn("flex flex-col items-center gap-5", className)}>
       {flash ? (
         <div aria-hidden="true" className="fixed inset-0 z-50" style={{ backgroundColor: flash }} />
       ) : null}
@@ -184,10 +165,7 @@ export function FaceCapture({
             ry="115"
             fill="none"
             strokeWidth="2"
-            className={cn(
-              "stroke-white/70",
-              phase === "capturing" && "animate-pulse stroke-primary",
-            )}
+            className={cn("stroke-white/70", capturing && "animate-pulse stroke-primary")}
           />
         </svg>
         <canvas ref={canvas} className="hidden" />
@@ -201,7 +179,7 @@ export function FaceCapture({
         {prompt}
       </p>
 
-      {phase !== "capturing" ? (
+      {!capturing ? (
         <>
           <p className="text-caption text-muted-foreground">
             About ten seconds. You'll be asked to move your head, and the screen will change colour
@@ -210,10 +188,10 @@ export function FaceCapture({
           <Button
             variant="default"
             className="self-stretch"
-            disabled={phase !== "ready"}
+            disabled={status !== "ready"}
             onClick={() => void run()}
           >
-            {phase === "starting" ? "Starting the camera…" : startLabel}
+            {status === "starting" ? "Starting the camera…" : startLabel}
           </Button>
         </>
       ) : null}
