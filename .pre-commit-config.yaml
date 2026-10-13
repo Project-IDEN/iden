@@ -7,8 +7,8 @@
 # people to pass --no-verify, and a hook everyone bypasses is worse than none.
 # Tests belong to CI, or to `pre-commit install --hook-type pre-push`.
 #
-# Scoped to provider/ and engine/, the packages with a lint and type
-# configuration. kiosk/server is still a skeleton; extend `files:` when it is not.
+# Scoped per package: provider/, engine/ and kiosk/server/ each carry their own
+# lint and type configuration.
 repos:
   - repo: local
     hooks:
@@ -61,6 +61,31 @@ repos:
         language: system
         types_or: [python, pyi]
         files: ^engine/
+        pass_filenames: false
+        require_serial: true
+
+      - id: kiosk-ruff-format
+        name: ruff format (kiosk)
+        entry: uv run --project kiosk/server ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        files: ^kiosk/server/
+        require_serial: true
+
+      - id: kiosk-ruff-check
+        name: ruff check (kiosk)
+        entry: uv run --project kiosk/server ruff check --force-exclude --fix
+        language: system
+        types_or: [python, pyi]
+        files: ^kiosk/server/
+        require_serial: true
+
+      - id: kiosk-pyright
+        name: pyright (kiosk)
+        entry: bash -c 'cd kiosk/server && uv run pyright'
+        language: system
+        types_or: [python, pyi]
+        files: ^kiosk/server/
         pass_filenames: false
         require_serial: true
 

@@ -3,7 +3,7 @@ import sys
 
 import structlog
 
-from server.core.config import settings
+from kiosk_server.config import settings
 
 logger: structlog.stdlib.BoundLogger = structlog.get_logger()
 
