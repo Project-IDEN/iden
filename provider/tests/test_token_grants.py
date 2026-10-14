@@ -4,8 +4,8 @@ import jwt
 import pytest
 
 from provider.core.security import hash_secret
-from tests.conftest import ADMIN_EMAIL
-from tests.flows import get_tokens
+from tests.conftest import ADMIN_EMAIL, REDIRECT_URI
+from tests.flows import get_code, get_tokens
 
 pytestmark = pytest.mark.usefixtures("admin_user", "dashboard")
 
@@ -135,6 +135,29 @@ class TestRefreshRotation:
 
         response = await refresh(client, tokens["refresh_token"])
         assert response.status_code == 400
+
+
+class TestAuthorizationCode:
+    async def test_a_code_for_a_deactivated_account_is_refused(
+        self, client, db, admin_user
+    ):
+        code, verifier = await get_code(client)
+        admin_user.is_active = False
+        db.add(admin_user)
+        await db.commit()
+
+        response = await client.post(
+            "/oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": REDIRECT_URI,
+                "code_verifier": verifier,
+                "client_id": "dashboard",
+            },
+        )
+        assert response.status_code == 400
+        assert response.json()["error"] == "invalid_grant"
 
 
 class TestClientCredentials:
