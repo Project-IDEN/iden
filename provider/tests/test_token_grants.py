@@ -195,6 +195,26 @@ class TestClientCredentials:
         assert claims["sub"] == "kiosk"
         assert "acr" not in claims and "amr" not in claims
 
+    async def test_a_route_about_a_person_refuses_an_application(self, client, kiosk):
+        _, secret = kiosk
+        body = (
+            await client.post(
+                "/oauth2/token",
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": "kiosk",
+                    "client_secret": secret,
+                    "scope": "entity:profile:read",
+                },
+            )
+        ).json()
+        response = await client.get(
+            "/entity/profile",
+            headers={"Authorization": f"Bearer {body['access_token']}"},
+        )
+
+        assert response.status_code == 403
+
     async def test_no_refresh_or_id_token_is_issued(self, client, kiosk):
         _, secret = kiosk
         body = (

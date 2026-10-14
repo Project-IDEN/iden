@@ -216,6 +216,11 @@ async def get_current_user(token: CurrentTokenDep, session: DBSessionDep) -> Use
     class of IDOR bugs by construction. In core because `/entity/*` and
     `/developer/*` both start here.
     """
+    # A machine client may hold an `entity:` scope, but its token names no person.
+    if token.subject == token.client_id or not _is_uuid(token.subject):
+        raise HTTPException(
+            status_code=403, detail="This needs a person's token, not an application's."
+        )
     user = await session.get(User, uuid.UUID(token.subject))
     if user is None:
         raise _inactive()
