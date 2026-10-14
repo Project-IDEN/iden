@@ -16,6 +16,7 @@ from provider.admin.groups.schemas import (
 from provider.core.auth import AccessToken, require_scope
 from provider.core.db import DBSessionDep
 from provider.core.schemas import ErrorResponse, Page, PageMeta, PaginationDep
+from provider.shared.models import Group
 
 router = APIRouter(prefix="/admin/groups", tags=["admin: groups"])
 
@@ -33,7 +34,7 @@ DELEGATION_NOTE = (
 )
 
 
-def to_response(group, members: int) -> GroupResponse:
+def to_response(group: Group, members: int) -> GroupResponse:
     return GroupResponse(
         id=group.id,
         name=group.name,

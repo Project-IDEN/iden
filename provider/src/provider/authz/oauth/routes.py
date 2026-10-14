@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Form, Query, Request, Response
 from fastapi.responses import RedirectResponse
 from redis.asyncio import Redis
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.authz import session_cookie
 from provider.authz.consent.service import consent_required
@@ -461,7 +462,7 @@ async def token(
             )
 
 
-async def _verify_access_token(raw: str | None, redis) -> dict:
+async def _verify_access_token(raw: str | None, redis: Redis) -> dict:
     """Verify a bearer token for IDEN's own OIDC endpoints.
 
     Audience is deliberately not checked: an access token's `aud` names the
@@ -522,7 +523,9 @@ USERINFO_DOCS = {
 }
 
 
-async def _userinfo(raw: str | None, session, redis) -> UserInfoResponse:
+async def _userinfo(
+    raw: str | None, session: AsyncSession, redis: Redis
+) -> UserInfoResponse:
     claims = await _verify_access_token(raw, redis)
     scopes = parse_scope(claims.get("scope"))
 
@@ -803,9 +806,9 @@ async def logout_post(
 
 
 async def _logout(
-    login_session,
-    session,
-    redis,
+    login_session: session_store.Session | None,
+    session: AsyncSession,
+    redis: Redis,
     *,
     client_id: str | None,
     id_token_hint: str | None,

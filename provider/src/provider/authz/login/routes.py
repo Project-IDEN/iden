@@ -72,7 +72,11 @@ OIDC_SCOPE_DESCRIPTIONS = {
 }
 
 
-async def _next_step(session, challenge, enrolled: set[str]) -> AuthStepResponse:
+async def _next_step(
+    session: session_store.Session,
+    challenge: challenge_store.Challenge,
+    enrolled: set[str],
+) -> AuthStepResponse:
     """What still has to happen before the authorization request can resume —
     see `auth_methods.outstanding` for when that is another method."""
     acr = auth_methods.derive_acr(session.amr)

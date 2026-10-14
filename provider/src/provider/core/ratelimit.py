@@ -14,6 +14,7 @@ for a handful of attempts per minute changes nothing.
 """
 
 from fastapi import Request
+from redis.asyncio import Redis
 
 from provider.core.config import settings
 from provider.core.errors import RateLimitedError
@@ -32,7 +33,9 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
-async def hit(redis, bucket: str, identity: str, *, limit: int, window: int) -> None:
+async def hit(
+    redis: Redis, bucket: str, identity: str, *, limit: int, window: int
+) -> None:
     """Count one attempt against `bucket:identity`, or refuse it.
 
     Raises `RateLimitedError` with the seconds remaining in the window.
@@ -67,7 +70,9 @@ def limit_by_ip(bucket: str, *, limit: int, window: int):
     return dependency
 
 
-async def guard(redis, bucket: str, identity: str, *, limit: int, window: int) -> None:
+async def guard(
+    redis: Redis, bucket: str, identity: str, *, limit: int, window: int
+) -> None:
     """Refuse when this identity has already failed too often.
 
     Counts **failures only**, paired with `record_failure` and `clear`. Limiting
@@ -85,13 +90,15 @@ async def guard(redis, bucket: str, identity: str, *, limit: int, window: int) -
         raise RateLimitedError(retry_after=ttl if ttl and ttl > 0 else window)
 
 
-async def record_failure(redis, bucket: str, identity: str, *, window: int) -> None:
+async def record_failure(
+    redis: Redis, bucket: str, identity: str, *, window: int
+) -> None:
     key = f"ratelimit:{bucket}:{identity}"
     if await redis.incr(key) == 1:
         await redis.expire(key, window)
 
 
-async def clear(redis, bucket: str, identity: str) -> None:
+async def clear(redis: Redis, bucket: str, identity: str) -> None:
     await redis.delete(f"ratelimit:{bucket}:{identity}")
 
 

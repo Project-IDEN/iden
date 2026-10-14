@@ -21,6 +21,7 @@ from provider.core.storage import (
     StorageDep,
 )
 from provider.shared import logos
+from provider.shared.models import Client
 from provider.shared.scopes import FULL_ADMIN_SCOPES
 
 router = APIRouter(prefix="/admin/clients", tags=["admin: clients"])
@@ -47,7 +48,7 @@ KIOSK_MANAGED = {
 }
 
 
-def to_response(client) -> ClientResponse:
+def to_response(client: Client) -> ClientResponse:
     return ClientResponse(
         id=client.id,
         client_id=client.client_id,

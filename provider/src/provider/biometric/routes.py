@@ -10,6 +10,8 @@ enrols nobody.
 from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
+from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.admin.kiosks import service as kiosks
 from provider.biometric import challenges, pairing, service, tickets
@@ -94,7 +96,9 @@ CAPTURE_FAILURES: dict[int | str, dict[str, Any]] = {
 }
 
 
-async def _holder(session, redis, ticket: str, *, attempt: bool) -> tuple[User, int]:
+async def _holder(
+    session: AsyncSession, redis: Redis, ticket: str, *, attempt: bool
+) -> tuple[User, int]:
     held = await tickets.holder(redis, ticket, attempt=attempt)
     user = await session.get(User, held[0]) if held else None
     if held is None or user is None or not user.is_active:

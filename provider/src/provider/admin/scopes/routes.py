@@ -7,6 +7,7 @@ from provider.admin.scopes.schemas import ScopeCreate, ScopeResponse, ScopeUpdat
 from provider.core.auth import require_scope
 from provider.core.db import DBSessionDep
 from provider.core.schemas import ErrorResponse, Page, PageMeta, PaginationDep
+from provider.shared.models import Scope
 
 router = APIRouter(tags=["admin: scopes"])
 
@@ -14,7 +15,7 @@ READ = Depends(require_scope("admin:scopes:read"))
 WRITE = Depends(require_scope("admin:scopes:write"))
 
 
-def to_response(scope) -> ScopeResponse:
+def to_response(scope: Scope) -> ScopeResponse:
     return ScopeResponse(
         id=scope.id,
         api_id=scope.api_id,

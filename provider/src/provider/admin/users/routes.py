@@ -27,6 +27,7 @@ from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse, Page, PageMeta, PaginationDep
 from provider.entity.profile import service as profile_service
+from provider.shared.models import User
 
 router = APIRouter(prefix="/admin/users", tags=["admin: users"])
 
@@ -60,7 +61,7 @@ DELEGATION_NOTE = (
 )
 
 
-def to_response(user) -> UserResponse:
+def to_response(user: User) -> UserResponse:
     return UserResponse(
         id=user.id,
         email=user.email,
