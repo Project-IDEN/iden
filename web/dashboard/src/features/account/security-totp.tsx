@@ -100,6 +100,7 @@ export function TotpSetting() {
     );
   }
 
+  const enrollProblem = enroll.error instanceof IdenError ? enroll.error : null;
   const confirmProblem = confirm.error instanceof IdenError ? confirm.error : null;
 
   return (
@@ -164,6 +165,10 @@ export function TotpSetting() {
             {confirm.isPending ? "Checking…" : "Turn on"}
           </Button>
         </div>
+      ) : enrollProblem ? (
+        // Setting up needs a recent sign-in. Without this, a refusal past five
+        // minutes left the button doing nothing at all.
+        <Problem problem={enrollProblem} />
       ) : null}
     </Setting>
   );
