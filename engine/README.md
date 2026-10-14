@@ -1,7 +1,7 @@
 # IDEN biometric engine
 
 The internal service that analyses faces for IDEN: detection, a quality gate that says what to fix,
-liveness (an anti-spoofing model, random head movements, one face throughout),
+liveness (an anti-spoofing model, the head movements asked for, one face throughout),
 and 1:1 comparison. Stateless — the provider sends frames and, to verify, the templates; nothing
 outlives the request. Reached only by the provider — on the same host, or on another machine.
 

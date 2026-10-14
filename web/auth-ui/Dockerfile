@@ -12,7 +12,6 @@ COPY auth-ui/package.json auth-ui/
 RUN pnpm install --frozen-lockfile --filter @iden/auth-ui...
 
 COPY shared/ shared/
-COPY scripts/ scripts/
 COPY auth-ui/ auth-ui/
 RUN pnpm --filter @iden/auth-ui build
 

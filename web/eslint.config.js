@@ -5,8 +5,7 @@ import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 
 export default tseslint.config(
-  // public/tracker is MediaPipe's runtime, copied in by scripts/fetch-tracker.mjs.
-  { ignores: ["**/dist/**", "**/node_modules/**", "**/schema.d.ts", "**/public/tracker/**"] },
+  { ignores: ["**/dist/**", "**/node_modules/**", "**/schema.d.ts"] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -22,11 +21,6 @@ export default tseslint.config(
       "@typescript-eslint/no-non-null-assertion": "error",
       "@typescript-eslint/consistent-type-imports": "error",
     },
-  },
-  {
-    // Build scripts, run by Node rather than the browser.
-    files: ["scripts/**/*.mjs"],
-    languageOptions: { globals: globals.node },
   },
   {
     // The component library exports each component's variants beside it, the

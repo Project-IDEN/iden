@@ -32,6 +32,10 @@ def test_a_still_face_fails_the_actions():
     assert verdict.score == 0
 
 
+def test_nothing_to_check_when_no_movement_was_asked_for():
+    assert liveness.actions(FRONT, {}, RULES).passed
+
+
 def test_a_small_nod_is_not_a_movement():
     performed = {"look_down": [pose(pitch=0.78)], "turn_left": [pose(0.12)]}
     assert not liveness.actions(FRONT, performed, RULES).passed

@@ -404,7 +404,6 @@ function FaceStep({
           key={faceChallenge.data.faceChallengeId}
           challenge={faceChallenge.data}
           onCaptured={(frames) => submit.mutate(frames)}
-          trackerFiles={`${import.meta.env.BASE_URL}tracker`}
         />
       ) : (
         <Spinner label="Preparing the camera" />

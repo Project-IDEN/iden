@@ -253,11 +253,6 @@ The provider sets `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer
 `IDEN_ENV=prod` — `Strict-Transport-Security` on every response. If your proxy adds its own copy of
 any of these, remove one of the two. Two headers stating one policy is a place for them to disagree.
 
-The sign-in page's own policy, set by its container, carries `script-src 'self' 'wasm-unsafe-eval'`:
-the face capture's head tracker is WebAssembly, and a policy without it refuses to compile it. A
-proxy that sets its own policy for `/auth/` must allow the same, or the face capture falls back to
-timing each movement instead of waiting for it.
-
 Responses carrying a token are `Cache-Control: no-store` (RFC 6749 Section 5.1). The two exceptions are
 discovery and JWKS, at `public, max-age=300`, because every resource server fetches the key set and
 making it uncacheable would put IDEN in the path of every token validation your APIs do.

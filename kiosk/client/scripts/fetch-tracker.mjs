@@ -1,7 +1,7 @@
-// A copy of web/scripts/fetch-tracker.mjs. Puts the head tracker's files in
-// public/tracker, so they are built into the kiosk image and a kiosk fetches
-// nothing at run time: MediaPipe's WASM runtime, copied from node_modules, and
-// the face landmarker model, downloaded once and checked against its sha256.
+// Puts the head tracker's files in public/tracker, so they are built into the
+// kiosk image and a kiosk fetches nothing at run time: MediaPipe's WASM runtime,
+// copied from node_modules, and the face landmarker model, downloaded once and
+// checked against its sha256.
 //
 //     node scripts/fetch-tracker.mjs public/tracker
 import { createHash } from "node:crypto";

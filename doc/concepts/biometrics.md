@@ -85,22 +85,29 @@ A successful face step adds `face` to `amr`; with the password that is `urn:iden
 ## What "live" means
 
 A face that matches is not enough. A photograph of the person matches too. Every capture has to pass
-three checks, and each stops something different:
+the checks below, and each stops something different:
 
 | Check | How | Stops |
 |---|---|---|
 | **Anti-spoofing model** | InsightFace's liveness model judges each straight-ahead frame | Printed photos, phone and screen replays |
-| **Head movements** | Two of *turn left, turn right, look up, look down*, drawn at random for this attempt, measured from facial landmarks | A still photo; a recording made before the attempt began |
+| **Head movements** — enrolment only | Two of *turn left, turn right, look up, look down*, drawn at random for this attempt, measured from facial landmarks | A still photo; a recording made before the attempt began |
 | **Consistency** | Every frame must show the same person | Swapping faces partway through |
 
-The movements are a **challenge**: issued by IDEN, good for one capture, two minutes,
+The movements are asked for at the kiosk, once, when the face is enrolled. Sign-in asks for none: a
+few frames looking straight at the camera, judged by the anti-spoofing model, because turning your
+head at every sign-in is a chore people would avoid the face step over. What a face proves at
+sign-in therefore rests on the anti-spoofing model alone.
+
+Either way, what to capture is a **challenge**: issued by IDEN, good for one capture, two minutes,
 and one person. A capture made for one attempt is useless for the next.
 
-The sign-in page and the kiosk wait for each movement rather than timing it. A head tracker running
-in the browser (MediaPipe's face landmarker, served by IDEN, with no picture leaving the page for
-it) follows the head, and a bar shows how far it has turned; the frames are taken once it has gone
-far enough, while it is held there. The tracker only decides when the frames are taken: the engine
-judges every one of them itself, so a modified page gains nothing.
+The kiosk waits for each movement rather than timing it. A head tracker running in the page
+(MediaPipe's face landmarker, built into the kiosk image, with no picture leaving the page for it)
+follows the head. Each movement is announced two seconds ahead, starts with a tone, and ends with a
+chime once its frames are taken — the person cannot read the screen with their head turned. A
+movement waits up to eight seconds for a turn of about 25° or a tilt of about 20°, and lasts at
+least five, so nobody is hurried into the next. The tracker only decides when the frames are taken:
+the engine judges every one of them itself, against a lower bar, so a modified page gains nothing.
 
 When a capture is not good enough to judge — too dark, too far away, blurred, two faces — nothing is
 decided. The person is told what to fix, and it does not count as a failed attempt. A capture that is
@@ -112,9 +119,8 @@ lock face sign-in for that account for a while.
 Be clear about this before relying on it:
 
 - **A video stream injected into the browser.** A virtual camera fed by a real-time deepfake is the
-  attack that matters for faces on the web. The random movements make it harder — the attacker has
-  to render the right movements, live — but no check that runs on IDEN's side can prove a frame came
-  from a real camera.
+  attack that matters for faces on the web, and sign-in, which asks for no movements, does nothing
+  to make it harder. No check that runs on IDEN's side can prove a frame came from a real camera.
 - **A screen the anti-spoofing model does not recognise.** Nothing else looks for a replay held up
   to the camera. IDEN does not flash the screen to test for one, because flashing colours can harm
   people with photosensitive epilepsy.

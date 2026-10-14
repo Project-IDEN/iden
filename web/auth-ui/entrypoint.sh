@@ -24,12 +24,10 @@ JS
 # The content policy needs the issuer's origin: on a single-origin deployment
 # the API is 'self', but in development this app is on :4000 and the provider on
 # :8000, and a policy written without it blocks every call the app makes.
-# 'wasm-unsafe-eval' lets the face capture's head tracker compile its
-# WebAssembly; it permits no JavaScript eval.
 ORIGIN=$(printf '%s' "$ISSUER" | sed -E 's#^(https?://[^/]+).*#\1#')
 
 cat > /etc/nginx/conf.d/security-headers.inc <<CONF
 add_header Referrer-Policy "no-referrer" always;
 add_header X-Content-Type-Options "nosniff" always;
-add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; frame-src 'self' $ORIGIN; img-src 'self' data: https: $ORIGIN; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' $ORIGIN" always;
+add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; frame-src 'self' $ORIGIN; img-src 'self' data: https: $ORIGIN; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self' $ORIGIN" always;
 CONF

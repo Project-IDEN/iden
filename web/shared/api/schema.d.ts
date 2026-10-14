@@ -342,7 +342,7 @@ export interface paths {
         put?: never;
         /**
          * Start a face check
-         * @description Returns what the camera must capture for `POST /api/v1/auth/biometric`: frames looking straight ahead, then two head movements chosen at random. Valid for one attempt and two minutes.
+         * @description Returns what the camera must capture for `POST /api/v1/auth/biometric`: a few frames looking straight ahead. Sign-in asks for no head movements; those are for enrolment. Valid for one attempt and two minutes.
          *
          *     Face is offered only **after a password** — this needs the session cookie the password step set.
          *
@@ -368,7 +368,7 @@ export interface paths {
          * Sign in with a face
          * @description Multipart: `challengeId`, `faceChallengeId`, and one `frames` part per step of the face challenge, in order.
          *
-         *     Adds `face` to the session's `amr` only when the capture is **live** — it passes the anti-spoofing model, follows the requested head movements, and shows one face throughout — **and** matches the face enrolled on this account. A match without liveness is not an authentication.
+         *     Adds `face` to the session's `amr` only when the capture is **live** — it passes the anti-spoofing model and shows one face throughout — **and** matches the face enrolled on this account. A match without liveness is not an authentication.
          *
          *     `422 poor_capture` lists what to fix and does not count as a failed attempt. `401 face_rejected` does, and deliberately does not say whether the face did not match or was not live.
          *

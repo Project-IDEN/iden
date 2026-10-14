@@ -1,8 +1,10 @@
 """What a person is asked to do in front of the camera, chosen at random.
 
-A recording made before the challenge was issued cannot contain the right
-movements in the right order. Each challenge is good for one capture:
-`consume` deletes it as it reads it.
+Enrolment asks for two head movements: a recording made before the challenge
+was issued cannot contain the right ones in the right order. Sign-in asks for
+none — only frames looking straight ahead, judged by the anti-spoofing model —
+because it happens every day and enrolment once. Each challenge is good for one
+capture: `consume` deletes it as it reads it.
 """
 
 import json
@@ -23,7 +25,8 @@ ACTIONS: tuple[str, ...] = ("turn_left", "turn_right", "look_up", "look_down")
 CENTRE_FRAMES = 3
 FRAMES_PER_ACTION = 3
 
-# A capture takes about ten seconds; this allows for reading the instructions.
+# An enrolment capture takes about twenty seconds; this allows for reading the
+# instructions.
 TTL_SECONDS = 120
 
 _random = secrets.SystemRandom()
@@ -54,7 +57,7 @@ async def issue(redis: Redis, user_id: UUID, purpose: Purpose) -> FaceChallenge:
         id=generate_token(),
         user_id=user_id,
         purpose=purpose,
-        actions=_random.sample(ACTIONS, 2),
+        actions=_random.sample(ACTIONS, 2) if purpose == "enrol" else [],
         expires_at=datetime.now(UTC) + timedelta(seconds=TTL_SECONDS),
     )
     payload = {

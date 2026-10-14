@@ -10,11 +10,14 @@ class Checks(BaseModel):
     anti_spoofing_score: float = Field(
         description="Mean live probability over the straight-ahead frames."
     )
-    actions: bool = Field(description="Every requested head movement was made.")
+    actions: bool = Field(
+        description="Every requested head movement was made; true when none was."
+    )
     actions_score: float = Field(
         default=0.0,
         description="How far the least-made movement went, as a share of what "
-        "counts: 1.0 and above passes, below 0 is the wrong way.",
+        "counts: 1.0 and above passes, below 0 is the wrong way. 0 when none was "
+        "requested.",
     )
     consistent: bool = Field(description="Every frame shows the same person.")
     consistency_score: float = Field(

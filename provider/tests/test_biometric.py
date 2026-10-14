@@ -638,13 +638,18 @@ class TestSignIn:
 
 
 class TestChallenges:
-    async def test_steps_follow_the_actions_drawn(self, redis, admin_user):
-        challenge = await challenges.issue(redis, admin_user.id, "login")
+    async def test_enrolment_steps_follow_the_actions_drawn(self, redis, admin_user):
+        challenge = await challenges.issue(redis, admin_user.id, "enrol")
 
         assert len(set(challenge.actions)) == 2
         assert challenge.steps == ["center"] * 3 + [
             a for a in challenge.actions for _ in range(3)
         ]
+
+    async def test_sign_in_asks_for_no_movements(self, redis, admin_user):
+        challenge = await challenges.issue(redis, admin_user.id, "login")
+
+        assert challenge.steps == ["center"] * 3
 
     async def test_a_challenge_is_only_for_its_person_and_purpose(
         self, redis, admin_user, member

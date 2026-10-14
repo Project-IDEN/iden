@@ -2,7 +2,8 @@
 
 Each stops something different. The anti-spoofing model catches prints and
 screens. The actions catch a still photograph and a recording made earlier,
-since nobody knew which movements would be asked for. Consistency catches
+since nobody knew which movements would be asked for; the provider asks for
+them at enrolment only, so a sign-in has none to check. Consistency catches
 swapping faces partway through.
 """
 
@@ -40,9 +41,13 @@ def anti_spoofing(probabilities: list[float], rules: Policy) -> Verdict:
 def actions(
     baseline: Pose, performed: dict[str, list[Pose]], rules: Liveness
 ) -> Verdict:
-    """Every requested movement reached its threshold in at least one frame."""
+    """Every requested movement reached its threshold in at least one frame.
+
+    Passes when none was requested. `performed` holds every requested movement,
+    since a capture missing one is not judged at all.
+    """
     if not performed:
-        return Verdict(False, 0.0)
+        return Verdict(True, 0.0)
 
     reached = []
     for action, poses in performed.items():

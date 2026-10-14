@@ -4,9 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "tracker": "node ../scripts/fetch-tracker.mjs public/tracker",
-    "dev": "pnpm tracker && vite",
-    "build": "pnpm tracker && tsc --noEmit && vite build",
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit"
   },

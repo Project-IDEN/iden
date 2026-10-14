@@ -1,5 +1,3 @@
-/* A copy of web/shared/ui/head-tracker.ts, which the sign-in page uses. Change them together. */
-
 import { FaceLandmarker, FilesetResolver, type NormalizedLandmark } from "@mediapipe/tasks-vision";
 
 /**
