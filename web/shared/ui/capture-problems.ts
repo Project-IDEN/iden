@@ -6,6 +6,7 @@ const REASONS: Record<string, string> = {
   too_dark: "It's too dark. Face a lamp or a window.",
   too_bright: "There's too much light. Move away from the light behind or on you.",
   off_angle: "Look straight at the camera when asked.",
+  out_of_frame: "Step back a little and keep your face in the middle of the screen.",
 };
 
 /** What to tell a person about a `poor_capture`, most useful first. */

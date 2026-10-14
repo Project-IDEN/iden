@@ -24,6 +24,7 @@ Reason = Literal[
     "too_dark",
     "too_bright",
     "off_angle",
+    "out_of_frame",
 ]
 
 

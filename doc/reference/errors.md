@@ -89,7 +89,7 @@ What the face routes answer, and what a screen should do about each.
 
 | Code | Status | Means |
 |---|---|---|
-| `poor_capture` | 422 | Nothing was decided: the picture was not good enough to judge. `details.reasons` says what to fix — `no_face`, `multiple_faces`, `too_small`, `blurred`, `too_dark`, `too_bright`, `off_angle`. Not a failed attempt. |
+| `poor_capture` | 422 | Nothing was decided: the picture was not good enough to judge. `details.reasons` says what to fix — `no_face`, `multiple_faces`, `too_small`, `blurred`, `too_dark`, `too_bright`, `off_angle`, `out_of_frame`. Not a failed attempt. |
 | `face_rejected` | 401 | At sign-in: not live, or not this person. Deliberately not said which. Counts toward a lockout. |
 | `not_live` | 422 | At a kiosk: the capture failed liveness. `details.failed` names the checks. The kiosk is supervised, so it is told. |
 | `invalid_frames` | 422 | The frames do not match the challenge — wrong count, not images, or too large. |
