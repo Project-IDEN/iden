@@ -45,8 +45,6 @@ class Quality:
 class Liveness:
     turn_delta: float
     pitch_delta: float
-    flash_min_score: float
-    flash_min_spread: float
     consistency_frontal: float
     consistency_turned: float
 

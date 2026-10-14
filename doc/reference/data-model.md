@@ -58,5 +58,5 @@ job rather than a cleanup job's.
 | `face-ticket-user:{user_id}` | With the ticket — so a new ticket retires the last |
 | `kiosk-pairing:{hash}` | 15 minutes, single use — pairs a new device with its kiosk |
 | `kiosk-pairing-kiosk:{kiosk_id}` | With the code — so a new code retires the last |
-| `face-challenge:{hash}` | 2 minutes, single use — the movements and colours asked of one capture |
+| `face-challenge:{hash}` | 2 minutes, single use — the movements asked of one capture |
 | `ratelimit:{bucket}:{identity}` | The window |

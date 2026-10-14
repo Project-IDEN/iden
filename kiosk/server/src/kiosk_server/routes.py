@@ -18,7 +18,7 @@ from kiosk_server.schemas import CameraReport, KioskState, PairRequest, TicketRe
 
 router = APIRouter(prefix="/api", tags=["kiosk"])
 
-# Thirteen frames are asked for; a 640×480 JPEG is well under the limit each.
+# Nine frames are asked for; a 640×480 JPEG is well under the limit each.
 MAX_FRAMES = 16
 MAX_FRAME_BYTES = 300_000
 

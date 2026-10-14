@@ -7,19 +7,7 @@ from engine import pipeline
 from engine.detect import detect
 from tests.conftest import needs_models
 
-STEPS = (
-    ["center"] * 3
-    + ["turn_left"] * 3
-    + ["look_up"] * 3
-    + ["flash:red", "flash:green", "flash:blue", "flash:red"]
-)
-
-
-def _tinted(image: np.ndarray, colour: str) -> np.ndarray:
-    channel = {"blue": 0, "green": 1, "red": 2}[colour]
-    tinted = image.astype(np.float32)
-    tinted[:, :, channel] *= 1.12
-    return np.clip(tinted, 0, 255).astype(np.uint8)
+STEPS = ["center"] * 3 + ["turn_left"] * 3 + ["look_up"] * 3
 
 
 @needs_models
@@ -30,18 +18,6 @@ def test_a_photograph_is_usable_but_not_live(models, face_image):
     assert not result.checks.actions
     assert not result.live
     assert result.embeddings == []
-
-
-@needs_models
-def test_flash_frames_that_reflect_the_colours_pass_the_flash_check(models, face_image):
-    frames = [
-        _tinted(face_image, step.split(":")[1])
-        if step.startswith("flash")
-        else face_image
-        for step in STEPS
-    ]
-    result = pipeline.enroll(models, frames, STEPS)
-    assert result.checks is not None and result.checks.flash
 
 
 @needs_models

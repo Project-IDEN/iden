@@ -6,7 +6,7 @@ from provider.biometric.errors import BadFrames, BiometricDisabled
 from provider.core.config import settings
 from provider.core.storage import Storage, get_storage
 
-# Thirteen frames are asked for; this is the ceiling, not the expectation.
+# Nine frames are asked for; this is the ceiling, not the expectation.
 MAX_FRAMES = 16
 # A 640×480 JPEG from a browser is 40–80 KB.
 MAX_FRAME_BYTES = 300_000

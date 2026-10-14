@@ -30,11 +30,9 @@ LIVE = Checks(
     anti_spoofing=True,
     anti_spoofing_score=0.97,
     actions=True,
-    flash=True,
-    flash_score=1.0,
     consistent=True,
 )
-SPOOF = LIVE.model_copy(update={"anti_spoofing": False, "flash": False})
+SPOOF = LIVE.model_copy(update={"anti_spoofing": False, "actions": False})
 VECTORS = [[0.1, 0.2, 0.3, 0.4], [0.2, 0.1, 0.4, 0.3], [0.3, 0.3, 0.2, 0.2]]
 
 
@@ -235,8 +233,7 @@ class TestTickets:
 
         assert body["displayName"] == admin_user.display_name
         assert body["steps"][:3] == ["center"] * 3
-        assert len(body["steps"]) == 3 + 2 * 3 + 4
-        assert body["flashSlotMs"] > 0
+        assert len(body["steps"]) == 3 + 2 * 3
 
     async def test_an_unknown_ticket_names_nobody(self, client, kiosk_headers):
         response = await kiosk_capture(client, kiosk_headers, "not-a-ticket")
@@ -299,7 +296,7 @@ class TestKioskEnrolment:
         await enrol_at_kiosk(client, kiosk_headers, face_headers)
         kind, count, steps = fake_engine.calls[0]
         assert kind == "enroll"
-        assert count == len(steps) == 13
+        assert count == len(steps) == 9
 
     async def test_a_ticket_enrols_once(
         self, client, fake_engine, kiosk_headers, face_headers, mail
@@ -308,7 +305,7 @@ class TestKioskEnrolment:
         challenge = (await kiosk_capture(client, kiosk_headers, ticket)).json()
         payload = {"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]}
         first = await client.post(
-            "/biometric/enroll", headers=kiosk_headers, data=payload, files=frames(13)
+            "/biometric/enroll", headers=kiosk_headers, data=payload, files=frames(9)
         )
         again = await kiosk_capture(client, kiosk_headers, ticket)
 
@@ -327,18 +324,16 @@ class TestKioskEnrolment:
             "/biometric/enroll",
             headers=kiosk_headers,
             data={"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]},
-            files=frames(13),
+            files=frames(9),
         )
 
         assert response.status_code == 422
         assert response.json()["code"] == "not_live"
-        assert response.json()["details"]["failed"] == ["anti_spoofing", "flash"]
+        assert response.json()["details"]["failed"] == ["anti_spoofing", "actions"]
         # A kiosk is supervised: it hears how far each check was off, for tuning.
         assert set(response.json()["details"]["scores"]) == {
             "antiSpoofing",
             "actions",
-            "flash",
-            "flashSpread",
             "consistency",
         }
         assert await db.scalar(select(FaceTemplate.id)) is None
@@ -381,10 +376,10 @@ class TestKioskEnrolment:
         challenge = (await kiosk_capture(client, kiosk_headers, ticket)).json()
         payload = {"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]}
         await client.post(
-            "/biometric/enroll", headers=kiosk_headers, data=payload, files=frames(13)
+            "/biometric/enroll", headers=kiosk_headers, data=payload, files=frames(9)
         )
         replay = await client.post(
-            "/biometric/enroll", headers=kiosk_headers, data=payload, files=frames(13)
+            "/biometric/enroll", headers=kiosk_headers, data=payload, files=frames(9)
         )
         assert replay.status_code == 404
         assert replay.json()["code"] == "face_challenge_invalid"
@@ -643,19 +638,13 @@ class TestSignIn:
 
 
 class TestChallenges:
-    async def test_steps_follow_the_actions_and_colours_drawn(self, redis, admin_user):
+    async def test_steps_follow_the_actions_drawn(self, redis, admin_user):
         challenge = await challenges.issue(redis, admin_user.id, "login")
-        steps = challenge.steps
 
-        assert steps[:3] == ["center"] * 3
-        assert steps[3:9] == [a for a in challenge.actions for _ in range(3)]
-        assert steps[9:] == [f"flash:{c}" for c in challenge.colours]
-
-    async def test_colours_change_every_slot_and_all_appear(self, redis, admin_user):
-        for _ in range(50):
-            colours = (await challenges.issue(redis, admin_user.id, "login")).colours
-            assert set(colours) == {"red", "green", "blue"}
-            assert all(a != b for a, b in zip(colours, colours[1:], strict=False))
+        assert len(set(challenge.actions)) == 2
+        assert challenge.steps == ["center"] * 3 + [
+            a for a in challenge.actions for _ in range(3)
+        ]
 
     async def test_a_challenge_is_only_for_its_person_and_purpose(
         self, redis, admin_user, member

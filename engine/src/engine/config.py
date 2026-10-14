@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     engine_device: Literal["auto", "cuda", "cpu"] = "auto"
     engine_workers: int = 1
 
-    # A capture is 13 frames; this is the ceiling, not the expectation.
+    # A capture is 9 frames; this is the ceiling, not the expectation.
     engine_max_frames: int = 16
     engine_max_frame_bytes: int = 400_000
     # Decoded pixels, not file size: a small PNG can declare a huge canvas.

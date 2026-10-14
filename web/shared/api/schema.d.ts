@@ -342,7 +342,7 @@ export interface paths {
         put?: never;
         /**
          * Start a face check
-         * @description Returns what the camera must capture for `POST /api/v1/auth/biometric`: frames looking straight ahead, two head movements chosen at random, and a sequence of screen colours. Valid for one attempt and two minutes.
+         * @description Returns what the camera must capture for `POST /api/v1/auth/biometric`: frames looking straight ahead, then two head movements chosen at random. Valid for one attempt and two minutes.
          *
          *     Face is offered only **after a password** — this needs the session cookie the password step set.
          *
@@ -368,7 +368,7 @@ export interface paths {
          * Sign in with a face
          * @description Multipart: `challengeId`, `faceChallengeId`, and one `frames` part per step of the face challenge, in order.
          *
-         *     Adds `face` to the session's `amr` only when the capture is **live** — it passes the anti-spoofing models, follows the requested head movements, reflects the screen colours, and shows one face throughout — **and** matches the face enrolled on this account. A match without liveness is not an authentication.
+         *     Adds `face` to the session's `amr` only when the capture is **live** — it passes the anti-spoofing model, follows the requested head movements, and shows one face throughout — **and** matches the face enrolled on this account. A match without liveness is not an authentication.
          *
          *     `422 poor_capture` lists what to fix and does not count as a failed attempt. `401 face_rejected` does, and deliberately does not say whether the face did not match or was not live.
          *
@@ -1856,7 +1856,7 @@ export interface paths {
         put?: never;
         /**
          * Start a face capture for the person holding a ticket
-         * @description Reads the enrolment ticket from the person's QR code and returns what to capture: a few frames looking straight ahead, two head movements chosen at random, and a sequence of screen colours.
+         * @description Reads the enrolment ticket from the person's QR code and returns what to capture: a few frames looking straight ahead, then two head movements chosen at random.
          *
          *     Every call counts one attempt against the ticket; a ticket allows 5.
          *
@@ -1882,7 +1882,7 @@ export interface paths {
          * Enrol the face in a capture
          * @description Multipart: `ticket`, `faceChallengeId`, and one `frames` part per step of the challenge, in order (JPEG or PNG).
          *
-         *     The capture must pass every liveness check: the anti-spoofing models, the head movements, the screen-colour reflections, and the same face throughout. Any face already enrolled on the account is replaced, and the person is told by email.
+         *     The capture must pass every liveness check: the anti-spoofing model, the head movements, and the same face throughout. Any face already enrolled on the account is replaced, and the person is told by email.
          *
          *     A `422 poor_capture` lists what to fix (`too_dark`, `too_small`, `blurred`, …) and a `422 not_live` the checks that failed; both leave the ticket usable for another attempt.
          *
@@ -2868,14 +2868,9 @@ export interface components {
             faceChallengeId: string;
             /**
              * Steps
-             * @description One entry per frame to capture, in order. `center`: look straight at the camera. `turn_left` / `turn_right`: turn your head to *your* left or right. `look_up` / `look_down`. `flash:<colour>`: fill the screen with that colour, then capture.
+             * @description One entry per frame to capture, in order. `center`: look straight at the camera. `turn_left` / `turn_right`: turn your head to *your* left or right. `look_up` / `look_down`: tilt your head.
              */
-            steps: ("center" | "turn_left" | "turn_right" | "look_up" | "look_down" | "flash:red" | "flash:green" | "flash:blue")[];
-            /**
-             * Flashslotms
-             * @description How long to show each flash colour before capturing under it.
-             */
-            flashSlotMs: number;
+            steps: ("center" | "turn_left" | "turn_right" | "look_up" | "look_down")[];
             /**
              * Expiresat
              * Format: date-time
@@ -3107,14 +3102,9 @@ export interface components {
             faceChallengeId: string;
             /**
              * Steps
-             * @description One entry per frame to capture, in order. `center`: look straight at the camera. `turn_left` / `turn_right`: turn your head to *your* left or right. `look_up` / `look_down`. `flash:<colour>`: fill the screen with that colour, then capture.
+             * @description One entry per frame to capture, in order. `center`: look straight at the camera. `turn_left` / `turn_right`: turn your head to *your* left or right. `look_up` / `look_down`: tilt your head.
              */
-            steps: ("center" | "turn_left" | "turn_right" | "look_up" | "look_down" | "flash:red" | "flash:green" | "flash:blue")[];
-            /**
-             * Flashslotms
-             * @description How long to show each flash colour before capturing under it.
-             */
-            flashSlotMs: number;
+            steps: ("center" | "turn_left" | "turn_right" | "look_up" | "look_down")[];
             /**
              * Expiresat
              * Format: date-time

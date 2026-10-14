@@ -14,7 +14,7 @@ from engine.pad import live_probability
 from engine.pose import Pose, estimate
 from engine.runtime import Models
 from engine.schemas import Checks, EmbedResult, EnrollResult, VerifyResult
-from engine.steps import CENTRE, flash_colour, is_frontal
+from engine.steps import CENTRE
 
 # Fewer than this many good frontal frames and nothing is decided.
 MIN_FRONTAL = 2
@@ -70,7 +70,7 @@ def inspect(models: Models, step: str, image: np.ndarray) -> Frame:
     pose = estimate(face.landmarks)
     aligned = align(image, face.landmarks)
     reasons = quality.assess(
-        image, face, aligned, pose, manifest.quality, frontal=is_frontal(step)
+        image, face, aligned, pose, manifest.quality, frontal=step == CENTRE
     )
     return Frame(step, image, Seen(face, pose, aligned), reasons)
 
@@ -88,8 +88,8 @@ def _centre(frames: list[Frame]) -> list[tuple[Frame, Seen]]:
 
 
 def _complete(frames: list[Frame]) -> bool:
-    # Movement and flash frames are judged on landmarks and colour, so any
-    # detected face will do; a turned head is supposed to fail frontal checks.
+    # Movement frames are judged on landmarks, so any detected face will do; a
+    # turned head is supposed to fail frontal checks.
     others_seen = all(f.seen is not None for f in frames if f.step != CENTRE)
     return len(_centre(frames)) >= MIN_FRONTAL and others_seen
 
@@ -127,23 +127,14 @@ def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analy
     )
     performed: dict[str, list[Pose]] = {}
     for f, s in seen:
-        if not is_frontal(f.step):
+        if f.step != CENTRE:
             performed.setdefault(f.step, []).append(s.pose)
     moved = liveness.actions(baseline, performed, manifest.liveness)
 
-    reflected = liveness.flash(
-        [
-            (colour, liveness.face_chroma(f.image, s.face))
-            for f, s in seen
-            if (colour := flash_colour(f.step))
-        ],
-        manifest.liveness,
-    )
-
     same = liveness.consistency(
         reference,
-        [s.embedding for f, s in seen if is_frontal(f.step)],
-        [s.embedding for f, s in seen if not is_frontal(f.step)],
+        [s.embedding for f, s in seen if f.step == CENTRE],
+        [s.embedding for f, s in seen if f.step != CENTRE],
         manifest.liveness,
     )
 
@@ -152,9 +143,6 @@ def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analy
         anti_spoofing_score=spoofing.score,
         actions=moved.passed,
         actions_score=moved.score,
-        flash=reflected.passed,
-        flash_score=reflected.score,
-        flash_spread=reflected.spread,
         consistent=same.passed,
         consistency_score=same.score,
     )
@@ -163,9 +151,7 @@ def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analy
     logger.info(
         "Liveness",
         live=checks.live,
-        **checks.model_dump(
-            exclude={"anti_spoofing", "actions", "flash", "consistent"}
-        ),
+        **checks.model_dump(exclude={"anti_spoofing", "actions", "consistent"}),
         live_per_frame=[round(p, 3) for p in probabilities],
         movement={
             step: [

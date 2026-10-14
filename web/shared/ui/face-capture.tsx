@@ -6,11 +6,10 @@ import { cn } from "./cn";
 /**
  * A face capture that follows the provider's challenge, frame by frame.
  *
- * The provider sends one step per frame: `center` (look straight ahead), a head
- * movement, or `flash:<colour>` (fill the screen with that colour). Movements and
- * colours are drawn at random for every attempt, which is what makes a
- * recording made earlier useless — so the order here is the order sent, never
- * a fixed script.
+ * The provider sends one step per frame: `center` (look straight ahead) or a
+ * head movement. The movements are drawn at random for every attempt, which is
+ * what makes a recording made earlier useless — so the order here is the order
+ * sent, never a fixed script.
  *
  * Frames are captured from the camera as it sees, unmirrored; only the preview
  * is mirrored, because people expect a mirror. "Turn to your left" therefore
@@ -20,7 +19,6 @@ import { cn } from "./cn";
 export interface FaceCaptureChallenge {
   faceChallengeId: string;
   steps: string[];
-  flashSlotMs: number;
 }
 
 const WIDTH = 640;
@@ -28,8 +26,6 @@ const HEIGHT = 480;
 // Time to read a prompt and move before frames are taken, and between frames.
 const SETTLE_MS = { center: 900, action: 1300 } as const;
 const FRAME_GAP_MS = { center: 220, action: 260 } as const;
-
-const FLASH: Record<string, string> = { red: "#ff0000", green: "#00ff00", blue: "#0000ff" };
 
 const ACTIONS: Record<string, { label: string; icon: ReactNode }> = {
   turn_left: { label: "Slowly turn your head to your left", icon: <ArrowLeft /> },
@@ -42,49 +38,11 @@ type Phase = "starting" | "denied" | "ready" | "capturing";
 
 const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// A flash frame must have been *taken* while the colour was on screen. A fixed
-// delay is not enough: through Chromium a USB webcam can run a quarter of a
-// second or more behind the screen, and a frame still showing the previous
-// colour fails the check every time — the colours never repeat back to back.
-// So the capture waits for the first frame the camera exposed after the colour
-// was painted, by the capture time Chromium reports for each frame.
-const EXPOSURE_MARGIN_MS = 40;
-// When the browser reports no capture time, how far the camera is assumed to lag.
-const FALLBACK_LAG_MS = 300;
-const FRAME_TIMEOUT_MS = 2000;
-
-/** The time the screen has shown whatever was just rendered. */
-const painted = () =>
-  new Promise<number>((resolve) =>
-    requestAnimationFrame(() => requestAnimationFrame(() => resolve(performance.now()))),
-  );
-
-/** Resolves once the video shows a frame the camera took at or after `since`. */
-function frameTakenAfter(video: HTMLVideoElement, since: number): Promise<void> {
-  return new Promise((resolve) => {
-    const timeout = setTimeout(resolve, FRAME_TIMEOUT_MS);
-    const check: VideoFrameRequestCallback = (now, metadata) => {
-      const reported = metadata.captureTime;
-      const taken =
-        reported !== undefined && Math.abs(now - reported) < 1000
-          ? reported
-          : now - FALLBACK_LAG_MS;
-      if (taken >= since) {
-        clearTimeout(timeout);
-        resolve();
-      } else {
-        video.requestVideoFrameCallback(check);
-      }
-    };
-    video.requestVideoFrameCallback(check);
-  });
-}
-
 /** Consecutive identical steps, so a prompt is shown once for its frames. */
 function groups(steps: string[]): { step: string; count: number }[] {
   return steps.reduce<{ step: string; count: number }[]>((out, step) => {
     const last = out.at(-1);
-    if (last && last.step === step && !step.startsWith("flash:")) last.count += 1;
+    if (last && last.step === step) last.count += 1;
     else out.push({ step, count: 1 });
     return out;
   }, []);
@@ -104,7 +62,6 @@ export function FaceCapture({
   const [phase, setPhase] = useState<Phase>(() => (navigator.mediaDevices ? "starting" : "denied"));
   const [prompt, setPrompt] = useState<string>("Centre your face in the oval.");
   const [icon, setIcon] = useState<ReactNode>(<ScanFace />);
-  const [flash, setFlash] = useState<string | null>(null);
 
   useEffect(() => {
     let stream: MediaStream | undefined;
@@ -150,24 +107,6 @@ export function FaceCapture({
     const frames: Blob[] = [];
     try {
       for (const { step, count } of groups(challenge.steps)) {
-        if (step.startsWith("flash:")) {
-          setPrompt("Keep still while the screen changes colour.");
-          setIcon(<Camera />);
-          setFlash(FLASH[step.slice("flash:".length)] ?? null);
-          const shown = await painted();
-          const source = video.current;
-          if (!source) throw new Error("The camera is not ready.");
-          // Under the colour, and soon after it appeared: before the camera's
-          // automatic white balance, if any, has time to cancel it out.
-          await Promise.all([
-            frameTakenAfter(source, shown + EXPOSURE_MARGIN_MS),
-            wait(challenge.flashSlotMs * 0.6),
-          ]);
-          frames.push(await frame());
-          continue;
-        }
-
-        setFlash(null);
         const action = ACTIONS[step];
         const kind = action ? "action" : "center";
         setPrompt(action?.label ?? "Look straight at the camera.");
@@ -184,8 +123,6 @@ export function FaceCapture({
       setPrompt("The camera stopped. Check it is connected, then start again.");
       setIcon(<Camera />);
       return;
-    } finally {
-      setFlash(null);
     }
     setPrompt("Checking…");
     onCaptured(frames);
@@ -202,10 +139,6 @@ export function FaceCapture({
 
   return (
     <div className="flex flex-col items-center gap-5">
-      {flash ? (
-        <div aria-hidden="true" className="fixed inset-0 z-50" style={{ backgroundColor: flash }} />
-      ) : null}
-
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-dark">
         <video
           ref={video}
@@ -253,8 +186,7 @@ export function FaceCapture({
       {phase !== "capturing" ? (
         <>
           <p className="text-caption text-muted-foreground">
-            About ten seconds. You'll be asked to move your head, and the screen will change colour
-            a few times.
+            About six seconds. You'll be asked to turn or tilt your head twice.
           </p>
           <Button
             variant="default"

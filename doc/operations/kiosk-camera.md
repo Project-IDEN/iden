@@ -9,27 +9,28 @@ it will be used. Settings tuned on a desk by a window are wrong under the ceilin
 
 ## Why the camera matters
 
-When someone enrols, the kiosk takes 13 frames and the engine judges them twice.
+When someone enrols, the kiosk takes 9 frames and the engine judges them twice.
 
 **Is the picture good enough?** In every frame it looks for one face, large enough, sharp enough,
 neither too dark nor too bright. When it is not, the person is told what to fix, and nothing is
 decided. These failures are `poor_capture`.
 
-**Is it a live person?** Four checks, and every one must pass. The one the camera can break is the
-**colour flash**: the screen turns red, green and blue in an order nobody could know in advance, and
-the engine looks for that colour reflected on the face. A photo or a screen held up to the camera
-cannot follow along. These failures are `not_live`.
+**Is it a live person?** Three checks, and every one must pass: an anti-spoofing model judges the
+straight-ahead frames, the head follows two movements drawn at random, and the face is the same
+person throughout. These failures are `not_live`. The camera cannot break them outright, but a dark,
+grainy or blurred picture makes the anti-spoofing model less sure and the landmarks the movements
+are measured from less steady.
 
-A webcam left on its automatic settings works against the flash check:
+A webcam left on its automatic settings can get in the way:
 
 | Automatic setting | What it does to a capture |
 |---|---|
-| **White balance** | Sees the face turn red and corrects the colour back toward neutral — removing the very reflection the engine looks for. |
-| **Exposure** | Sees the scene brighten under the flash and darkens the picture to compensate, so the frames swing from dark to bright. |
+| **Exposure** | Darkens the face against a bright background, and in dim light slows the frame rate, which blurs a moving head. |
 | **Focus** | Can hunt in the middle of a capture, blurring the frames it hunts across. |
+| **White balance** | Harmless to the engine. Fix it only if skin looks orange or blue on screen and keeps shifting. |
 
-So the goal is: **fix white balance, exposure and focus at values that suit the kiosk's light**,
-and let nothing on the camera change by itself during a capture.
+So the goal is: **fix exposure and focus at values that suit the kiosk's light**, and let nothing
+that matters change by itself during a capture.
 
 ## How the settings are applied
 
@@ -46,7 +47,7 @@ iden-kiosk logs camera
 ```
 
 ```text
-/dev/video0: holding white_balance_automatic,white_balance_temperature,auto_exposure,exposure_time_absolute from camera.conf
+/dev/video0: holding auto_exposure,exposure_time_absolute,focus_automatic_continuous,focus_absolute from camera.conf
 /dev/video0: set camera.conf again after the camera was reset
 ```
 
@@ -62,8 +63,8 @@ whose settings can be fixed by hand:
 
 | | Want | Why |
 |---|---|---|
-| **White balance** | Can be set manually, to a colour temperature | The flash check needs it. A camera that only has automatic white balance will fail more often. |
-| **Exposure** | Can be set manually | Steady frames under the flash. |
+| **Exposure** | Can be set manually | A face lit the same in every frame, and a frame rate that holds in dim light. |
+| **White balance** | Anything | Automatic is fine. |
 | **Focus** | Fixed focus, or autofocus that can be switched off | Fixed focus is fine at arm's length, and nothing to tune. |
 | **Resolution** | 720p or more | The kiosk captures at 640 × 480; more is not needed. |
 | **Field of view** | Ordinary (about 60–80°) | A very wide lens makes the face small at arm's length. |
@@ -186,9 +187,11 @@ nothing on the face is washed out to white.
     a `backlight_compensation` setting: set `backlight_compensation=0`, so a bright background does
     not darken the face.
 
-## 5. White balance
+## 5. White balance (optional)
 
-Switch automatic white balance off, then choose a colour temperature in kelvin:
+The engine does not depend on colour, so automatic white balance is fine and most kiosks can skip
+this step. Fix it only if skin on screen looks orange or blue and keeps shifting as people come and
+go. Switch automatic white balance off, then choose a colour temperature in kelvin:
 
 ```ini
 white_balance_automatic=0
@@ -204,13 +207,7 @@ blue. A starting point by kind of light:
 | Office LED or fluorescent, neutral white | `4000`–`4600` |
 | Cool white LED, daylight from a window | `5000`–`6500` |
 
-Stay within the camera's range from `iden-kiosk camera`. A value a few hundred kelvin off is fine;
-what matters is that it no longer moves.
-
-!!! note "When the camera has no manual white balance"
-    Then the flash check is at the mercy of the camera's automatic correction. Enrolment can still
-    work, especially in bright, even light, but expect more `not_live` failures. A camera that
-    allows it is the real fix.
+Stay within the camera's range from `iden-kiosk camera`. A value a few hundred kelvin off is fine.
 
 ## 6. Focus
 
@@ -246,7 +243,7 @@ what the engine made of the picture. Shortened, the lines look like this:
 
 ```json
 {"event": "Enrolment refused", "status": 422, "code": "poor_capture", "details": {"reasons": ["too_dark"]}}
-{"event": "Enrolment refused", "status": 422, "code": "not_live", "details": {"failed": ["flash"]}}
+{"event": "Enrolment refused", "status": 422, "code": "not_live", "details": {"failed": ["actions"]}}
 ```
 
 The same failures, without the details, are on the kiosk's page in the dashboard.
@@ -260,7 +257,6 @@ The same failures, without the details, are on the kiosk's page in the dashboard
 | `no_face`, `off_angle` | No face found, or not looking straight ahead. | Usually the person, not the camera. If it is constant, check the camera's height and angle. |
 | `out_of_frame` | The face is at the edge of the picture, or so close it nearly fills it: too little around it for the anti-spoofing model to judge. | Usually the person. If it is constant, the camera is aimed off where people stand, or the lens is too narrow. |
 | `multiple_faces` | A second face is in view. | Something behind the kiosk: a poster, a mirror, a queue. |
-| `not_live`, `flash` | The colour flashes were not seen on the face. | White balance or exposure still automatic — check `iden-kiosk logs camera` shows them held. Then: screen brightness, or bright light on the face drowning out the screen. |
 | `not_live`, `anti_spoofing` | The anti-spoofing model judged the face not live. | Usually poor light or a noisy picture: more even light on the face, less `gain`. |
 | `not_live`, `actions` | The head movements were not seen. | The person, not the camera: they did not turn far enough. |
 | `not_live`, `consistent` | The face did not look like the same person throughout. | Someone else stepped in, or the frames were very poor. |

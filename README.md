@@ -465,7 +465,7 @@ between them. Each resolves to a distinct AuthZ endpoint that appends its method
 |---|---|---|
 | Password | `POST /api/v1/auth/login` | `amr += ["pwd"]` |
 | TOTP (step-up) | `POST /api/v1/auth/totp` | `amr += ["otp"]` |
-| Face (after a password) | `POST /api/v1/auth/biometric` | `amr += ["face"]` (only for a capture that is live — anti-spoofing models, random head movements, random screen colours, one face throughout — and matches) |
+| Face (after a password) | `POST /api/v1/auth/biometric` | `amr += ["face"]` (only for a capture that is live — an anti-spoofing model, random head movements, one face throughout — and matches) |
 
 `acr` is never stored — it is **derived from `amr` at token-issuance time** using the table above.
 Keeping one source of truth means a step-up midway through a session automatically upgrades the next

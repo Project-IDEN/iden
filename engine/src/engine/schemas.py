@@ -16,13 +16,6 @@ class Checks(BaseModel):
         description="How far the least-made movement went, as a share of what "
         "counts: 1.0 and above passes, below 0 is the wrong way.",
     )
-    flash: bool = Field(description="The face reflected the colours shown.")
-    flash_score: float = Field(
-        description="Share of flash frames whose colour cast matched the colour shown."
-    )
-    flash_spread: float = Field(
-        default=0.0, description="The largest colour change seen across them."
-    )
     consistent: bool = Field(description="Every frame shows the same person.")
     consistency_score: float = Field(
         default=0.0, description="The least similar frame's similarity."
@@ -30,7 +23,7 @@ class Checks(BaseModel):
 
     @property
     def live(self) -> bool:
-        return self.anti_spoofing and self.actions and self.flash and self.consistent
+        return self.anti_spoofing and self.actions and self.consistent
 
 
 class Capture(BaseModel):

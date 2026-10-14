@@ -18,7 +18,6 @@ export interface KioskState {
 export interface EnrolmentChallenge {
   faceChallengeId: string;
   steps: string[];
-  flashSlotMs: number;
   displayName: string;
   attemptsLeft: number;
 }

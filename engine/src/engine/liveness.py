@@ -2,19 +2,16 @@
 
 Each stops something different. The anti-spoofing model catches prints and
 screens. The actions catch a still photograph and a recording made earlier,
-since nobody knew which movements would be asked for. The flash catches a
-replay held up to the camera, which cannot reflect colours chosen a moment ago.
-Consistency catches swapping faces partway through.
+since nobody knew which movements would be asked for. Consistency catches
+swapping faces partway through.
 """
 
 from dataclasses import dataclass
 
 import numpy as np
 
-from engine.detect import Face
 from engine.manifest import Liveness, Policy
 from engine.pose import Pose
-from engine.steps import CHANNEL
 
 # Sign of the pose change each action produces, and on which axis.
 EXPECTED = {
@@ -29,8 +26,6 @@ EXPECTED = {
 class Verdict:
     passed: bool
     score: float
-    # Flash only: the largest chroma change seen, which must also clear a bar.
-    spread: float = 0.0
 
 
 def anti_spoofing(probabilities: list[float], rules: Policy) -> Verdict:
@@ -58,41 +53,6 @@ def actions(
         reached.append(peak / limit)
 
     return Verdict(min(reached) >= 1, float(min(reached)))
-
-
-def face_chroma(image: np.ndarray, face: Face) -> np.ndarray:
-    """Mean colour of the middle of the face as proportions summing to one."""
-    x1, y1, x2, y2 = face.box
-    width, height = x2 - x1, y2 - y1
-    top, bottom = int(y1 + height * 0.25), int(y2 - height * 0.25)
-    left, right = int(x1 + width * 0.25), int(x2 - width * 0.25)
-    region = image[max(top, 0) : max(bottom, 1), max(left, 0) : max(right, 1)]
-    mean = region.reshape(-1, 3).mean(axis=0) + 1e-6
-    return mean / mean.sum()
-
-
-def flash(observed: list[tuple[str, np.ndarray]], rules: Liveness) -> Verdict:
-    """Whether the face's colour cast followed the colours shown.
-
-    Measured relative to the average over the sequence, so skin tone and room
-    lighting cancel out and only the change remains.
-    """
-    if len(observed) < 2:
-        return Verdict(False, 0.0)
-
-    chromas = np.stack([chroma for _, chroma in observed])
-    shifts = chromas - chromas.mean(axis=0)
-    hits = [
-        int(np.argmax(shift)) == CHANNEL[colour]
-        for (colour, _), shift in zip(observed, shifts, strict=True)
-    ]
-    score = sum(hits) / len(hits)
-    spread = float(np.abs(shifts).max())
-    return Verdict(
-        score >= rules.flash_min_score and spread >= rules.flash_min_spread,
-        score,
-        spread,
-    )
 
 
 def consistency(

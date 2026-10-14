@@ -309,8 +309,8 @@ function SwitchMethod({ onSwitch }: { onSwitch?: () => void }) {
 }
 
 /**
- * The face step. Each attempt fetches a fresh challenge — the movements and
- * colours change every time, and a challenge is good for one capture.
+ * The face step. Each attempt fetches a fresh challenge — the movements change
+ * every time, and a challenge is good for one capture.
  */
 function FaceStep({
   challengeId,

@@ -85,16 +85,15 @@ A successful face step adds `face` to `amr`; with the password that is `urn:iden
 ## What "live" means
 
 A face that matches is not enough. A photograph of the person matches too. Every capture has to pass
-four checks, and each stops something different:
+three checks, and each stops something different:
 
 | Check | How | Stops |
 |---|---|---|
 | **Anti-spoofing model** | InsightFace's liveness model judges each straight-ahead frame | Printed photos, phone and screen replays |
 | **Head movements** | Two of *turn left, turn right, look up, look down*, drawn at random for this attempt, measured from facial landmarks | A still photo; a recording made before the attempt began |
-| **Screen colours** | The screen flashes four colours in a random order; the face must reflect each | A replay held up to the camera, which cannot reflect colours chosen a moment ago |
 | **Consistency** | Every frame must show the same person | Swapping faces partway through |
 
-The movements and colours are a **challenge**: issued by IDEN, good for one capture, two minutes,
+The movements are a **challenge**: issued by IDEN, good for one capture, two minutes,
 and one person. A capture made for one attempt is useless for the next.
 
 When a capture is not good enough to judge — too dark, too far away, blurred, two faces — nothing is
@@ -107,9 +106,12 @@ lock face sign-in for that account for a while.
 Be clear about this before relying on it:
 
 - **A video stream injected into the browser.** A virtual camera fed by a real-time deepfake is the
-  attack that matters for faces on the web. The random movements and colours make it harder — the
-  attacker has to render the right movement and the right reflection, live — but no check that runs
-  on IDEN's side can prove a frame came from a real camera.
+  attack that matters for faces on the web. The random movements make it harder — the attacker has
+  to render the right movements, live — but no check that runs on IDEN's side can prove a frame came
+  from a real camera.
+- **A screen the anti-spoofing model does not recognise.** Nothing else looks for a replay held up
+  to the camera. IDEN does not flash the screen to test for one, because flashing colours can harm
+  people with photosensitive epilepsy.
 - **Identical twins**, and to a lesser degree close relatives.
 - **Anything a certification would have found.** These checks are not tested by an accredited lab
   against ISO/IEC 30107-3 (presentation attacks) or CEN/TS 18099 (injection attacks). A deployment

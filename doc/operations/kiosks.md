@@ -42,14 +42,14 @@ flowchart LR
 |---|---|
 | Computer | A Raspberry Pi 5 with 4 GB or more, running **Raspberry Pi OS with desktop, 64-bit**. The engine analyses the captures, not the Pi, so the Pi only has to show the screen. |
 | Screen | A touchscreen, 7" or larger. Everything is touch: large buttons, an on-screen keypad for the pairing code. |
-| Camera | Any USB webcam (UVC, which nearly all are). What matters is whether its white balance, exposure and focus can be set by hand — see [Choosing a camera](kiosk-camera.md#choosing-a-camera). |
+| Camera | Any USB webcam (UVC, which nearly all are). What matters is whether its exposure and focus can be set by hand — see [Choosing a camera](kiosk-camera.md#choosing-a-camera). |
 
 Where it stands matters as much as what it is:
 
 - **Light from the front.** A window or a bright lamp behind the person is the commonest cause of
   failed enrolments. Diffuse light on the face is best.
-- **Camera at eye height,** above the screen, and the screen facing the person. The colour flashes
-  are the screen lighting the face, so the face has to be in front of it, about an arm's length away.
+- **Camera at eye height,** above the screen, and the screen facing the person, about an arm's
+  length away.
 - **Nothing reflective behind,** and no second face in view.
 
 ## 1. Build the kiosk image

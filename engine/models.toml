@@ -63,10 +63,6 @@ max_out_of_frame = 0.3
 # and the mouth.
 turn_delta = 0.15
 pitch_delta = 0.08
-# Share of flash frames whose colour cast must match the colour shown.
-flash_min_score = 0.75
-# Smallest chroma shift across flash frames that counts as a reaction at all.
-flash_min_spread = 0.004
 # Every frame must look like the same person as the frontal ones: a lower bar
 # for turned heads, whose embeddings drift.
 consistency_frontal = 0.5

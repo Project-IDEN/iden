@@ -260,9 +260,7 @@ function explain(error: unknown, retry?: { ticket: string; left: number }): Phas
       return {
         kind: "problem",
         title: "That didn't work",
-        lines: [
-          "Look at the screen, follow each instruction, and keep still while it changes colour.",
-        ],
+        lines: ["Look at the screen and follow each instruction."],
         retry,
       };
     case "face_challenge_invalid":
@@ -301,7 +299,6 @@ function explain(error: unknown, retry?: { ticket: string; left: number }): Phas
 const CHECK_ADVICE: Record<string, string> = {
   actions:
     "Turn your head the way each arrow shows, slowly but all the way, then back to the middle.",
-  flash: "Stand close, facing the screen, and keep still while it changes colour.",
   anti_spoofing: "Make sure your face is evenly lit, with nothing covering it, and try again.",
   consistent: "Only one person should be in front of the camera during the capture.",
 };
@@ -310,7 +307,5 @@ function describeFailedChecks(failed: unknown): string[] {
   const lines = Array.isArray(failed)
     ? failed.map((check) => CHECK_ADVICE[String(check)]).filter((line) => line !== undefined)
     : [];
-  return lines.length > 0
-    ? lines
-    : ["Look at the screen, follow each instruction, and keep still while it changes colour."];
+  return lines.length > 0 ? lines : ["Look at the screen and follow each instruction."];
 }

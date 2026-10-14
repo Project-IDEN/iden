@@ -874,10 +874,10 @@ it does not protect against, is [doc/concepts/biometrics.md](../doc/concepts/bio
   names nobody. The person creates a single-use ticket in the dashboard after a fresh sign-in and
   shows it as a QR code; that is what says whose face it is. A stolen kiosk secret enrols no one.
   The person is emailed when a face is enrolled.
-- **Liveness is four checks, each against a different attack.** Anti-spoofing models (prints,
-  screens), two random head movements (photos, earlier recordings), four random screen colours the
-  face must reflect (replays), one face throughout (swaps). The movements and colours are a
-  single-use challenge per capture.
+- **Liveness is three checks, each against a different attack.** An anti-spoofing model (prints,
+  screens), two random head movements (photos, earlier recordings), one face throughout (swaps).
+  The movements are a single-use challenge per capture. No screen flashes: a colour sequence on the
+  screen would catch replays, but flashing light can harm people with photosensitive epilepsy.
 - **An enrolled face alone owes nothing.** An authenticator makes a second factor owed at every
   sign-in; a face answers that as well as a code, but does not create it — no camera must not mean
   no way in. A client asking for `mfa-face` is offered only the face.

@@ -32,31 +32,6 @@ def test_a_still_face_fails_the_actions():
     assert verdict.score == 0
 
 
-def _chroma(boost: str) -> np.ndarray:
-    base = np.array([0.30, 0.33, 0.37])  # BGR proportions of skin under room light
-    base[{"blue": 0, "green": 1, "red": 2}[boost]] += 0.03
-    return base / base.sum()
-
-
-def test_flash_passes_when_the_face_reflects_the_colours_shown():
-    shown = ["red", "green", "blue", "red"]
-    verdict = liveness.flash([(c, _chroma(c)) for c in shown], RULES)
-    assert verdict.passed
-    assert verdict.score == 1
-
-
-def test_flash_fails_when_the_reflection_does_not_follow():
-    shown = ["red", "green", "blue", "red"]
-    reflected = ["blue", "red", "green", "green"]
-    observed = [(c, _chroma(r)) for c, r in zip(shown, reflected, strict=True)]
-    assert not liveness.flash(observed, RULES).passed
-
-
-def test_flash_fails_when_nothing_changes():
-    observed = [(c, np.array([0.3, 0.33, 0.37])) for c in ["red", "green", "blue"]]
-    assert not liveness.flash(observed, RULES).passed
-
-
 def test_anti_spoofing_needs_most_frames_live():
     assert liveness.anti_spoofing([0.9, 0.8, 0.95], POLICY).passed
     assert not liveness.anti_spoofing([0.9, 0.1, 0.2], POLICY).passed

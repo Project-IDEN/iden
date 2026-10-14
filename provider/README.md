@@ -321,7 +321,7 @@ provider/
     │   └── profile/ credentials/ totp/ face/ sessions/ permissions/ connections/
     └── biometric/              # the kiosk's API, and what face sign-in uses
         ├── engine_client.py    # the engine's wire format
-        ├── challenges.py       # random movements + colours, one capture each
+        ├── challenges.py       # random head movements, one capture each
         ├── tickets.py          # how a kiosk learns whose face it is
         ├── pairing.py          # how a new device becomes a registered kiosk
         └── service.py          # enrol · verify · remove; encrypted embeddings

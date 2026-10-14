@@ -4,19 +4,10 @@ from typing import Any, Literal, Self
 from pydantic import Field
 
 from provider.admin.kiosks.schemas import KioskSettings
-from provider.biometric.challenges import FLASH_SLOT_MS, FaceChallenge
+from provider.biometric.challenges import FaceChallenge
 from provider.core.schemas import CamelCaseBaseModel
 
-Step = Literal[
-    "center",
-    "turn_left",
-    "turn_right",
-    "look_up",
-    "look_down",
-    "flash:red",
-    "flash:green",
-    "flash:blue",
-]
+Step = Literal["center", "turn_left", "turn_right", "look_up", "look_down"]
 
 
 class FaceChallengeResponse(CamelCaseBaseModel):
@@ -27,12 +18,8 @@ class FaceChallengeResponse(CamelCaseBaseModel):
         description=(
             "One entry per frame to capture, in order. `center`: look straight "
             "at the camera. `turn_left` / `turn_right`: turn your head to *your* "
-            "left or right. `look_up` / `look_down`. `flash:<colour>`: fill the "
-            "screen with that colour, then capture."
+            "left or right. `look_up` / `look_down`: tilt your head."
         )
-    )
-    flash_slot_ms: int = Field(
-        description="How long to show each flash colour before capturing under it."
     )
     expires_at: datetime
 
@@ -41,7 +28,6 @@ class FaceChallengeResponse(CamelCaseBaseModel):
         return cls(
             face_challenge_id=challenge.id,
             steps=challenge.steps,  # pyright: ignore[reportArgumentType]
-            flash_slot_ms=FLASH_SLOT_MS,
             expires_at=challenge.expires_at,
             **extra,
         )
