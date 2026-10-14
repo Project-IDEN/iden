@@ -8,7 +8,6 @@ import {
   Input,
   ScopeChip,
   Spinner,
-  Switch,
   Textarea,
 } from "@iden/shared";
 import { ArrowLeft, Plus, X } from "lucide-react";
@@ -18,6 +17,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "../../app/api";
 import { PageHeader } from "../../app/shell";
 import { useRecord, useWrite, type ProfileFieldRecord } from "./api";
+import { SwitchRow } from "./switch-row";
 
 interface Values {
   label: string;
@@ -269,21 +269,13 @@ function Toggle({
   label: string;
   hint?: string;
 }) {
-  const value = form.watch(name);
   return (
-    <div className="flex items-start gap-4">
-      <Switch
-        id={name}
-        checked={value}
-        onCheckedChange={(next) => form.setValue(name, next, { shouldDirty: true })}
-        className="mt-1"
-      />
-      <div className="min-w-0">
-        <label htmlFor={name} className="text-body-sm text-foreground">
-          {label}
-        </label>
-        {hint ? <p className="mt-1 text-caption text-muted-foreground">{hint}</p> : null}
-      </div>
-    </div>
+    <SwitchRow
+      id={name}
+      checked={form.watch(name)}
+      onChange={(next) => form.setValue(name, next, { shouldDirty: true })}
+      label={label}
+      hint={hint}
+    />
   );
 }
