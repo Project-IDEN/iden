@@ -297,7 +297,7 @@ async def totp(
     await ratelimit.guard(redis, identity=str(user.id), **ratelimit.TOTP_FAILURES)
 
     try:
-        await verify_totp(session, user, body.code)
+        await verify_totp(session, redis, user, body.code)
     except (InvalidTotpCode, TotpNotEnrolled) as exc:
         await ratelimit.record_failure(
             redis,

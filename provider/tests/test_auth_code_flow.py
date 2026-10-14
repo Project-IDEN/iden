@@ -515,6 +515,22 @@ class TestEnrolledTotpIsMandatory:
         assert body["acr"] == "urn:iden:acr:mfa"
         assert set(body["amr"]) == {"pwd", "otp", "mfa"}
 
+    async def test_a_code_signs_in_once(self, client, enrolled):
+        """RFC 6238 Section 5.2: a second browser holding the same password and a
+        code someone watched being typed does not get in with it."""
+        _, challenge = pkce_pair()
+        challenge_id = query_of(await start(client, challenge))["challenge"]
+        await sign_in(client, challenge_id)
+        assert (await enter_code(client, challenge_id, enrolled)).status_code == 200
+
+        client.cookies.clear()
+        challenge_id = query_of(await start(client, challenge))["challenge"]
+        await sign_in(client, challenge_id)
+        response = await enter_code(client, challenge_id, enrolled)
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "invalid_totp_code"
+
     async def test_authorize_refuses_to_issue_a_code_to_a_password_only_session(
         self, client, enrolled
     ):

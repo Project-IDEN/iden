@@ -2,6 +2,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import pyotp
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -46,7 +47,14 @@ async def authenticate_password(
     return user
 
 
-async def verify_totp(session: AsyncSession, user: User, code: str) -> None:
+# A code is good for one sign-in (RFC 6238 Section 5.2), remembered for as long as
+# `valid_window=1` could accept it: its own step and the one either side.
+USED_CODE_SECONDS = 90
+
+
+async def verify_totp(
+    session: AsyncSession, redis: Redis, user: User, code: str
+) -> None:
     credential = await session.scalar(
         select(TotpCredential).where(
             TotpCredential.user_id == user.id, TotpCredential.confirmed_at.is_not(None)
@@ -63,6 +71,11 @@ async def verify_totp(session: AsyncSession, user: User, code: str) -> None:
     # valid_window=1 accepts the adjacent 30s step, covering ordinary clock drift
     # between the phone and the server (RFC 6238 Section 6).
     if not pyotp.TOTP(secret).verify(code, valid_window=1):
+        raise InvalidTotpCode
+    # Otherwise a code read over someone's shoulder, or relayed by a phishing
+    # page, signs a second browser in alongside the first.
+    used = f"totp-used:{user.id}:{code}"
+    if not await redis.set(used, 1, nx=True, ex=USED_CODE_SECONDS):
         raise InvalidTotpCode
 
 
