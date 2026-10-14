@@ -32,6 +32,11 @@ def test_a_still_face_fails_the_actions():
     assert verdict.score == 0
 
 
+def test_a_small_nod_is_not_a_movement():
+    performed = {"look_down": [pose(pitch=0.78)], "turn_left": [pose(0.12)]}
+    assert not liveness.actions(FRONT, performed, RULES).passed
+
+
 def test_anti_spoofing_needs_most_frames_live():
     assert liveness.anti_spoofing([0.9, 0.8, 0.95], POLICY).passed
     assert not liveness.anti_spoofing([0.9, 0.1, 0.2], POLICY).passed

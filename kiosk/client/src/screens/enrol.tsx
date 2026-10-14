@@ -299,8 +299,7 @@ function explain(error: unknown, retry?: { ticket: string; left: number }): Phas
 // The kiosk is supervised, so IDEN says which liveness checks failed. Each line
 // is what the person can do about it.
 const CHECK_ADVICE: Record<string, string> = {
-  actions:
-    "Turn your head the way each arrow shows, all the way, and hold it there until the next instruction.",
+  actions: "Turn your head the way each arrow shows, and keep going until you hear the chime.",
   anti_spoofing: "Make sure your face is evenly lit, with nothing covering it, and try again.",
   consistent: "Only one person should be in front of the camera during the capture.",
 };

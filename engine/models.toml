@@ -60,9 +60,12 @@ max_out_of_frame = 0.3
 [liveness]
 # Change from the frontal baseline that counts as performing an action. Yaw is
 # nose offset over eye distance; pitch is the nose's position between the eyes
-# and the mouth.
-turn_delta = 0.15
-pitch_delta = 0.08
+# and the mouth. Rotating MediaPipe's canonical face puts these at about 16° of
+# turn and 13° of tilt. The kiosk waits for about 25° and 20°, so the
+# landmarks here may read a movement up to a third smaller than its tracker did
+# and still pass.
+turn_delta = 0.22
+pitch_delta = 0.14
 # Every frame must look like the same person as the frontal ones: a lower bar
 # for turned heads, whose embeddings drift.
 consistency_frontal = 0.5
