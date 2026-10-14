@@ -6,7 +6,7 @@ from engine.quality import Reason
 
 
 class Checks(BaseModel):
-    anti_spoofing: bool = Field(description="Passive models judged the face live.")
+    anti_spoofing: bool = Field(description="The passive model judged the face live.")
     anti_spoofing_score: float = Field(
         description="Mean live probability over the straight-ahead frames."
     )

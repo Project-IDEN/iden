@@ -1,6 +1,6 @@
 """The checks that a capture came from a live person, here, now.
 
-Each stops something different. The anti-spoofing models catch prints and
+Each stops something different. The anti-spoofing model catches prints and
 screens. The actions catch a still photograph and a recording made earlier,
 since nobody knew which movements would be asked for. The flash catches a
 replay held up to the camera, which cannot reflect colours chosen a moment ago.

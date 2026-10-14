@@ -53,7 +53,7 @@ docker run --rm --user "$(id -u):$(id -g)" \
 `ls provider/keys/` now shows `engine.token` beside the `.pem` and `totp.key`.
 
 **3. Fetch the models** into `engine/models`. Build the engine's image, then run the download inside
-it — about 360 MB, each file checked against the checksum in `engine/models.toml`:
+it — about 290 MB, each file checked against the checksum in `engine/models.toml`:
 
 ```bash
 docker compose build engine
@@ -66,7 +66,7 @@ the GPU image's NVIDIA start-up banner, which would otherwise warn that no drive
 of this one-off container, and not of the engine, which Compose starts with the GPU.
 
 Read the [model licences](../concepts/biometrics.md#the-models) before you go further: the default
-recogniser is for non-commercial research only.
+models are for non-commercial research only.
 
 **4. Turn the module on** in `deploy/.env`:
 
@@ -88,7 +88,7 @@ docker compose logs engine | grep "Engine ready"
 ```
 
 ```text
-engine-1  | {"event": "Engine ready", "model_version": "antelopev2-minifasnet-1", "device": "cpu", "calibrated": false, ...}
+engine-1  | {"event": "Engine ready", "model_version": "buffalo_l-liveness-1", "device": "cpu", "calibrated": false, ...}
 ```
 
 And the provider can reach it:
@@ -242,7 +242,7 @@ This is separate from [tuning the kiosk camera](kiosk-camera.md), and comes afte
 
     It prints the threshold for the target false match rate (`--fmr`, default `1e-4`), the share of
     genuine attempts that threshold would reject, and how often each kind of attack passed the
-    anti-spoofing models.
+    anti-spoofing model.
 
 3. **Write the threshold into `engine/models.toml`** as `match_threshold`, set `calibrated = true`,
    and rebuild and restart the engine (`docker compose up -d --build engine`).

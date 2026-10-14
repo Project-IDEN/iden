@@ -7,6 +7,7 @@ import numpy as np
 
 from engine.detect import Face
 from engine.manifest import Quality
+from engine.pad import out_of_frame
 from engine.pose import Pose
 
 Reason = Literal[
@@ -17,6 +18,7 @@ Reason = Literal[
     "too_dark",
     "too_bright",
     "off_angle",
+    "out_of_frame",
 ]
 
 # A second face this large next to the main one is a second person in view, not
@@ -44,7 +46,13 @@ def brightness(aligned: np.ndarray) -> float:
 
 
 def assess(
-    aligned: np.ndarray, pose: Pose, rules: Quality, *, frontal: bool
+    image: np.ndarray,
+    face: Face,
+    aligned: np.ndarray,
+    pose: Pose,
+    rules: Quality,
+    *,
+    frontal: bool,
 ) -> list[Reason]:
     """Every problem with this face, most actionable first."""
     reasons: list[Reason] = []
@@ -59,6 +67,8 @@ def assess(
         reasons.append("blurred")
     if frontal and abs(pose.yaw) > rules.max_frontal_yaw:
         reasons.append("off_angle")
+    if frontal and out_of_frame(image, face.landmarks) > rules.max_out_of_frame:
+        reasons.append("out_of_frame")
     return reasons
 
 

@@ -15,7 +15,7 @@ from fastapi import Depends, FastAPI, File, Form, Header, HTTPException, UploadF
 from pydantic import ValidationError
 
 from engine import manifest as manifest_module
-from engine import pipeline, runtime
+from engine import pad, pipeline, runtime
 from engine.config import settings
 from engine.imaging import InvalidImage, decode
 from engine.log import configure_logging, logger
@@ -48,10 +48,11 @@ def _warm_up(loaded: runtime.Models) -> None:
     pipeline.detect(
         loaded.detector,
         blank,
-        loaded.manifest.detector.input_size,
+        loaded.manifest.detector.input_sizes,
         loaded.manifest.detector.score_threshold,
     )
     pipeline.embed(loaded.recognizer, [blank[:112, :112]], 127.5, 127.5)
+    pipeline.live_probability(loaded.anti_spoofing, [(blank, pad.TEMPLATE * 4)])
 
 
 @asynccontextmanager

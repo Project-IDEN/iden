@@ -4,6 +4,7 @@ import cv2
 import numpy as np
 
 from engine import pipeline
+from engine.detect import detect
 from tests.conftest import needs_models
 
 STEPS = (
@@ -73,3 +74,12 @@ def test_stored_photos_can_be_embedded_again(models, face_image):
     first, second = result.embeddings
     assert first is not None and len(first) == 512
     assert second is None
+
+
+@needs_models
+def test_a_face_that_fills_the_picture_is_found(models, face_image):
+    faces = detect(models.detector, face_image, [640], 0.5)
+    x1, y1, x2, y2 = faces[0].box.astype(int)
+    close_up = cv2.resize(face_image[y1:y2, x1:x2], (640, 640))
+    found = detect(models.detector, close_up, models.manifest.detector.input_sizes, 0.5)
+    assert len(found) == 1

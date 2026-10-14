@@ -89,7 +89,7 @@ four checks, and each stops something different:
 
 | Check | How | Stops |
 |---|---|---|
-| **Anti-spoofing models** | Two MiniFASNet models judge each straight-ahead frame | Printed photos, phone and screen replays |
+| **Anti-spoofing model** | InsightFace's liveness model judges each straight-ahead frame | Printed photos, phone and screen replays |
 | **Head movements** | Two of *turn left, turn right, look up, look down*, drawn at random for this attempt, measured from facial landmarks | A still photo; a recording made before the attempt began |
 | **Screen colours** | The screen flashes four colours in a random order; the face must reflect each | A replay held up to the camera, which cannot reflect colours chosen a moment ago |
 | **Consistency** | Every frame must show the same person | Swapping faces partway through |
@@ -113,7 +113,7 @@ Be clear about this before relying on it:
 - **Identical twins**, and to a lesser degree close relatives.
 - **Anything a certification would have found.** These checks are not tested by an accredited lab
   against ISO/IEC 30107-3 (presentation attacks) or CEN/TS 18099 (injection attacks). A deployment
-  that needs that assurance replaces the anti-spoofing models with a certified product.
+  that needs that assurance replaces the anti-spoofing model with a certified product.
 
 This is why a face is a second factor here and never the only one.
 
@@ -138,12 +138,12 @@ The engine runs open models by default, pinned by checksum in `engine/models.tom
 
 | Job | Model | Licence |
 |---|---|---|
-| Detection | SCRFD-10G (InsightFace antelopev2) | **Non-commercial research only** |
-| Recognition | ArcFace R100, Glint360K (InsightFace antelopev2) | **Non-commercial research only** |
-| Anti-spoofing | MiniFASNet V2 and V1-SE (Silent-Face) | Apache-2.0 |
+| Detection | SCRFD-10G (InsightFace buffalo_l) | **Non-commercial research only** |
+| Recognition | ArcFace R50, WebFace600K (InsightFace buffalo_l) | **Non-commercial research only** |
+| Anti-spoofing | InsightFace liveness | **Non-commercial research only** |
 
-**The recogniser's licence does not permit commercial use.** A deployment that is not research
-replaces it with weights it is licensed to use — a commercial SDK, or a model trained on data it has
+**None of these licences permits commercial use.** A deployment that is not research replaces them
+with weights it is licensed to use — a commercial SDK, or a model trained on data it has
 the rights to. That is a change to `models.toml`, not to code.
 
 The match threshold in `models.toml` is a conservative starting point, **not calibrated**: until it

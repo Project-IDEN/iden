@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 
 from engine import app as app_module
 from engine.config import settings
-from tests.conftest import needs_models
+from tests.conftest import MANIFEST, needs_models
 
 TOKEN = "engine-test-token"
 
@@ -45,7 +45,7 @@ def test_a_caller_without_the_token_is_refused(client, face_image):
 @needs_models
 def test_info_reports_the_model_and_device(client):
     body = client.get("/info", headers=AUTH).json()
-    assert body["model_version"] == "antelopev2-minifasnet-1"
+    assert body["model_version"] == MANIFEST.version
     assert body["device"] == "cpu"
     assert body["calibrated"] is False
 

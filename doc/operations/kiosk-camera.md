@@ -258,9 +258,10 @@ The same failures, without the details, are on the kiosk's page in the dashboard
 | `blurred` | The face is not sharp. | Focus (step 6). A long exposure also blurs moving heads: stay at or below `333`. |
 | `too_small` | Too little face: the person was too far away, or the lens is very wide. | The kiosk app already asks for an arm's length; a narrower camera, or the camera closer to where people stand. |
 | `no_face`, `off_angle` | No face found, or not looking straight ahead. | Usually the person, not the camera. If it is constant, check the camera's height and angle. |
+| `out_of_frame` | The face is at the edge of the picture, or so close it nearly fills it: too little around it for the anti-spoofing model to judge. | Usually the person. If it is constant, the camera is aimed off where people stand, or the lens is too narrow. |
 | `multiple_faces` | A second face is in view. | Something behind the kiosk: a poster, a mirror, a queue. |
 | `not_live`, `flash` | The colour flashes were not seen on the face. | White balance or exposure still automatic — check `iden-kiosk logs camera` shows them held. Then: screen brightness, or bright light on the face drowning out the screen. |
-| `not_live`, `anti_spoofing` | The anti-spoofing models judged the face not live. | Usually poor light or a noisy picture: more even light on the face, less `gain`. |
+| `not_live`, `anti_spoofing` | The anti-spoofing model judged the face not live. | Usually poor light or a noisy picture: more even light on the face, less `gain`. |
 | `not_live`, `actions` | The head movements were not seen. | The person, not the camera: they did not turn far enough. |
 | `not_live`, `consistent` | The face did not look like the same person throughout. | Someone else stepped in, or the frames were very poor. |
 

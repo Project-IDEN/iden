@@ -9,7 +9,7 @@ DATASET is laid out as:
     attacks/<kind>/*.jpg     photos of attacks: prints, phone screens, masks…
 
 It reports the threshold that keeps the false match rate (FMR) at the target,
-the false non-match rate (FNMR) that costs, and how the anti-spoofing models do:
+the false non-match rate (FNMR) that costs, and how the anti-spoofing model does:
 APCER, the share of attacks judged live, and BPCER, the share of genuine faces
 judged fake. Run it on the same build — GPU or CPU — that serves traffic.
 """
@@ -51,11 +51,9 @@ def _describe(models: runtime.Models, path: Path) -> tuple[np.ndarray, float] | 
         models.manifest.recognizer.mean,
         models.manifest.recognizer.std,
     )[0]
-    live = live_probability(
-        models.anti_spoofing,
-        [model.crop_scale for model in models.manifest.anti_spoofing],
-        [(image, frame.seen.face)],
-    )[0]
+    (live,) = live_probability(
+        models.anti_spoofing, [(image, frame.seen.face.landmarks)]
+    )
     return vector, float(live)
 
 

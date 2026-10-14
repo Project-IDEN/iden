@@ -13,7 +13,7 @@ class ModelFile:
 
 @dataclass(frozen=True)
 class Detector(ModelFile):
-    input_size: int
+    input_sizes: list[int]
     score_threshold: float
 
 
@@ -23,11 +23,6 @@ class Recognizer(ModelFile):
     std: float
     match_threshold: float
     calibrated: bool
-
-
-@dataclass(frozen=True)
-class AntiSpoofing(ModelFile):
-    crop_scale: float
 
 
 @dataclass(frozen=True)
@@ -43,6 +38,7 @@ class Quality:
     min_brightness: float
     max_brightness: float
     max_frontal_yaw: float
+    max_out_of_frame: float
 
 
 @dataclass(frozen=True)
@@ -68,14 +64,14 @@ class Manifest:
     version: str
     detector: Detector
     recognizer: Recognizer
-    anti_spoofing: list[AntiSpoofing]
+    anti_spoofing: ModelFile
     policy: Policy
     quality: Quality
     liveness: Liveness
     sources: list[Source]
 
     def model_files(self) -> list[ModelFile]:
-        return [self.detector, self.recognizer, *self.anti_spoofing]
+        return [self.detector, self.recognizer, self.anti_spoofing]
 
 
 def load(path: Path) -> Manifest:
@@ -84,7 +80,7 @@ def load(path: Path) -> Manifest:
         version=data["version"],
         detector=Detector(**data["detector"]),
         recognizer=Recognizer(**data["recognizer"]),
-        anti_spoofing=[AntiSpoofing(**entry) for entry in data["anti_spoofing"]],
+        anti_spoofing=ModelFile(**data["anti_spoofing"]),
         policy=Policy(**data["policy"]),
         quality=Quality(**data["quality"]),
         liveness=Liveness(**data["liveness"]),

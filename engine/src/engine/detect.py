@@ -43,10 +43,10 @@ def _anchor_centres(size: int, stride: int) -> np.ndarray:
     return np.repeat(centres, ANCHORS_PER_CELL, axis=0)
 
 
-def detect(
+def _candidates(
     session: ort.InferenceSession, image: np.ndarray, size: int, threshold: float
-) -> list[Face]:
-    """Every face above `threshold`, largest first."""
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Boxes, scores and landmarks above `threshold` at one input size, before NMS."""
     canvas, scale = _letterbox(image, size)
     blob = cv2.dnn.blobFromImage(
         canvas, 1 / 128, (size, size), (127.5, 127.5, 127.5), swapRB=True
@@ -69,9 +69,30 @@ def detect(
         landmarks.append(centres[:, None, :] + points.reshape(-1, 5, 2))
         scores.append(score[keep])
 
-    all_boxes = np.concatenate(boxes) / scale
-    all_scores = np.concatenate(scores)
-    all_landmarks = np.concatenate(landmarks) / scale
+    return (
+        np.concatenate(boxes) / scale,
+        np.concatenate(scores),
+        np.concatenate(landmarks) / scale,
+    )
+
+
+def detect(
+    session: ort.InferenceSession,
+    image: np.ndarray,
+    sizes: list[int],
+    threshold: float,
+) -> list[Face]:
+    """Every face above `threshold`, largest first.
+
+    Run at every input size and merged by one NMS. SCRFD finds faces of a
+    certain range of sizes in its input: a large size finds a face across the
+    room, a small one a face right in front of the camera that fills the
+    picture and that the large size misses.
+    """
+    found = [_candidates(session, image, size, threshold) for size in sizes]
+    all_boxes = np.concatenate([boxes for boxes, _, _ in found])
+    all_scores = np.concatenate([scores for _, scores, _ in found])
+    all_landmarks = np.concatenate([landmarks for _, _, landmarks in found])
     if len(all_scores) == 0:
         return []
 

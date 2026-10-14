@@ -17,13 +17,31 @@ TEMPLATE = np.array(
 )
 
 
+def similarity(source: np.ndarray, target: np.ndarray) -> np.ndarray:
+    """The 2×3 rotation, uniform scale and shift that best maps `source` onto
+    `target` in the least-squares sense (Umeyama).
+
+    Every point counts, as in the alignment the models were trained with: a
+    robust fit that drops a landmark places the face somewhere they never saw.
+    """
+    source = source.astype(np.float64)
+    target = target.astype(np.float64)
+    source_mean, target_mean = source.mean(axis=0), target.mean(axis=0)
+    source_centred, target_centred = source - source_mean, target - target_mean
+
+    u, singular, vt = np.linalg.svd(target_centred.T @ source_centred / len(source))
+    sign = np.eye(2)
+    if np.linalg.det(u) * np.linalg.det(vt) < 0:
+        sign[1, 1] = -1
+    rotation = u @ sign @ vt
+    variance = source_centred.var(axis=0).sum()
+    scale = (singular * np.diag(sign)).sum() / variance if variance else 1.0
+
+    shift = target_mean - scale * rotation @ source_mean
+    return np.hstack([scale * rotation, shift[:, None]])
+
+
 def align(image: np.ndarray, landmarks: np.ndarray) -> np.ndarray:
     """The face rotated, scaled and cropped onto the template."""
-    matrix, _ = cv2.estimateAffinePartial2D(
-        landmarks.astype(np.float32), TEMPLATE, method=cv2.LMEDS
-    )
-    if matrix is None:
-        # Collinear landmarks admit no similarity transform; an exact affine
-        # fit through three of them still yields a crop to judge quality on.
-        matrix = cv2.getAffineTransform(landmarks[:3].astype(np.float32), TEMPLATE[:3])
+    matrix = similarity(landmarks, TEMPLATE)
     return cv2.warpAffine(image, matrix, (SIZE, SIZE), borderValue=(0, 0, 0))

@@ -60,7 +60,7 @@ def inspect(models: Models, step: str, image: np.ndarray) -> Frame:
     faces = detect(
         models.detector,
         image,
-        manifest.detector.input_size,
+        manifest.detector.input_sizes,
         manifest.detector.score_threshold,
     )
     if reason := quality.face_count_reason(faces):
@@ -69,7 +69,9 @@ def inspect(models: Models, step: str, image: np.ndarray) -> Frame:
     face = faces[0]
     pose = estimate(face.landmarks)
     aligned = align(image, face.landmarks)
-    reasons = quality.assess(aligned, pose, manifest.quality, frontal=is_frontal(step))
+    reasons = quality.assess(
+        image, face, aligned, pose, manifest.quality, frontal=is_frontal(step)
+    )
     return Frame(step, image, Seen(face, pose, aligned), reasons)
 
 
@@ -114,9 +116,7 @@ def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analy
     reference = normalise(np.mean([s.embedding for _, s in centre], axis=0))
 
     probabilities = live_probability(
-        models.anti_spoofing,
-        [model.crop_scale for model in manifest.anti_spoofing],
-        [(f.image, s.face) for f, s in centre],
+        models.anti_spoofing, [(f.image, s.face.landmarks) for f, s in centre]
     ).tolist()
     spoofing = liveness.anti_spoofing(probabilities, manifest.policy)
 

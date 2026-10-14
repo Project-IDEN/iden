@@ -783,7 +783,7 @@ than the argument for having written the list.
   own credential names nobody. Each kiosk is a registered device with a client of its own, paired
   with a one-time code. See [Faces](doc/concepts/biometrics.md) and [Kiosks](doc/operations/kiosks.md).
 - ~~**Biometric engine** — model selection, GPU vs CPU deployment, accuracy/latency targets.~~
-  **Settled:** open models pinned in `engine/models.toml` (the recogniser's licence is
+  **Settled:** open models pinned in `engine/models.toml` (their licences are
   research-only), CUDA when a GPU is present, and a threshold each deployment calibrates on its own
   cameras. See [The biometric engine](doc/operations/biometric-engine.md).
 - **Multi-valued profile fields** — a person with two phone numbers. Deferred: single-valued covers
