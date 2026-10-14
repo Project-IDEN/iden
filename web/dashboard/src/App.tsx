@@ -1,11 +1,12 @@
 import { ADMIN_SCOPES, BIOMETRIC_SCOPES, Brand, Button, ErrorState, Spinner } from "@iden/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ErrorResponse } from "oidc-client-ts";
 import { useAuth, type ErrorContext } from "react-oidc-context";
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
+import { createBrowserRouter, Navigate, RouterProvider, type RouteObject } from "react-router";
 import { IdenAuthProvider } from "./app/auth";
 import { basePath, config } from "./app/config";
+import { hereState } from "./app/session";
 import { Shell } from "./app/shell";
 import { ProfileRoute } from "./features/account/profile";
 import { SecurityRoute } from "./features/account/security";
@@ -39,99 +40,104 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false, refetchOnWindowFocus: false } },
 });
 
-const router = createBrowserRouter(
-  [
-    {
-      path: "/",
-      element: <Shell />,
-      children: [
-        { index: true, element: <Navigate to="/account/profile" replace /> },
-        { path: "account/profile", element: <ProfileRoute /> },
-        { path: "account/security", element: <SecurityRoute /> },
-        { path: "account/sessions", element: <SessionsRoute /> },
-        { path: "account/connections", element: <ConnectionsRoute /> },
-        { path: "account/permissions", element: <PermissionsRoute /> },
+const routes: RouteObject[] = [
+  {
+    path: "/",
+    element: <Shell />,
+    children: [
+      { index: true, element: <Navigate to="/account/profile" replace /> },
+      { path: "account/profile", element: <ProfileRoute /> },
+      { path: "account/security", element: <SecurityRoute /> },
+      { path: "account/sessions", element: <SessionsRoute /> },
+      { path: "account/connections", element: <ConnectionsRoute /> },
+      { path: "account/permissions", element: <PermissionsRoute /> },
 
-        { path: "admin/users", element: guarded("admin:users:read", <UsersRoute />) },
-        {
-          path: "admin/users/new",
-          element: guarded("admin:users:write", <UserCreateRoute />),
-        },
-        { path: "admin/users/:userId", element: guarded("admin:users:read", <UserDetailRoute />) },
-        { path: "admin/groups", element: guarded("admin:groups:read", <GroupsRoute />) },
-        {
-          path: "admin/groups/new",
-          element: guarded("admin:groups:write", <GroupCreateRoute />),
-        },
-        {
-          path: "admin/groups/:groupId",
-          element: guarded("admin:groups:read", <GroupDetailRoute />),
-        },
-        { path: "admin/roles", element: guarded("admin:roles:read", <RolesRoute />) },
-        {
-          path: "admin/roles/new",
-          element: guarded("admin:roles:write", <RoleCreateRoute />),
-        },
-        { path: "admin/roles/:roleId", element: guarded("admin:roles:read", <RoleDetailRoute />) },
-        { path: "admin/apis", element: guarded("admin:apis:read", <ApisRoute />) },
-        {
-          path: "admin/apis/new",
-          element: guarded("admin:apis:write", <ApiCreateRoute />),
-        },
-        { path: "admin/apis/:apiId", element: guarded("admin:apis:read", <ApiDetailRoute />) },
-        { path: "admin/clients", element: guarded("admin:clients:read", <ClientsRoute />) },
-        {
-          path: "admin/clients/new",
-          // Changing a client is a full administrator's action. The provider
-          // also requires the biometric scopes when that module is on.
-          element: guarded(ADMIN_SCOPES, <ClientCreateRoute />),
-        },
-        {
-          path: "admin/clients/:clientId",
-          element: guarded("admin:clients:read", <ClientDetailRoute />),
-        },
-        { path: "admin/kiosks", element: guarded("admin:kiosks:read", <KiosksRoute />) },
-        {
-          path: "admin/kiosks/new",
-          // Registering a kiosk hands the device the biometric scopes.
-          element: guarded(["admin:kiosks:write", ...BIOMETRIC_SCOPES], <KioskCreateRoute />),
-        },
-        {
-          path: "admin/kiosks/:kioskId",
-          element: guarded("admin:kiosks:read", <KioskDetailRoute />),
-        },
-        {
-          path: "admin/profile-fields",
-          element: guarded("admin:profile-fields:read", <ProfileFieldsRoute />),
-        },
-        {
-          path: "admin/profile-fields/new",
-          element: guarded("admin:profile-fields:write", <ProfileFieldCreateRoute />),
-        },
-        {
-          path: "admin/profile-fields/:fieldId",
-          element: guarded("admin:profile-fields:write", <ProfileFieldEditRoute />),
-        },
-        { path: "admin/audit", element: guarded("admin:audit:read", <AuditRoute />) },
+      { path: "admin/users", element: guarded("admin:users:read", <UsersRoute />) },
+      {
+        path: "admin/users/new",
+        element: guarded("admin:users:write", <UserCreateRoute />),
+      },
+      { path: "admin/users/:userId", element: guarded("admin:users:read", <UserDetailRoute />) },
+      { path: "admin/groups", element: guarded("admin:groups:read", <GroupsRoute />) },
+      {
+        path: "admin/groups/new",
+        element: guarded("admin:groups:write", <GroupCreateRoute />),
+      },
+      {
+        path: "admin/groups/:groupId",
+        element: guarded("admin:groups:read", <GroupDetailRoute />),
+      },
+      { path: "admin/roles", element: guarded("admin:roles:read", <RolesRoute />) },
+      {
+        path: "admin/roles/new",
+        element: guarded("admin:roles:write", <RoleCreateRoute />),
+      },
+      { path: "admin/roles/:roleId", element: guarded("admin:roles:read", <RoleDetailRoute />) },
+      { path: "admin/apis", element: guarded("admin:apis:read", <ApisRoute />) },
+      {
+        path: "admin/apis/new",
+        element: guarded("admin:apis:write", <ApiCreateRoute />),
+      },
+      { path: "admin/apis/:apiId", element: guarded("admin:apis:read", <ApiDetailRoute />) },
+      { path: "admin/clients", element: guarded("admin:clients:read", <ClientsRoute />) },
+      {
+        path: "admin/clients/new",
+        // Changing a client is a full administrator's action. The provider
+        // also requires the biometric scopes when that module is on.
+        element: guarded(ADMIN_SCOPES, <ClientCreateRoute />),
+      },
+      {
+        path: "admin/clients/:clientId",
+        element: guarded("admin:clients:read", <ClientDetailRoute />),
+      },
+      { path: "admin/kiosks", element: guarded("admin:kiosks:read", <KiosksRoute />) },
+      {
+        path: "admin/kiosks/new",
+        // Registering a kiosk hands the device the biometric scopes.
+        element: guarded(["admin:kiosks:write", ...BIOMETRIC_SCOPES], <KioskCreateRoute />),
+      },
+      {
+        path: "admin/kiosks/:kioskId",
+        element: guarded("admin:kiosks:read", <KioskDetailRoute />),
+      },
+      {
+        path: "admin/profile-fields",
+        element: guarded("admin:profile-fields:read", <ProfileFieldsRoute />),
+      },
+      {
+        path: "admin/profile-fields/new",
+        element: guarded("admin:profile-fields:write", <ProfileFieldCreateRoute />),
+      },
+      {
+        path: "admin/profile-fields/:fieldId",
+        element: guarded("admin:profile-fields:write", <ProfileFieldEditRoute />),
+      },
+      { path: "admin/audit", element: guarded("admin:audit:read", <AuditRoute />) },
 
-        {
-          path: "developer/applications",
-          element: guarded("developer:clients:read", <ApplicationsRoute />),
-        },
-        {
-          path: "developer/applications/new",
-          element: guarded("developer:clients:write", <ApplicationCreateRoute />),
-        },
-        {
-          path: "developer/applications/:applicationId",
-          element: guarded("developer:clients:read", <ApplicationDetailRoute />),
-        },
-        { path: "*", element: <Navigate to="/account/profile" replace /> },
-      ],
-    },
-  ],
-  { basename: basePath },
-);
+      {
+        path: "developer/applications",
+        element: guarded("developer:clients:read", <ApplicationsRoute />),
+      },
+      {
+        path: "developer/applications/new",
+        element: guarded("developer:clients:write", <ApplicationCreateRoute />),
+      },
+      {
+        path: "developer/applications/:applicationId",
+        element: guarded("developer:clients:read", <ApplicationDetailRoute />),
+      },
+      { path: "*", element: <Navigate to="/account/profile" replace /> },
+    ],
+  },
+];
+
+/** Made once signed in rather than at import: a router reads the address as it
+    is created, and before then it is still /callback, which the sign-in
+    replaces with the page to return to. */
+function Router() {
+  const [router] = useState(() => createBrowserRouter(routes, { basename: basePath }));
+  return <RouterProvider router={router} />;
+}
 
 /**
  * Sits between the OIDC provider and the router: nothing renders until there is
@@ -161,7 +167,7 @@ function RequireSignIn({ children }: { children: ReactNode }) {
   }
 
   if (signedOut || !auth.isAuthenticated) {
-    void auth.signinRedirect();
+    void auth.signinRedirect({ state: hereState() });
     return <Centered>{<Spinner label="Redirecting to sign in" />}</Centered>;
   }
 
@@ -201,7 +207,7 @@ export function App() {
     <IdenAuthProvider>
       <QueryClientProvider client={queryClient}>
         <RequireSignIn>
-          <RouterProvider router={router} />
+          <Router />
         </RequireSignIn>
       </QueryClientProvider>
     </IdenAuthProvider>

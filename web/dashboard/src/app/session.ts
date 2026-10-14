@@ -62,10 +62,21 @@ export function useSubject(): string | undefined {
   return useAuth().user?.profile.sub;
 }
 
+/** Carried through a sign-in, so it ends on the page that started it. */
+export interface SignInState {
+  returnTo?: string;
+}
+
+export function hereState(): SignInState {
+  const { pathname, search } = window.location;
+  // A failed callback is no page to come back to: its code is spent.
+  return pathname === `${basePath}/callback` ? {} : { returnTo: pathname + search };
+}
+
 /** Starts a step-up: RFC 9470 asks for a sign-in no older than `maxAge` seconds. */
 export function useStepUp(): (maxAge: number) => void {
   const auth = useAuth();
   return (maxAge: number) => {
-    void auth.signinRedirect({ max_age: maxAge, state: { returnTo: window.location.pathname } });
+    void auth.signinRedirect({ max_age: maxAge, state: hereState() });
   };
 }
