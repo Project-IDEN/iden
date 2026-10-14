@@ -240,7 +240,7 @@ async def enrol(
 
     challenge = await challenges.consume(redis, face_challenge_id, user.id, "enrol")
     if challenge is None:
-        raise HTTPException(status_code=404, detail=FaceChallengeInvalid())
+        raise FaceChallengeInvalid
 
     rows = await service.enrol(
         session,

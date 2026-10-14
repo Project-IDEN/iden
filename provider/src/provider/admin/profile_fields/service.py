@@ -17,7 +17,7 @@ from provider.admin.profile_fields.schemas import (
     ProfileFieldUpdate,
 )
 from provider.shared.enums import FieldType
-from provider.shared.models import Group, ProfileField, Scope, UserProfileValue
+from provider.shared.models import Group, ProfileField, Scope
 from provider.shared.profile import RESERVED_CLAIMS
 
 
@@ -124,14 +124,3 @@ async def delete_field(session: AsyncSession, field_id: UUID) -> None:
 
     await session.delete(field)
     await session.commit()
-
-
-async def value_count(session: AsyncSession, field_id: UUID) -> int:
-    return (
-        await session.scalar(
-            select(func.count())
-            .select_from(UserProfileValue)
-            .where(UserProfileValue.field_id == field_id)
-        )
-        or 0
-    )

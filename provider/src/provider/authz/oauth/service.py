@@ -10,7 +10,7 @@ from provider.authz.services.pkce import verify_challenge
 from provider.authz.services.token_service import now
 from provider.core.config import settings
 from provider.core.security import generate_token, hash_token, verify_secret_async
-from provider.shared.enums import ClientType, GrantType
+from provider.shared.enums import ClientType
 from provider.shared.models import AuthorizationCode, Client, User
 
 
@@ -167,7 +167,3 @@ async def consume_code(
     record.used_at = now()
     await session.flush()
     return record
-
-
-def grant_allowed(client: Client, grant: GrantType) -> bool:
-    return grant in client.allowed_grants

@@ -44,10 +44,6 @@ def verify_secret(hashed: str | None, secret: str) -> bool:
         return False
 
 
-def needs_rehash(hashed: str) -> bool:
-    return _hasher.check_needs_rehash(hashed)
-
-
 # Each hash holds 64 MiB for its duration, so the thread pool's default of 40
 # would let a burst of sign-ins take 2.5 GiB. Past this many, callers queue.
 _hashing_slots = anyio.CapacityLimiter(4)
