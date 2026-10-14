@@ -89,9 +89,11 @@ def _centre(frames: list[Frame]) -> list[tuple[Frame, Seen]]:
 
 def _complete(frames: list[Frame]) -> bool:
     # Movement frames are judged on landmarks, so any detected face will do; a
-    # turned head is supposed to fail frontal checks.
-    others_seen = all(f.seen is not None for f in frames if f.step != CENTRE)
-    return len(_centre(frames)) >= MIN_FRONTAL and others_seen
+    # turned head is supposed to fail frontal checks. One frame per movement is
+    # enough: a head turned far may lose the detector in the others.
+    movements = {f.step for f in frames if f.step != CENTRE}
+    seen = {f.step for f in frames if f.step != CENTRE and f.seen is not None}
+    return len(_centre(frames)) >= MIN_FRONTAL and seen == movements
 
 
 def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analysis:

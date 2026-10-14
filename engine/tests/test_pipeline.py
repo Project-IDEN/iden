@@ -21,6 +21,19 @@ def test_a_photograph_is_usable_but_not_live(models, face_image):
 
 
 @needs_models
+def test_a_movement_frame_without_a_face_is_not_fatal(models, face_image):
+    blank = np.full_like(face_image, 90)
+    frames = [face_image] * len(STEPS)
+    frames[3] = blank
+    assert pipeline.enroll(models, frames, STEPS).usable
+
+    frames[4] = frames[5] = blank
+    result = pipeline.enroll(models, frames, STEPS)
+    assert not result.usable
+    assert result.reasons == ["no_face"]
+
+
+@needs_models
 def test_the_same_face_matches_and_another_does_not(models, face_image):
     analysis = pipeline.analyse(models, [face_image] * 3, ["center"] * 3)
     assert analysis.reference is not None
