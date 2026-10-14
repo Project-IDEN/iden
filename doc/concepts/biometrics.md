@@ -96,6 +96,12 @@ three checks, and each stops something different:
 The movements are a **challenge**: issued by IDEN, good for one capture, two minutes,
 and one person. A capture made for one attempt is useless for the next.
 
+The sign-in page and the kiosk wait for each movement rather than timing it. A head tracker running
+in the browser (MediaPipe's face landmarker, served by IDEN, with no picture leaving the page for
+it) follows the head, and a bar shows how far it has turned; the frames are taken once it has gone
+far enough, while it is held there. The tracker only decides when the frames are taken: the engine
+judges every one of them itself, so a modified page gains nothing.
+
 When a capture is not good enough to judge — too dark, too far away, blurred, two faces — nothing is
 decided. The person is told what to fix, and it does not count as a failed attempt. A capture that is
 judged and fails is refused without saying which check failed, and five of those in fifteen minutes

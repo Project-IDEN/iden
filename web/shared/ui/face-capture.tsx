@@ -1,7 +1,15 @@
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, ScanFace } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Button } from "./button";
+import {
+  guidedCapture,
+  StepTimeout,
+  timedCapture,
+  type Guide,
+  type Phase,
+} from "./capture-sequence";
 import { cn } from "./cn";
+import type { HeadTracker } from "./head-tracker";
 
 /**
  * A face capture that follows the provider's challenge, frame by frame.
@@ -23,51 +31,49 @@ export interface FaceCaptureChallenge {
 
 const WIDTH = 640;
 const HEIGHT = 480;
-// Time to read a prompt and move before frames are taken, and between frames.
-// A movement's frames are spread over a second while the person holds the
-// pose: the engine counts the furthest of them, so a slow mover still lands in
-// one. Packed closer, they all caught people still on their way.
-const SETTLE_MS = { center: 900, action: 1200 } as const;
-const FRAME_GAP_MS = { center: 220, action: 500 } as const;
-// Between two movements, a moment to face the camera again, so the second
-// starts from the front rather than from wherever the first ended.
-const RECENTRE_MS = 900;
 
-const ACTIONS: Record<string, { label: string; icon: ReactNode }> = {
+const MOVES: Record<string, { label: string; icon: ReactNode }> = {
   turn_left: { label: "Slowly turn your head to your left", icon: <ArrowLeft /> },
   turn_right: { label: "Slowly turn your head to your right", icon: <ArrowRight /> },
   look_up: { label: "Tilt your head up", icon: <ArrowUp /> },
   look_down: { label: "Tilt your head down", icon: <ArrowDown /> },
 };
 
-type Phase = "starting" | "denied" | "ready" | "capturing";
-
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Consecutive identical steps, so a prompt is shown once for its frames. */
-function groups(steps: string[]): { step: string; count: number }[] {
-  return steps.reduce<{ step: string; count: number }[]>((out, step) => {
-    const last = out.at(-1);
-    if (last && last.step === step) last.count += 1;
-    else out.push({ step, count: 1 });
-    return out;
-  }, []);
+function describe({ name, step }: Phase): { prompt: string; icon: ReactNode } {
+  const move = MOVES[step];
+  if (name === "recentre") return { prompt: "Face the camera again.", icon: <ScanFace /> };
+  if (name === "hold" && move) return { prompt: "Hold it there.", icon: move.icon };
+  if (move) return { prompt: `${move.label}.`, icon: move.icon };
+  return { prompt: "Look straight at the camera.", icon: <ScanFace /> };
 }
+
+type CameraState = "starting" | "denied" | "ready" | "capturing";
+// Settled means loaded or failed: a capture started before then would be timed
+// for no reason.
+type TrackerState = "loading" | "settled";
 
 export function FaceCapture({
   challenge,
   onCaptured,
+  trackerFiles,
   startLabel = "Start",
 }: {
   challenge: FaceCaptureChallenge;
   onCaptured: (frames: Blob[]) => void;
+  /** Where the app serves the head tracker's runtime and model. */
+  trackerFiles: string;
   startLabel?: string;
 }) {
   const video = useRef<HTMLVideoElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
-  const [phase, setPhase] = useState<Phase>(() => (navigator.mediaDevices ? "starting" : "denied"));
+  const tracker = useRef<HeadTracker | null>(null);
+  const [camera, setCamera] = useState<CameraState>(() =>
+    navigator.mediaDevices ? "starting" : "denied",
+  );
+  const [tracking, setTracking] = useState<TrackerState>("loading");
   const [prompt, setPrompt] = useState<string>("Centre your face in the oval.");
   const [icon, setIcon] = useState<ReactNode>(<ScanFace />);
+  const [progress, setProgress] = useState<number | null>(null);
 
   useEffect(() => {
     let stream: MediaStream | undefined;
@@ -83,14 +89,36 @@ export function FaceCapture({
         if (cancelled) return media.getTracks().forEach((track) => track.stop());
         stream = media;
         if (video.current) video.current.srcObject = media;
-        setPhase("ready");
+        setCamera("ready");
       })
-      .catch(() => setPhase("denied"));
+      .catch(() => setCamera("denied"));
     return () => {
       cancelled = true;
       stream?.getTracks().forEach((track) => track.stop());
     };
   }, []);
+
+  const cameraReady = camera === "ready" || camera === "capturing";
+  useEffect(() => {
+    const source = video.current;
+    if (!cameraReady || !source) return;
+    let cancelled = false;
+    // Imported here, not at the top: MediaPipe is most of a megabyte of
+    // script, and only the face step needs it.
+    import("./head-tracker")
+      .then(({ trackHead }) => trackHead(source, trackerFiles))
+      .then((started) => {
+        if (cancelled) return started.stop();
+        tracker.current = started;
+      })
+      .catch(() => undefined)
+      .finally(() => setTracking("settled"));
+    return () => {
+      cancelled = true;
+      tracker.current?.stop();
+      tracker.current = null;
+    };
+  }, [cameraReady, trackerFiles]);
 
   const frame = useCallback(async (): Promise<Blob> => {
     const source = video.current;
@@ -109,41 +137,41 @@ export function FaceCapture({
   }, []);
 
   async function run() {
-    setPhase("capturing");
+    setCamera("capturing");
     const frames: Blob[] = [];
+    const guide: Guide = {
+      phase: (phase) => {
+        const shown = describe(phase);
+        setPrompt(shown.prompt);
+        setIcon(shown.icon);
+      },
+      progress: setProgress,
+      take: async () => {
+        frames.push(await frame());
+      },
+    };
     try {
-      let previous: string | null = null;
-      for (const { step, count } of groups(challenge.steps)) {
-        const action = ACTIONS[step];
-        if (action && previous && ACTIONS[previous]) {
-          setPrompt("Face the camera again.");
-          setIcon(<ScanFace />);
-          await wait(RECENTRE_MS);
-        }
-        previous = step;
-
-        const kind = action ? "action" : "center";
-        setPrompt(action?.label ?? "Look straight at the camera.");
-        setIcon(action?.icon ?? <ScanFace />);
-        await wait(SETTLE_MS[kind]);
-        if (action) setPrompt("Hold it there.");
-        for (let i = 0; i < count; i += 1) {
-          frames.push(await frame());
-          await wait(FRAME_GAP_MS[kind]);
-        }
-      }
-    } catch {
-      // The camera went away mid-capture: unplugged, or taken by another program.
-      setPhase("ready");
-      setPrompt("The camera stopped. Check it is connected, then start again.");
+      if (tracker.current) await guidedCapture(challenge.steps, tracker.current, guide);
+      else await timedCapture(challenge.steps, guide);
+    } catch (error) {
+      setCamera("ready");
+      setProgress(null);
       setIcon(<Camera />);
+      if (!(error instanceof StepTimeout)) {
+        // The camera went away mid-capture: unplugged, or taken by another program.
+        setPrompt("The camera stopped. Check it is connected, then start again.");
+      } else if (error.step === "center") {
+        setPrompt("We couldn't see your face. Centre it in the oval, then start again.");
+      } else {
+        setPrompt("We didn't see that movement. Start again, and go until the bar fills.");
+      }
       return;
     }
     setPrompt("Checking…");
     onCaptured(frames);
   }
 
-  if (phase === "denied") {
+  if (camera === "denied") {
     return (
       <p role="alert" className="text-body-sm text-error">
         The camera is unavailable. Allow camera access for this page in your browser, or use another
@@ -152,6 +180,7 @@ export function FaceCapture({
     );
   }
 
+  const starting = camera === "starting" || tracking === "loading";
   return (
     <div className="flex flex-col items-center gap-5">
       <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-surface-dark">
@@ -183,7 +212,7 @@ export function FaceCapture({
             strokeWidth="2"
             className={cn(
               "stroke-white/70",
-              phase === "capturing" && "animate-pulse stroke-primary",
+              camera === "capturing" && "animate-pulse stroke-primary",
             )}
           />
         </svg>
@@ -198,19 +227,35 @@ export function FaceCapture({
         {prompt}
       </p>
 
-      {phase !== "capturing" ? (
+      {progress !== null ? (
+        <div
+          role="progressbar"
+          aria-label="How far you have turned"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progress * 100)}
+          className="h-2 w-full max-w-xs overflow-hidden rounded-full bg-surface-card"
+        >
+          <div
+            className="h-full rounded-full bg-primary transition-[width] duration-100"
+            style={{ width: `${progress * 100}%` }}
+          />
+        </div>
+      ) : null}
+
+      {camera !== "capturing" ? (
         <>
           <p className="text-caption text-muted-foreground">
-            About eight seconds. You'll be asked to turn or tilt your head twice, and to hold it
-            there for a moment each time.
+            A few seconds. You'll be asked to turn or tilt your head twice: go until the bar fills,
+            then hold it there.
           </p>
           <Button
             variant="default"
             className="self-stretch"
-            disabled={phase !== "ready"}
+            disabled={starting}
             onClick={() => void run()}
           >
-            {phase === "starting" ? "Starting the camera…" : startLabel}
+            {starting ? "Starting the camera…" : startLabel}
           </Button>
         </>
       ) : null}

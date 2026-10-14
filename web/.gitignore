@@ -1,3 +1,6 @@
 node_modules/
 dist/
 *.local
+
+# Copied and fetched by scripts/fetch-tracker.mjs.
+auth-ui/public/tracker/

@@ -1,12 +1,20 @@
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, ScanFace } from "lucide-react";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  guidedCapture,
+  StepTimeout,
+  timedCapture,
+  type Guide,
+  type Phase,
+} from "./capture-sequence";
 import { cn } from "./cn";
+import type { HeadTracker } from "./head-tracker";
 import { useCamera } from "./use-camera";
 
 /**
  * A copy of web/shared/ui/face-capture.tsx, which auth-ui uses for sign-in, with
- * a kiosk-sized button, a camera chosen by name, and kiosk wording. Both follow the provider's challenge format; change
- * them together.
+ * a kiosk-sized button, a camera chosen by name, and kiosk wording. Both follow
+ * the provider's challenge format; change them together.
  *
  * A face capture that follows the provider's challenge, frame by frame.
  *
@@ -27,33 +35,22 @@ export interface FaceCaptureChallenge {
 
 const WIDTH = 640;
 const HEIGHT = 480;
-// Time to read a prompt and move before frames are taken, and between frames.
-// A movement's frames are spread over a second while the person holds the
-// pose: the engine counts the furthest of them, so a slow mover still lands in
-// one. Packed closer, they all caught people still on their way.
-const SETTLE_MS = { center: 900, action: 1200 } as const;
-const FRAME_GAP_MS = { center: 220, action: 500 } as const;
-// Between two movements, a moment to face the camera again, so the second
-// starts from the front rather than from wherever the first ended.
-const RECENTRE_MS = 900;
+// Built into the image beside the page by scripts/fetch-tracker.mjs.
+const TRACKER_FILES = `${import.meta.env.BASE_URL}tracker`;
 
-const ACTIONS: Record<string, { label: string; icon: ReactNode }> = {
+const MOVES: Record<string, { label: string; icon: ReactNode }> = {
   turn_left: { label: "Slowly turn your head to your left", icon: <ArrowLeft /> },
   turn_right: { label: "Slowly turn your head to your right", icon: <ArrowRight /> },
   look_up: { label: "Tilt your head up", icon: <ArrowUp /> },
   look_down: { label: "Tilt your head down", icon: <ArrowDown /> },
 };
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/** Consecutive identical steps, so a prompt is shown once for its frames. */
-function groups(steps: string[]): { step: string; count: number }[] {
-  return steps.reduce<{ step: string; count: number }[]>((out, step) => {
-    const last = out.at(-1);
-    if (last && last.step === step) last.count += 1;
-    else out.push({ step, count: 1 });
-    return out;
-  }, []);
+function describe({ name, step }: Phase): { prompt: string; icon: ReactNode } {
+  const move = MOVES[step];
+  if (name === "recentre") return { prompt: "Face the camera again.", icon: <ScanFace /> };
+  if (name === "hold" && move) return { prompt: "Hold it there.", icon: move.icon };
+  if (move) return { prompt: `${move.label}.`, icon: move.icon };
+  return { prompt: "Look straight at the camera.", icon: <ScanFace /> };
 }
 
 export function FaceCapture({
@@ -74,10 +71,35 @@ export function FaceCapture({
 }) {
   const { video, status } = useCamera(prefer);
   const canvas = useRef<HTMLCanvasElement>(null);
+  const tracker = useRef<HeadTracker | null>(null);
+  // Settled means loaded or failed: a capture started before then would be
+  // timed for no reason.
+  const [trackerSettled, setTrackerSettled] = useState(false);
   const [capturing, setCapturing] = useState(false);
-  const [taken, setTaken] = useState(0);
   const [prompt, setPrompt] = useState<string>("Centre your face in the oval.");
   const [icon, setIcon] = useState<ReactNode>(<ScanFace />);
+  const [progress, setProgress] = useState<number | null>(null);
+
+  useEffect(() => {
+    const source = video.current;
+    if (status !== "ready" || !source) return;
+    let cancelled = false;
+    // Imported here, not at the top: MediaPipe is most of a megabyte of
+    // script, and only a capture needs it.
+    import("./head-tracker")
+      .then(({ trackHead }) => trackHead(source, TRACKER_FILES))
+      .then((started) => {
+        if (cancelled) return started.stop();
+        tracker.current = started;
+      })
+      .catch(() => undefined)
+      .finally(() => setTrackerSettled(true));
+    return () => {
+      cancelled = true;
+      tracker.current?.stop();
+      tracker.current = null;
+    };
+  }, [status, video]);
 
   const frame = useCallback(async (): Promise<Blob> => {
     const source = video.current;
@@ -97,35 +119,33 @@ export function FaceCapture({
 
   async function run() {
     setCapturing(true);
-    setTaken(0);
     const frames: Blob[] = [];
+    const guide: Guide = {
+      phase: (phase) => {
+        const shown = describe(phase);
+        setPrompt(shown.prompt);
+        setIcon(shown.icon);
+      },
+      progress: setProgress,
+      take: async () => {
+        frames.push(await frame());
+      },
+    };
     try {
-      let previous: string | null = null;
-      for (const { step, count } of groups(challenge.steps)) {
-        const action = ACTIONS[step];
-        if (action && previous && ACTIONS[previous]) {
-          setPrompt("Face the camera again.");
-          setIcon(<ScanFace />);
-          await wait(RECENTRE_MS);
-        }
-        previous = step;
-
-        const kind = action ? "action" : "center";
-        setPrompt(action?.label ?? "Look straight at the camera.");
-        setIcon(action?.icon ?? <ScanFace />);
-        await wait(SETTLE_MS[kind]);
-        if (action) setPrompt("Hold it there.");
-        for (let i = 0; i < count; i += 1) {
-          frames.push(await frame());
-          setTaken(frames.length);
-          await wait(FRAME_GAP_MS[kind]);
-        }
-      }
-    } catch {
-      // The camera went away mid-capture: unplugged, or taken by another program.
+      if (tracker.current) await guidedCapture(challenge.steps, tracker.current, guide);
+      else await timedCapture(challenge.steps, guide);
+    } catch (error) {
       setCapturing(false);
-      setPrompt("The camera stopped. Check it is connected, then start again.");
+      setProgress(null);
       setIcon(<Camera />);
+      if (!(error instanceof StepTimeout)) {
+        // The camera went away mid-capture: unplugged, or taken by another program.
+        setPrompt("The camera stopped. Check it is connected, then start again.");
+      } else if (error.step === "center") {
+        setPrompt("We couldn't see your face. Stand in the oval, then start again.");
+      } else {
+        setPrompt("We didn't see that movement. Start again, and go until the bar fills.");
+      }
       return;
     }
     setPrompt("Checking…");
@@ -158,23 +178,25 @@ export function FaceCapture({
         )}
 
         {capturing ? (
-          <div
-            role="progressbar"
-            aria-label="Capture progress"
-            aria-valuemin={0}
-            aria-valuemax={challenge.steps.length}
-            aria-valuenow={taken}
-            className="h-2 w-full max-w-sm overflow-hidden rounded-full bg-surface-card"
-          >
+          progress !== null ? (
             <div
-              className="h-full rounded-full bg-primary transition-[width] duration-300"
-              style={{ width: `${(taken / challenge.steps.length) * 100}%` }}
-            />
-          </div>
+              role="progressbar"
+              aria-label="How far you have turned"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress * 100)}
+              className="h-3 w-full max-w-sm overflow-hidden rounded-full bg-surface-card"
+            >
+              <div
+                className="h-full rounded-full bg-primary transition-[width] duration-100"
+                style={{ width: `${progress * 100}%` }}
+              />
+            </div>
+          ) : null
         ) : (
           <p className="max-w-md text-title-md text-body short:text-body-md">
-            Stand about an arm's length away. It takes about eight seconds: you'll be asked to turn
-            or tilt your head twice, and to hold it there for a moment each time.
+            Stand about an arm's length away. You'll be asked to turn or tilt your head twice: go
+            until the bar fills, then hold it there.
           </p>
         )}
 
@@ -183,10 +205,10 @@ export function FaceCapture({
             <button
               type="button"
               className={cn(buttonClass, "bg-primary text-on-primary active:bg-primary-active")}
-              disabled={status !== "ready"}
+              disabled={status !== "ready" || !trackerSettled}
               onClick={() => void run()}
             >
-              {status === "starting" ? "Starting the camera…" : startLabel}
+              {status === "ready" && trackerSettled ? startLabel : "Starting the camera…"}
             </button>
           ) : null}
           {onCancel ? (

@@ -258,7 +258,7 @@ The same failures, without the details, are on the kiosk's page in the dashboard
 | `out_of_frame` | The face is at the edge of the picture, or so close it nearly fills it: too little around it for the anti-spoofing model to judge. | Usually the person. If it is constant, the camera is aimed off where people stand, or the lens is too narrow. |
 | `multiple_faces` | A second face is in view. | Something behind the kiosk: a poster, a mirror, a queue. |
 | `not_live`, `anti_spoofing` | The anti-spoofing model judged the face not live. | Usually poor light or a noisy picture: more even light on the face, less `gain`. |
-| `not_live`, `actions` | The head movements were not seen. | Usually the person: they did not turn far enough, or turned back before the frames were taken. The kiosk asks them to hold each position. |
+| `not_live`, `actions` | The head movements were not seen. | Usually the person. The kiosk waits for each movement and shows a bar until it is far enough, so this means the head tracker in the page judged a turn the engine then found too small. Often enough, and the tracker's trigger needs raising. |
 | `not_live`, `consistent` | The face did not look like the same person throughout. | Someone else stepped in, or the frames were very poor. |
 
 A tuned kiosk passes nearly every first attempt from people who follow the instructions. A failure

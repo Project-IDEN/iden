@@ -18,5 +18,7 @@ add_header Referrer-Policy "no-referrer" always;
 add_header X-Content-Type-Options "nosniff" always;
 
 # `frame-ancestors 'none'` matters most: the dashboard performs administrative
-# writes with a session the browser attaches on its own.
-add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; frame-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'" always;
+# writes with a session the browser attaches on its own. 'wasm-unsafe-eval' lets
+# the sign-in page's head tracker compile its WebAssembly; it permits no
+# JavaScript eval.
+add_header Content-Security-Policy "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; frame-src 'self'; img-src 'self' data: https:; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; connect-src 'self'" always;
