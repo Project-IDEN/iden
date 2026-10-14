@@ -366,6 +366,21 @@ class TestKioskEnrolment:
         assert response.json()["code"] == "invalid_frames"
         assert fake_engine.calls == []
 
+    async def test_frames_must_be_jpeg(
+        self, client, fake_engine, kiosk_headers, face_headers
+    ):
+        ticket = await new_ticket(client, face_headers)
+        challenge = (await kiosk_capture(client, kiosk_headers, ticket)).json()
+        response = await client.post(
+            "/biometric/enroll",
+            headers=kiosk_headers,
+            data={"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]},
+            files=[("frames", (f"{i}.png", b"\x89PNG", "image/png")) for i in range(9)],
+        )
+        assert response.status_code == 422
+        assert response.json()["code"] == "invalid_frames"
+        assert fake_engine.calls == []
+
     async def test_a_face_challenge_is_good_for_one_capture(
         self, client, fake_engine, kiosk_headers, face_headers
     ):

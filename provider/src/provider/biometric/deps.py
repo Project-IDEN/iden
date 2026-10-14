@@ -10,7 +10,7 @@ from provider.core.storage import Storage, get_storage
 MAX_FRAMES = 16
 # A 640×480 JPEG from a browser is 40–80 KB.
 MAX_FRAME_BYTES = 300_000
-FRAME_TYPES = {"image/jpeg", "image/png"}
+FRAME_TYPES = {"image/jpeg"}
 
 
 def require_biometric() -> None:
@@ -35,7 +35,7 @@ async def read_frames(frames: list[UploadFile]) -> list[bytes]:
     data = []
     for frame in frames:
         if frame.content_type not in FRAME_TYPES:
-            raise BadFrames("Frames must be JPEG or PNG images.")
+            raise BadFrames("Frames must be JPEG images.")
         content = await frame.read(MAX_FRAME_BYTES + 1)
         if len(content) > MAX_FRAME_BYTES:
             raise BadFrames("A frame is larger than the capture allows.")

@@ -1882,7 +1882,7 @@ export interface paths {
         put?: never;
         /**
          * Enrol the face in a capture
-         * @description Multipart: `ticket`, `faceChallengeId`, and one `frames` part per step of the challenge, in order (JPEG or PNG).
+         * @description Multipart: `ticket`, `faceChallengeId`, and one `frames` part per step of the challenge, in order, as JPEG.
          *
          *     The capture must pass every liveness check: the anti-spoofing model, the head movements, and the same face throughout. Any face already enrolled on the account is replaced, and the person is told by email.
          *
