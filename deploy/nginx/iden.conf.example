@@ -23,9 +23,15 @@
 # all name this origin; the issuer is compared character for character, and a
 # mismatch fails as a sign-in loop rather than an error.
 
-upstream iden_provider  { server provider:8000; keepalive 32; }
-upstream iden_auth_ui   { server auth-ui:4000;  keepalive 16; }
-upstream iden_dashboard { server dashboard:3000; keepalive 16; }
+# Docker's DNS, asked again as records expire. Without `resolve` nginx looks
+# each name up once, at start, and a container recreated by `up --build` comes
+# back on a new address while nginx keeps sending to the old one — the site is
+# down until nginx itself restarts.
+resolver 127.0.0.11 valid=10s ipv6=off;
+
+upstream iden_provider  { zone iden_provider 64k;  server provider:8000 resolve;  keepalive 32; }
+upstream iden_auth_ui   { zone iden_auth_ui 64k;   server auth-ui:4000 resolve;   keepalive 16; }
+upstream iden_dashboard { zone iden_dashboard 64k; server dashboard:3000 resolve; keepalive 16; }
 
 # The network cloudflared connects from; docker-compose.yml pins it so
 # this value can be written down rather than looked up after every `up`. Keep

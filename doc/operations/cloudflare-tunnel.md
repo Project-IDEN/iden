@@ -584,10 +584,11 @@ examples below spell the flags out, so they work either way.
     curl -s https://iden.example.org/console/config.js
     ```
 
-One more worth knowing: nginx resolves its upstreams **once, at start-up**. Recreate `provider`,
-`auth-ui` or `dashboard` on their own and they come back on new addresses that nginx does not know,
-which presents as `502` from a stack where everything is running. `restart nginx` fixes it, and
-bringing the whole stack up together never hits it because nginx starts last.
+One more worth knowing: `up -d --build` on a running stack recreates `provider`, `auth-ui` and
+`dashboard` on new addresses and leaves nginx running. The shipped `iden.conf.example` asks Docker's
+DNS again every ten seconds (`resolver` and `resolve` on each upstream), so nginx follows them. A copy
+taken before that resolved each name once, at start-up, and kept sending to the old addresses until
+nginx restarted.
 
 ---
 
@@ -601,15 +602,17 @@ bringing the whole stack up together never hits it because nginx starts last.
     shipped file has neither. Then check that the tunnel's public hostname points at **HTTP**
     `nginx:80`, not HTTPS.
 
-??? failure "`502 Bad Gateway` from nginx, but the containers are running"
-    nginx resolves upstream hostnames once, at startup. Recreate `provider`, `auth-ui` or
-    `dashboard` on their own and they come back with new addresses that nginx does not know about.
+??? failure "`502 Bad Gateway` after `up -d --build`, but the containers are running"
+    Your `deploy/nginx/iden.conf` predates the `resolver` line, so nginx looked `provider`,
+    `auth-ui` and `dashboard` up once, at start-up, and the rebuild moved them to new addresses.
+    Restart nginx to get going again:
 
     ```bash
     docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tunnel.yml restart nginx
     ```
 
-    Bringing the whole stack up together does not hit this, because nginx starts last.
+    Then copy the `resolver` line and the three `upstream` lines from `iden.conf.example` into your
+    `iden.conf`, so the next rebuild does not do it again.
 
 ??? failure "The sign-in page loads blank, with 404s for `/assets/...` in the console"
     A frontend was built without its Vite `base`, so its `index.html` is asking for the origin root
