@@ -57,6 +57,11 @@ export function useSessionId(): string | undefined {
   return useAuth().user?.profile.sid;
 }
 
+/** The signed-in person's user id. */
+export function useSubject(): string | undefined {
+  return useAuth().user?.profile.sub;
+}
+
 /** Starts a step-up: RFC 9470 asks for a sign-in no older than `maxAge` seconds. */
 export function useStepUp(): (maxAge: number) => void {
   const auth = useAuth();

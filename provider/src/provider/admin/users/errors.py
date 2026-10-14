@@ -29,3 +29,11 @@ class UnknownGroups(NotFoundError):
 class UnknownScopes(NotFoundError):
     code = "unknown_scopes"
     message = "One or more scope ids do not exist."
+
+
+class OwnAccount(ConflictError):
+    code = "own_account"
+    message = (
+        "You cannot delete or deactivate your own account. Ask another "
+        "administrator to."
+    )

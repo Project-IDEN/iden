@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from provider.admin import delegation, lockout
 from provider.admin.users.errors import (
     EmailTaken,
+    OwnAccount,
     UnknownGroups,
     UnknownRoles,
     UnknownScopes,
@@ -174,8 +175,12 @@ async def update_user(
     data: UserUpdate,
     *,
     caller_scopes: set[str],
+    caller_id: str,
 ) -> User:
     user = await get_user_to_modify(session, user_id, caller_scopes)
+
+    if data.is_active is False:
+        _refuse_own_account(user_id, caller_id)
 
     if data.username is not None and data.username != user.username:
         if await session.scalar(select(User).where(User.username == data.username)):
@@ -302,10 +307,23 @@ async def reset_password(
     return generated
 
 
+def _refuse_own_account(user_id: UUID, caller_id: str) -> None:
+    # Locking yourself out mid-session is never what was meant; another
+    # administrator can do it deliberately.
+    if str(user_id) == caller_id:
+        raise OwnAccount
+
+
 async def delete_user(
-    session: AsyncSession, redis: Redis, user_id: UUID, *, caller_scopes: set[str]
+    session: AsyncSession,
+    redis: Redis,
+    user_id: UUID,
+    *,
+    caller_scopes: set[str],
+    caller_id: str,
 ) -> None:
     user = await get_user_to_modify(session, user_id, caller_scopes)
+    _refuse_own_account(user_id, caller_id)
     await revoke_everything(session, redis, user_id)
     await session.delete(user)
     await lockout.refuse_if_last(session)

@@ -76,6 +76,16 @@ def _bearer(request: Request) -> str:
     return token
 
 
+def _inactive() -> HTTPException:
+    # The token is valid but its subject is gone or disabled. 401, not 404: the
+    # caller needs to authenticate again, not look somewhere else.
+    return HTTPException(
+        status_code=401,
+        detail="This account is no longer active.",
+        headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
+    )
+
+
 def require_scope(*required: str, audience: str | None = None):
     """Verify the access token and enforce scopes.
 
@@ -88,7 +98,9 @@ def require_scope(*required: str, audience: str | None = None):
     if audience is None and required:
         audience = _audience_for(required[0])
 
-    async def dependency(request: Request, redis: RedisDep) -> AccessToken:
+    async def dependency(
+        request: Request, redis: RedisDep, session: DBSessionDep
+    ) -> AccessToken:
         raw = _bearer(request)
 
         try:
@@ -129,13 +141,18 @@ def require_scope(*required: str, audience: str | None = None):
             )
 
         # A client_credentials token's subject is the client itself, not a
-        # person, so only parse it as a user id when it is one.
+        # person — and a client id may look like a user id.
         subject = claims["sub"]
-        set_actor(
-            request,
-            user_id=uuid.UUID(subject) if _is_uuid(subject) else None,
-            client_id=claims["client_id"],
-        )
+        is_person = subject != claims["client_id"] and _is_uuid(subject)
+        user_id = uuid.UUID(subject) if is_person else None
+        # The authority is the account's, and a token outlives a deletion or a
+        # deactivation by its whole lifetime — so the account is looked up on
+        # every request, not trusted from the token.
+        if user_id is not None:
+            user = await session.get(User, user_id)
+            if user is None or not user.is_active:
+                raise _inactive()
+        set_actor(request, user_id=user_id, client_id=claims["client_id"])
 
         aud = claims["aud"]
         return AccessToken(
@@ -200,14 +217,8 @@ async def get_current_user(token: CurrentTokenDep, session: DBSessionDep) -> Use
     `/developer/*` both start here.
     """
     user = await session.get(User, uuid.UUID(token.subject))
-    if user is None or not user.is_active:
-        # The token is valid but its subject is gone or disabled. 401, not 404:
-        # the caller needs to authenticate again, not look somewhere else.
-        raise HTTPException(
-            status_code=401,
-            detail="This account is no longer active.",
-            headers={"WWW-Authenticate": 'Bearer error="invalid_token"'},
-        )
+    if user is None:
+        raise _inactive()
     return user
 
 

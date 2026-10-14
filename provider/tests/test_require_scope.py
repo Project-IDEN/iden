@@ -4,19 +4,24 @@ No such route exists yet, so these tests mount a minimal app of their own —
 which is also the clearest way to show what the dependency actually enforces.
 """
 
+import uuid
+
 import pytest
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from provider.authz.services import token_service as tokens
 from provider.core.auth import AccessToken, require_scope
+from provider.core.db import get_db_session
 from provider.core.redis import get_redis
+from provider.shared.enums import ClientType, GrantType
+from provider.shared.models import Client
 
 pytestmark = pytest.mark.usefixtures("catalogue")
 
 
 @pytest.fixture
-async def guarded(redis):
+async def guarded(redis, db):
     app = FastAPI()
 
     @app.get("/admin/users")
@@ -32,6 +37,7 @@ async def guarded(redis):
         return {"sub": token.subject}
 
     app.dependency_overrides[get_redis] = lambda: redis
+    app.dependency_overrides[get_db_session] = lambda: db
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://guarded") as http:
@@ -131,3 +137,33 @@ async def test_expired_token_is_401(guarded, mint, monkeypatch):
     monkeypatch.undo()
 
     assert (await guarded.get("/admin/users", headers=bearer(token))).status_code == 401
+
+
+async def test_a_deleted_persons_token_is_401(guarded, mint, admin_user, db):
+    token, _ = await mint("admin:users:read")
+    await db.delete(admin_user)
+    await db.commit()
+
+    response = await guarded.get("/admin/users", headers=bearer(token))
+
+    assert response.status_code == 401
+
+
+async def test_a_client_whose_id_looks_like_a_user_id_is_not_a_person(guarded, db):
+    """A client_credentials token's subject is its client id, and an
+    administrator may choose one shaped like a UUID."""
+    machine = Client(
+        client_id=str(uuid.uuid4()),
+        name="Machine",
+        client_type=ClientType.CONFIDENTIAL,
+        allowed_grants=[GrantType.CLIENT_CREDENTIALS],
+    )
+    db.add(machine)
+    await db.flush()
+    token, _, _ = await tokens.mint_access_token(
+        db, subject=machine.client_id, client=machine, scopes={"admin:users:read"}
+    )
+
+    response = await guarded.get("/admin/users", headers=bearer(token))
+
+    assert response.status_code == 200

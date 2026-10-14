@@ -16,7 +16,7 @@ import { Plus } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { useApi } from "../../app/api";
-import { useHasScope } from "../../app/session";
+import { useHasScope, useSubject } from "../../app/session";
 import { PageHeader } from "../../app/shell";
 import { useList, useRecord, useWrite, type EffectiveScopes, type UserRecord } from "./api";
 import { SetPicker } from "./picker";
@@ -136,6 +136,8 @@ export function UserDetailRoute() {
   // read-only: the endpoints behind them refuse, and an editor that saves to a
   // 403 is worse than one that is not offered.
   const mayGrant = useHasScope("admin:grants:write");
+  // The provider refuses it: deleting yourself would end this session for good.
+  const isSelf = useSubject() === userId;
 
   const [deleting, setDeleting] = useState(false);
   const [resetting, setResetting] = useState(false);
@@ -273,10 +275,17 @@ export function UserDetailRoute() {
         ) : null}
         <div className="flex flex-wrap gap-3">
           <Button onClick={() => setResetting(true)}>Issue a new password</Button>
-          <Button variant="destructive" onClick={() => setDeleting(true)}>
-            Delete user
-          </Button>
+          {!isSelf ? (
+            <Button variant="destructive" onClick={() => setDeleting(true)}>
+              Delete user
+            </Button>
+          ) : null}
         </div>
+        {isSelf ? (
+          <p className="mt-3 text-caption text-muted-foreground">
+            This is your account. Another administrator can delete or deactivate it.
+          </p>
+        ) : null}
       </section>
 
       <ConfirmDialog

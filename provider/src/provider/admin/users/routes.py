@@ -208,14 +208,16 @@ async def effective_scopes(user_id: UUID, session: DBSessionDep) -> EffectiveSco
         "Deactivating a user (`isActive: false`) immediately revokes every "
         "session and refresh token — otherwise the account stays usable until "
         "they expire on their own.\n\n"
-        "Deactivating the last active administrator is refused with `409`.\n\n"
+        "Deactivating the last active administrator is refused with `409`, "
+        "and so is deactivating your own account (`own_account`).\n\n"
         "**Required scope:** `admin:users:write`"
     ),
     responses={
         404: {"model": ErrorResponse, "description": "No such user"},
         409: {
             "model": ErrorResponse,
-            "description": "Username taken, or would leave no administrator",
+            "description": "Username taken, would leave no administrator, or "
+            "is the caller's own account",
         },
     },
 )
@@ -228,7 +230,12 @@ async def update_user(
 ) -> UserResponse:
     return to_response(
         await service.update_user(
-            session, redis, user_id, body, caller_scopes=token.scopes
+            session,
+            redis,
+            user_id,
+            body,
+            caller_scopes=token.scopes,
+            caller_id=token.subject,
         )
     )
 
@@ -406,11 +413,17 @@ async def clear_totp(
     description=(
         "Removes the account and everything hanging off it. Consider "
         "deactivating instead — deletion loses the audit trail of who did what.\n\n"
+        "Every session it has ends, and its access tokens stop working at once. "
+        "Your own account is refused with `409 own_account`.\n\n"
         "**Required scope:** `admin:users:write`" + OUTRANK_NOTE
     ),
     responses={
         404: {"model": ErrorResponse, "description": "No such user"},
-        409: {"model": ErrorResponse, "description": "Would leave no administrator"},
+        409: {
+            "model": ErrorResponse,
+            "description": "Would leave no administrator, or is the caller's own "
+            "account (`own_account`)",
+        },
         403: {
             "model": ErrorResponse,
             "description": "This account holds authority the caller does not",
@@ -420,7 +433,9 @@ async def clear_totp(
 async def delete_user(
     user_id: UUID, session: DBSessionDep, redis: RedisDep, token: WriteToken
 ) -> Response:
-    await service.delete_user(session, redis, user_id, caller_scopes=token.scopes)
+    await service.delete_user(
+        session, redis, user_id, caller_scopes=token.scopes, caller_id=token.subject
+    )
     return Response(status_code=204)
 
 

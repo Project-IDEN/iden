@@ -190,22 +190,12 @@ class TestUserFiltering:
         assert len(body["items"]) == 1
 
 
-class TestDeactivation:
-    async def test_deactivated_user_cannot_refresh(
-        self, client, admin_headers, db, catalogue
-    ):
-        """Deactivation has to reach live credentials, or the account stays
-        usable until they expire on their own."""
-        from tests.flows import get_tokens
-
-        tokens = await get_tokens(client)
-        me = (
-            await client.get("/admin/users?search=admin@test", headers=admin_headers)
-        ).json()
-        user_id = me["items"][0]["id"]
-
-        # A second administrator first: deactivating the only one is refused,
-        # and this test is about credentials, not about the lockout guard.
+@pytest.fixture
+async def deputy_headers(client, admin_headers, db, catalogue, token_for):
+    """A second administrator's token, for acting on the first: nobody may
+    delete or deactivate themselves, and the only administrator is protected
+    besides."""
+    created = (
         await client.post(
             "/admin/users",
             json={
@@ -216,9 +206,26 @@ class TestDeactivation:
             },
             headers=admin_headers,
         )
+    ).json()
+    deputy = await db.get(User, UUID(created["id"]))
+    scopes = [value for value in catalogue["scopes"] if value.startswith("admin:")]
+    return await token_for(*scopes, user=deputy)
+
+
+class TestDeactivation:
+    async def test_deactivated_user_cannot_refresh(
+        self, client, deputy_headers, admin_user
+    ):
+        """Deactivation has to reach live credentials, or the account stays
+        usable until they expire on their own."""
+        from tests.flows import get_tokens
+
+        tokens = await get_tokens(client)
 
         await client.patch(
-            f"/admin/users/{user_id}", json={"isActive": False}, headers=admin_headers
+            f"/admin/users/{admin_user.id}",
+            json={"isActive": False},
+            headers=deputy_headers,
         )
 
         refreshed = await client.post(
@@ -230,6 +237,56 @@ class TestDeactivation:
             },
         )
         assert refreshed.status_code == 400
+
+    async def test_their_access_token_stops_working_at_once(
+        self, client, admin_headers, deputy_headers, admin_user
+    ):
+        """An access token is good for minutes after it is issued, and the
+        authority in it is the account's."""
+        await client.patch(
+            f"/admin/users/{admin_user.id}",
+            json={"isActive": False},
+            headers=deputy_headers,
+        )
+
+        response = await client.get("/admin/users", headers=admin_headers)
+        assert response.status_code == 401
+
+
+class TestOwnAccount:
+    async def test_cannot_be_deactivated(
+        self, client, admin_headers, deputy_headers, admin_user
+    ):
+        response = await client.patch(
+            f"/admin/users/{admin_user.id}",
+            json={"isActive": False},
+            headers=admin_headers,
+        )
+
+        assert response.status_code == 409
+        assert response.json()["code"] == "own_account"
+
+    async def test_cannot_be_deleted(
+        self, client, admin_headers, deputy_headers, admin_user
+    ):
+        response = await client.delete(
+            f"/admin/users/{admin_user.id}", headers=admin_headers
+        )
+
+        assert response.status_code == 409
+        assert response.json()["code"] == "own_account"
+
+
+class TestDeletion:
+    async def test_their_access_token_stops_working_at_once(
+        self, client, admin_headers, token_for, member
+    ):
+        member_headers = await token_for("entity:profile:read", user=member)
+
+        await client.delete(f"/admin/users/{member.id}", headers=admin_headers)
+
+        response = await client.get("/entity/profile", headers=member_headers)
+        assert response.status_code == 401
 
 
 class TestPasswordReset:

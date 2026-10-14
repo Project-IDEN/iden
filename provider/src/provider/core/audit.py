@@ -239,10 +239,9 @@ async def _write(scope: Scope, body: bytes, status_code: int) -> None:
 
     try:
         async with session_factory() as session:
-            label = None
+            user = None
             if actor.user_id is not None:
                 user = await session.get(User, actor.user_id)
-                label = user.email if user else None
 
             session.add(
                 AuditEvent(
@@ -255,8 +254,12 @@ async def _write(scope: Scope, body: bytes, status_code: int) -> None:
                         or (str(list(params.values())[-1]) if params else None),
                         TARGET_LIMIT,
                     ),
-                    actor_user_id=actor.user_id,
-                    actor_label=_clip_optional(label, ACTOR_LABEL_LIMIT),
+                    # Gone when the account was deleted while the request ran;
+                    # naming it anyway fails the foreign key and loses the entry.
+                    actor_user_id=user.id if user else None,
+                    actor_label=_clip_optional(
+                        user.email if user else None, ACTOR_LABEL_LIMIT
+                    ),
                     actor_client=actor.client_id,
                     ip=_clip_optional(
                         scope["client"][0] if scope.get("client") else None, IP_LIMIT

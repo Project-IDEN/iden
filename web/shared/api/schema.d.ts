@@ -841,6 +841,8 @@ export interface paths {
          * Delete a user
          * @description Removes the account and everything hanging off it. Consider deactivating instead — deletion loses the audit trail of who did what.
          *
+         *     Every session it has ends, and its access tokens stop working at once. Your own account is refused with `409 own_account`.
+         *
          *     **Required scope:** `admin:users:write`
          *
          *     **You cannot act on an account above your own.** If the target holds an `admin:` or `biometric:` scope the caller does not, the request is refused with `403 cannot_administer` — otherwise resetting a password and clearing an authenticator would together be a way to become somebody more privileged than you.
@@ -854,7 +856,7 @@ export interface paths {
          *
          *     Deactivating a user (`isActive: false`) immediately revokes every session and refresh token — otherwise the account stays usable until they expire on their own.
          *
-         *     Deactivating the last active administrator is refused with `409`.
+         *     Deactivating the last active administrator is refused with `409`, and so is deactivating your own account (`own_account`).
          *
          *     **Required scope:** `admin:users:write`
          */
@@ -6596,7 +6598,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Would leave no administrator */
+            /** @description Would leave no administrator, or is the caller's own account (`own_account`) */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -6649,7 +6651,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Username taken, or would leave no administrator */
+            /** @description Username taken, would leave no administrator, or is the caller's own account */
             409: {
                 headers: {
                     [name: string]: unknown;

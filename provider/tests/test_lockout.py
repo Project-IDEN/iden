@@ -20,6 +20,18 @@ async def only_admin(client, admin_headers, admin_user):
     return admin_user
 
 
+@pytest.fixture
+def as_member(token_for, member, catalogue):
+    """The member's token with every admin scope, once they have been made an
+    administrator: nobody may deactivate or delete their own account."""
+
+    async def headers():
+        scopes = [v for v in catalogue["scopes"] if v.startswith("admin:")]
+        return await token_for(*scopes, user=member)
+
+    return headers
+
+
 def refused(response) -> bool:
     return (
         response.status_code == 409
@@ -40,20 +52,23 @@ class TestTheLastAdministrator:
         assert refused(response)
 
     async def test_cannot_be_deactivated(self, client, admin_headers, only_admin):
+        """Refused before this guard is reached: nobody may deactivate
+        themselves, and nobody else can act on an administrator who outranks
+        them."""
         response = await client.patch(
             f"/admin/users/{only_admin.id}",
             json={"isActive": False},
             headers=admin_headers,
         )
 
-        assert refused(response)
+        assert response.status_code == 409
 
     async def test_cannot_be_deleted(self, client, admin_headers, only_admin):
         response = await client.delete(
             f"/admin/users/{only_admin.id}", headers=admin_headers
         )
 
-        assert refused(response)
+        assert response.status_code == 409
 
     async def test_the_refusal_leaves_them_exactly_as_they_were(
         self, client, admin_headers, only_admin, db
@@ -76,7 +91,7 @@ class TestOnceThereIsASecond:
     counts, however they came by the scope."""
 
     async def test_a_second_direct_grant_is_enough(
-        self, client, admin_headers, only_admin, member, scope_of
+        self, client, admin_headers, only_admin, member, scope_of, as_member
     ):
         response = await client.put(
             f"/admin/users/{member.id}/scopes",
@@ -89,12 +104,12 @@ class TestOnceThereIsASecond:
         response = await client.patch(
             f"/admin/users/{only_admin.id}",
             json={"isActive": False},
-            headers=admin_headers,
+            headers=await as_member(),
         )
         assert response.status_code == 200
 
     async def test_a_second_via_a_group_is_enough(
-        self, client, admin_headers, only_admin, member, catalogue, db
+        self, client, admin_headers, only_admin, member, catalogue, db, as_member
     ):
         staff = Group(name="staff")
         db.add(staff)
@@ -112,7 +127,7 @@ class TestOnceThereIsASecond:
         )
 
         response = await client.delete(
-            f"/admin/users/{only_admin.id}", headers=admin_headers
+            f"/admin/users/{only_admin.id}", headers=await as_member()
         )
         assert response.status_code == 204
 
@@ -125,9 +140,9 @@ class TestOnceThereIsASecond:
         member.scopes = [scope_of(RECOVERY_SCOPE)]
         await db.commit()
 
-        response = await client.patch(
-            f"/admin/users/{only_admin.id}",
-            json={"isActive": False},
+        response = await client.put(
+            f"/admin/users/{only_admin.id}/roles",
+            json={"roleIds": []},
             headers=admin_headers,
         )
         assert refused(response)
