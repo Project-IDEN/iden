@@ -24,8 +24,14 @@ export interface FaceCaptureChallenge {
 const WIDTH = 640;
 const HEIGHT = 480;
 // Time to read a prompt and move before frames are taken, and between frames.
-const SETTLE_MS = { center: 900, action: 1300 } as const;
-const FRAME_GAP_MS = { center: 220, action: 260 } as const;
+// A movement's frames are spread over a second while the person holds the
+// pose: the engine counts the furthest of them, so a slow mover still lands in
+// one. Packed closer, they all caught people still on their way.
+const SETTLE_MS = { center: 900, action: 1200 } as const;
+const FRAME_GAP_MS = { center: 220, action: 500 } as const;
+// Between two movements, a moment to face the camera again, so the second
+// starts from the front rather than from wherever the first ended.
+const RECENTRE_MS = 900;
 
 const ACTIONS: Record<string, { label: string; icon: ReactNode }> = {
   turn_left: { label: "Slowly turn your head to your left", icon: <ArrowLeft /> },
@@ -106,12 +112,21 @@ export function FaceCapture({
     setPhase("capturing");
     const frames: Blob[] = [];
     try {
+      let previous: string | null = null;
       for (const { step, count } of groups(challenge.steps)) {
         const action = ACTIONS[step];
+        if (action && previous && ACTIONS[previous]) {
+          setPrompt("Face the camera again.");
+          setIcon(<ScanFace />);
+          await wait(RECENTRE_MS);
+        }
+        previous = step;
+
         const kind = action ? "action" : "center";
         setPrompt(action?.label ?? "Look straight at the camera.");
         setIcon(action?.icon ?? <ScanFace />);
         await wait(SETTLE_MS[kind]);
+        if (action) setPrompt("Hold it there.");
         for (let i = 0; i < count; i += 1) {
           frames.push(await frame());
           await wait(FRAME_GAP_MS[kind]);
@@ -186,7 +201,8 @@ export function FaceCapture({
       {phase !== "capturing" ? (
         <>
           <p className="text-caption text-muted-foreground">
-            About six seconds. You'll be asked to turn or tilt your head twice.
+            About eight seconds. You'll be asked to turn or tilt your head twice, and to hold it
+            there for a moment each time.
           </p>
           <Button
             variant="default"
