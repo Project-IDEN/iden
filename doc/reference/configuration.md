@@ -96,8 +96,8 @@ files set it to `cuda`.
 | `ENGINE_MANIFEST` | `models.toml` | The models, their checksums, and the thresholds calibrated for them. |
 | `ENGINE_ENV` | `dev` | `prod` hides `/docs` and requires the token. |
 | `ENGINE_LOG_LEVEL` | `info` | |
-| `ENGINE_MAX_FRAMES` | `16` | Frames accepted in one capture. A capture is 13; this is the ceiling. |
-| `ENGINE_MAX_FRAME_BYTES` | `400000` | Size of one encoded frame. |
+| `ENGINE_MAX_FRAMES` | `16` | Frames accepted in one capture. An enrolment is 9 and a sign-in 3; this is the ceiling. |
+| `ENGINE_MAX_FRAME_BYTES` | `400000` | Size of one encoded frame. Frames are JPEG; anything else is refused. |
 | `ENGINE_MAX_PIXELS` | `4000000` | Decoded pixels in one frame — a small file can declare a huge canvas. |
 
 ## The kiosk server

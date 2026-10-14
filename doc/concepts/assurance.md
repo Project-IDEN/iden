@@ -42,10 +42,12 @@ Any second factor answers it. Someone with an authenticator **and** an enrolled 
 either, and the face satisfies the rule as well as a code does. An enrolled face alone does not
 create the rule: someone at a laptop without a camera must still be able to sign in.
 
-Two details follow from it:
+Three details follow from it:
 
 - An **unconfirmed** enrollment does not count. A credential exists from the moment someone opens the
   QR code, and treating that as a factor would lock out anyone who walked away from the screen.
+- A code **signs in once**. It stays valid for up to 90 seconds, and without this a code someone
+  watched being typed, or a phishing page relayed, would sign a second browser in beside the first.
 - The rule is enforced at `/oauth2/authorize`, not only in the sign-in steps. That endpoint is what
   issues the authorization code, so a session that skipped the code form and returned to the resume
   URL is sent back rather than handed one.

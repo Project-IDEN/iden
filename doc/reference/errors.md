@@ -92,7 +92,7 @@ What the face routes answer, and what a screen should do about each.
 | `poor_capture` | 422 | Nothing was decided: the picture was not good enough to judge. `details.reasons` says what to fix — `no_face`, `multiple_faces`, `too_small`, `blurred`, `too_dark`, `too_bright`, `off_angle`, `out_of_frame`. Not a failed attempt. |
 | `face_rejected` | 401 | At sign-in: not live, or not this person. Deliberately not said which. Counts toward a lockout. |
 | `not_live` | 422 | At a kiosk: the capture failed liveness. `details.failed` names the checks. The kiosk is supervised, so it is told. |
-| `invalid_frames` | 422 | The frames do not match the challenge — wrong count, not images, or too large. |
+| `invalid_frames` | 422 | The frames do not match the challenge — wrong count, not JPEG, or too large. |
 | `face_challenge_invalid` | 404 | The capture's challenge expired or was used. Fetch a new one. |
 | `enrolment_ticket_invalid` | 404 | The kiosk ticket expired, was used, was replaced, or ran out of attempts. |
 | `kiosk_out_of_service` | 403 | The kiosk has been switched out of service in the dashboard. |
