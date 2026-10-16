@@ -21,6 +21,10 @@ ENGINE_TOKEN_FILE=../provider/keys/engine.token uv run uvicorn engine.app:app --
 Checks, from `engine/`: `uv run ruff format . && uv run ruff check . && uv run pyright && uv run pytest`.
 Tests that need the models are skipped until they are fetched.
 
+`uv run python -m scripts.bench` times a capture through every stage, for comparing a CPU with a GPU
+or one model with another; load tests over HTTP are in `perf/` at the root. Both:
+[doc/operations/performance.md](../doc/operations/performance.md).
+
 `models.toml` pins each model by checksum and holds the thresholds calibrated for it; `eval/` measures
 them on your own images. **The default models' licences are non-commercial.**
 
