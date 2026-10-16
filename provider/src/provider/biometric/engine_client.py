@@ -99,6 +99,13 @@ def _token() -> str | None:
     return path.read_text().strip() if path.is_file() else None
 
 
+# One for the process, so a face check reuses a pooled connection rather than
+# opening a new one to the engine. Closed in the app's lifespan.
+client = httpx.AsyncClient(
+    base_url=settings.iden_engine_base_url, timeout=settings.iden_engine_timeout
+)
+
+
 class HttpEngine:
     async def _request[R: BaseModel](
         self,
@@ -114,17 +121,13 @@ class HttpEngine:
             for i, frame in enumerate(frames or [])
         ]
         try:
-            async with httpx.AsyncClient(
-                base_url=settings.iden_engine_base_url,
-                timeout=settings.iden_engine_timeout,
-                headers={"Authorization": f"Bearer {token}"} if token else {},
-            ) as client:
-                response = await client.request(
-                    method,
-                    path,
-                    files=files or None,
-                    data={"meta": json.dumps(meta)} if meta is not None else None,
-                )
+            response = await client.request(
+                method,
+                path,
+                files=files or None,
+                data={"meta": json.dumps(meta)} if meta is not None else None,
+                headers={"Authorization": f"Bearer {token}"} if token else None,
+            )
         except httpx.HTTPError as exc:
             logger.error("Engine unreachable", path=path, error=type(exc).__name__)
             raise EngineUnavailable from exc
