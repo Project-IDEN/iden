@@ -1,10 +1,9 @@
 import uuid
-from collections.abc import Callable
 from contextlib import asynccontextmanager
 
 import structlog
 import uvicorn
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -12,8 +11,10 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 from sqlalchemy.exc import InterfaceError, OperationalError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.types import ASGIApp, Receive, Scope, Send
 
 from provider.authz.oauth.errors import OAuthError, RedirectableError
+from provider.biometric import engine_client
 from provider.core import redis as redis_module
 from provider.core.audit import AuditMiddleware, set_error
 from provider.core.bodylimit import BodyLimitMiddleware
@@ -59,6 +60,7 @@ async def lifespan(app: FastAPI):
     yield
     await engine.dispose()
     await redis_module.client.aclose()
+    await engine_client.client.aclose()
 
 
 # `/openapi.json` is the complete shape of the admin API, which is a map worth
@@ -80,17 +82,24 @@ app = FastAPI(
 )
 
 
-@app.middleware("http")
-async def add_request_id(request: Request, call_next: Callable) -> Response | None:
-    request_id = str(uuid.uuid4())
+class RequestIdMiddleware:
+    """Tags every log line a request produces with an id of its own.
 
-    request.state.request_id = request_id
+    Pure ASGI: `@app.middleware("http")` wraps every request and response in
+    extra tasks and streams for the sake of two lines.
+    """
 
-    structlog.contextvars.clear_contextvars()
-    structlog.contextvars.bind_contextvars(request_id=request_id)
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
 
-    response = await call_next(request)
-    return response
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] == "http":
+            structlog.contextvars.clear_contextvars()
+            structlog.contextvars.bind_contextvars(request_id=str(uuid.uuid4()))
+        await self.app(scope, receive, send)
+
+
+app.add_middleware(RequestIdMiddleware)
 
 
 @app.exception_handler(IdenError)

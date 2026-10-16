@@ -187,10 +187,10 @@ async def list_for_user(redis: Redis, user_id: UUID) -> list[Session]:
     public one and cannot be used to authenticate.
     """
     keys = [str(key) for key in await redis.smembers(_user_key(user_id))]
+    values = await redis.mget(keys) if keys else []
     sessions = []
 
-    for key in keys:
-        raw = await redis.get(key)
+    for key, raw in zip(keys, values, strict=True):
         if raw is None:
             # Expired between the index read and now; the index is cleaned up
             # lazily rather than transactionally.
