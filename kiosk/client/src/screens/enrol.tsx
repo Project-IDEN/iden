@@ -1,10 +1,8 @@
-import { describeCaptureProblems } from "../ui/capture-problems";
 import { FaceCapture } from "../ui/face-capture";
 import { useCamera } from "../ui/use-camera";
 import { ArrowLeft, CircleAlert, CircleCheck, LoaderCircle, QrCode } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import {
-  KioskError,
   enrol,
   reportCamera,
   startEnrolment,
@@ -15,6 +13,7 @@ import { useIdle } from "../hooks/use-idle";
 import { useQrScanner } from "../hooks/use-qr-scanner";
 import { CameraView } from "./camera-view";
 import { Consent } from "./consent";
+import { explain, type Problem } from "./enrol-problems";
 import { Idle } from "./idle";
 import { BigButton, Lede, Screen, Title } from "./layout";
 
@@ -27,7 +26,7 @@ type Phase =
   | { kind: "capture"; ticket: string; challenge: EnrolmentChallenge }
   | { kind: "checking"; name: string }
   | { kind: "done"; name: string }
-  | { kind: "problem"; title: string; lines: string[]; retry?: { ticket: string; left: number } };
+  | Problem;
 
 const DONE_SECONDS = 8;
 const MAX_TICKET = 512;
@@ -266,88 +265,4 @@ function Welcome({
       <CameraView video={video} status={status} />
     </Screen>
   );
-}
-
-/** What to tell the person, from IDEN's error code. */
-function explain(error: unknown, retry?: { ticket: string; left: number }): Phase {
-  const code = error instanceof KioskError ? error.code : "error";
-  switch (code) {
-    case "poor_capture":
-      return {
-        kind: "problem",
-        title: "We couldn't see your face clearly",
-        lines: describeCaptureProblems(
-          error instanceof KioskError ? error.details.reasons : undefined,
-        ),
-        retry,
-      };
-    case "not_live":
-      return {
-        kind: "problem",
-        title: "That didn't work",
-        lines: describeFailedChecks(error instanceof KioskError ? error.details.failed : undefined),
-        retry,
-      };
-    case "invalid_frames":
-      return {
-        kind: "problem",
-        title: "That didn't work",
-        lines: [
-          "Look at the screen, follow each instruction, and hold each position until the next one.",
-        ],
-        retry,
-      };
-    case "face_challenge_invalid":
-      return {
-        kind: "problem",
-        title: "That took too long",
-        lines: ["Start again when you're ready."],
-        retry,
-      };
-    case "consent_required":
-      // The wording changed during the visit — a setting changed in IDEN.
-      return {
-        kind: "problem",
-        title: "Please read this again",
-        lines: ["What enrolling involves has changed. Start again to read it before you agree."],
-      };
-    case "enrolment_ticket_invalid":
-      return {
-        kind: "problem",
-        title: "This code can't be used",
-        lines: [
-          "It has expired, was already used, or has run out of attempts.",
-          "Create a new one in IDEN under Security.",
-        ],
-      };
-    case "rate_limited":
-      return {
-        kind: "problem",
-        title: "Too many attempts",
-        lines: ["Wait a few minutes and try again."],
-      };
-    default:
-      return {
-        kind: "problem",
-        title: "Enrolment is unavailable",
-        lines: ["Something went wrong on our side. Try again later, or ask staff for help."],
-      };
-  }
-}
-
-// The kiosk is supervised, so IDEN says which liveness checks failed. Each line
-// is what the person can do about it.
-const CHECK_ADVICE: Record<string, string> = {
-  actions: "Turn your head the way each arrow shows, and keep going until you hear the chime.",
-  anti_spoofing: "Make sure your face is evenly lit, with nothing covering it, and try again.",
-  consistent: "Only one person should be in front of the camera during the capture.",
-};
-
-function describeFailedChecks(failed: unknown): string[] {
-  const lines = Array.isArray(failed)
-    ? failed.map((check) => CHECK_ADVICE[String(check)]).filter((line) => line !== undefined)
-    : [];
-  return lines.length > 0
-    ? lines
-    : ["Look at the screen, follow each instruction, and hold each position until the next one."];
 }
