@@ -68,7 +68,7 @@ for as long as the container lives, where `docker inspect` reads it.
 | `IDEN_SESSION_MAX_AGE` | `604800` (7 days) | Ends a browser session this long after sign-in, however recently it was used, so a stolen cookie or a shared computer left signed in does not stay signed in forever. Signing in again restarts it; a step-up does not. Refresh tokens are separate and follow `IDEN_REFRESH_TOKEN_TTL`. |
 | `IDEN_CHALLENGE_TTL` | `600` (10 min) | How long a pending sign-in or consent page stays valid. |
 | `IDEN_REFRESH_GRACE_PERIOD` | `30` (seconds) | How long a spent refresh token keeps returning what it was exchanged for. `0` restores strict single use, at the price of signing people out over a double-click. |
-| `IDEN_RATE_LIMIT_ENABLED` | `true` | Off only for a load test against a deployment you own. |
+| `IDEN_RATE_LIMIT_ENABLED` | `true` | Off only for a load test against a deployment you own — see [Measuring performance](../operations/performance.md). |
 | `IDEN_DEVELOPER_MAX_CLIENTS` | `5` | How many applications one account may register through `/developer/clients`. A cap on the table, not a policy — an administrator can register more on someone's behalf. |
 | `IDEN_BOOTSTRAP_ADMIN_EMAIL` | `admin@localhost` | The first administrator's address. Read only when the seed **creates** the account; changing it later seeds a second administrator rather than renaming the first. |
 | `IDEN_BOOTSTRAP_ADMIN_PASSWORD` | *empty* | Left empty, the seed generates one and prints it once. `deploy/docker-compose.yml` deliberately does not carry it — a password there would outlive its one use, in an environment `docker inspect` reads. Pass it to the seed command itself if you want to choose it. Ignored once the account exists. |

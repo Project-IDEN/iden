@@ -12,6 +12,9 @@ uv run pytest tests/test_sso.py -v
 uv run pytest -k "refresh and not concurrent"
 ```
 
+The suite is about correctness. How fast IDEN is, and how much load it takes, is measured against a
+running deployment instead: see [Measuring performance](../operations/performance.md).
+
 ## The fixtures worth knowing
 
 | Fixture | Gives you |

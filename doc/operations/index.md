@@ -13,6 +13,8 @@ Running IDEN somewhere real.
   on a Raspberry Pi, pairing it, running it with `iden-kiosk`, and revoking it.
 - **[Tuning the kiosk camera](kiosk-camera.md)** — setting any webcam up for the kiosk's light, so
   enrolment works first time.
+- **[Measuring performance](performance.md)** — timing the engine stage by stage, and load,
+  stress, spike and soak tests against the provider and the engine, with how to read the numbers.
 - **[Before you expose it](security-checklist.md)** — what must be true before anyone outside your
   machine can reach it.
 

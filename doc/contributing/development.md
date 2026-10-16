@@ -5,7 +5,7 @@ code.
 
 ## The scripts
 
-Six, all run from `provider/` as `uv run python -m scripts.<name>`.
+Seven, all run from `provider/` as `uv run python -m scripts.<name>`.
 
 | Script | Does |
 |---|---|
@@ -15,6 +15,7 @@ Six, all run from `provider/` as `uv run python -m scripts.<name>`.
 | `cleanup` | Deletes expired authorization codes and refresh tokens. `--dry-run` counts instead. Meant for a schedule — see [Deployment](../operations/deployment.md#housekeeping). |
 | `reembed_faces` | Moves enrolled faces onto the engine's current model, from the photos kept under `IDEN_BIOMETRIC_KEEP_IMAGES`. `--dry-run` counts instead. See [the biometric engine](../operations/biometric-engine.md). |
 | `change_pass` | Sets one account's password from `EMAIL` and `PASSWORD` in the environment, and signs it out everywhere. For the administrator who cannot get back in any other way. |
+| `mint_token` | Prints an access token for the person named by `EMAIL`, for load-testing the routes behind a sign-in. See [Measuring performance](../operations/performance.md). |
 
 `reset` flushes Redis as well as dropping the schema, and that is the part people forget doing it by
 hand: sessions outlive the rows they point at, so a database-only reset leaves live cookies naming
@@ -51,6 +52,7 @@ The other packages have their own checks, run from their own directories:
 | Package | Checks |
 |---|---|
 | `engine/`, `kiosk/server/` | The same four. Their format, lint and type checks are in the hook too, each scoped to its own files. The engine's model-dependent tests skip until `uv run python -m scripts.fetch_models` has run. |
+| `perf/` | A standalone uv script, not a project. Its format, lint and type checks run in the hook with the provider's tools; by hand, from the root: `uv run --project provider ruff check perf`. |
 | `web/` | `pnpm typecheck && pnpm lint && pnpm build` — see [Develop the frontends](../guides/run-the-frontends.md). |
 | `kiosk/client/` | The same three, in its own pnpm project. |
 | `kiosk/build.sh`, `kiosk/deploy/` | ShellCheck, from `kiosk/`: `docker run --rm -v "$PWD:/mnt" koalaman/shellcheck:v0.10.0 build.sh deploy/*.sh deploy/iden-kiosk`. |

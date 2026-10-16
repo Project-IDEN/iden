@@ -18,8 +18,10 @@ runs on the CPU or on an NVIDIA GPU. That is four Compose files; you use exactly
 | **On the provider's host** | `deploy/docker-compose.engine-cpu.yml` | `deploy/docker-compose.engine-gpu.yml` |
 | **On another machine** | `engine/deploy/compose.cpu.yml` | `engine/deploy/compose.gpu.yml` |
 
-The CPU is enough to try it and for light use: a capture takes a few seconds. A GPU checks one in a
-fraction of a second — see [On an NVIDIA GPU](#on-an-nvidia-gpu) for what the host needs.
+The CPU is enough to try it and for light use: a sign-in check takes about a third of a second on a
+recent laptop and can take a few seconds on an older server, and one CPU checks only a few at once.
+A GPU is many times faster — see [On an NVIDIA GPU](#on-an-nvidia-gpu) for what the host needs, and
+[Measuring performance](performance.md) to time your own hardware.
 
 Every step below needs only Docker on the machine it runs on.
 
@@ -110,7 +112,8 @@ token carries `entity:face:read`, and **Kiosks** under Administration once it ca
 
 The engine publishes no port. The provider reaches it at `http://engine:8000`, the default for
 `IDEN_ENGINE_BASE_URL`. `IDEN_ENGINE_WORKERS` in `deploy/.env` sets how many captures it checks at
-once.
+once. On a CPU, more workers help only while cores sit idle; [Measuring performance](performance.md)
+shows how to tell.
 
 ## On another machine
 

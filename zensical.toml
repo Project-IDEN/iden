@@ -65,6 +65,7 @@ nav = [
     { "The biometric engine" = "operations/biometric-engine.md" },
     { "Kiosks" = "operations/kiosks.md" },
     { "Tuning the kiosk camera" = "operations/kiosk-camera.md" },
+    { "Measuring performance" = "operations/performance.md" },
     { "Before you expose it" = "operations/security-checklist.md" },
   ] },
   { "Contributing" = [
