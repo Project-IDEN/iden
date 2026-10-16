@@ -62,6 +62,15 @@ function stepFor(methods: string[]): Step {
   return methods[0] === "face" ? "face" : "otp";
 }
 
+/**
+ * Still working, or done and on the way back to the application. Leaving the
+ * page takes a moment after `complete`, and in that moment the step must not
+ * offer itself again — the face step would restart the camera.
+ */
+function working(mutation: { isPending: boolean; data?: AuthStep }): boolean {
+  return mutation.isPending || mutation.data?.status === "complete";
+}
+
 function LoginFlow({ challengeId, isStepUp }: { challengeId: string; isStepUp: boolean }) {
   const [step, setStep] = useState<Step>();
   const [owedMethods, setOwedMethods] = useState<string[]>();
@@ -229,8 +238,8 @@ function CredentialsStep({
 
         <SignInProblem problem={problem} />
 
-        <Button type="submit" variant="default" disabled={mutation.isPending}>
-          {mutation.isPending ? "Signing in…" : "Sign in"}
+        <Button type="submit" variant="default" disabled={working(mutation)}>
+          {working(mutation) ? "Signing in…" : "Sign in"}
         </Button>
       </form>
     </AuthLayout>
@@ -397,8 +406,8 @@ function FaceStep({
             </Button>
           ) : null}
         </div>
-      ) : submit.isPending ? (
-        <Spinner label="Checking it's you" />
+      ) : working(submit) ? (
+        <Spinner label={submit.isPending ? "Checking it's you" : `Returning to ${clientName}`} />
       ) : faceChallenge.data ? (
         <FaceCapture
           key={faceChallenge.data.faceChallengeId}
@@ -479,8 +488,8 @@ function TotpStep({
           </p>
         ) : null}
 
-        <Button type="submit" variant="default" disabled={mutation.isPending}>
-          {mutation.isPending ? "Checking…" : "Continue"}
+        <Button type="submit" variant="default" disabled={working(mutation)}>
+          {working(mutation) ? "Checking…" : "Continue"}
         </Button>
       </form>
     </AuthLayout>
