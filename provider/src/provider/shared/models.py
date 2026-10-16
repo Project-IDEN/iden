@@ -173,6 +173,11 @@ class FaceTemplate(Base, TimestampMixin):
     # The enrolment photo in blob storage, encrypted, kept only when
     # IDEN_BIOMETRIC_KEEP_IMAGES is on.
     image_key: Mapped[str | None] = mapped_column(String(64))
+    # The person's agreement, given at the kiosk before the capture: when, and
+    # which wording (`biometric.consent.version`). Null on faces enrolled before
+    # consent was asked for.
+    consent_version: Mapped[str | None] = mapped_column(String(64))
+    consented_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 # --------------------------------------------------------------------------

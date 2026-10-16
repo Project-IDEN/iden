@@ -9,7 +9,7 @@ import jwt
 import pytest
 from sqlalchemy import select
 
-from provider.biometric import challenges, service
+from provider.biometric import challenges, consent, service
 from provider.biometric.engine_client import (
     Checks,
     EmbedResult,
@@ -166,7 +166,11 @@ async def enrol_at_kiosk(client, kiosk_headers, face_headers):
     return await client.post(
         "/biometric/enroll",
         headers=kiosk_headers,
-        data={"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]},
+        data={
+            "ticket": ticket,
+            "faceChallengeId": challenge["faceChallengeId"],
+            "consent": consent.version(),
+        },
         files=frames(len(challenge["steps"])),
     )
 
@@ -303,7 +307,11 @@ class TestKioskEnrolment:
     ):
         ticket = await new_ticket(client, face_headers)
         challenge = (await kiosk_capture(client, kiosk_headers, ticket)).json()
-        payload = {"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]}
+        payload = {
+            "ticket": ticket,
+            "faceChallengeId": challenge["faceChallengeId"],
+            "consent": consent.version(),
+        }
         first = await client.post(
             "/biometric/enroll", headers=kiosk_headers, data=payload, files=frames(9)
         )
@@ -323,7 +331,11 @@ class TestKioskEnrolment:
         response = await client.post(
             "/biometric/enroll",
             headers=kiosk_headers,
-            data={"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]},
+            data={
+                "ticket": ticket,
+                "faceChallengeId": challenge["faceChallengeId"],
+                "consent": consent.version(),
+            },
             files=frames(9),
         )
 
@@ -359,7 +371,11 @@ class TestKioskEnrolment:
         response = await client.post(
             "/biometric/enroll",
             headers=kiosk_headers,
-            data={"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]},
+            data={
+                "ticket": ticket,
+                "faceChallengeId": challenge["faceChallengeId"],
+                "consent": consent.version(),
+            },
             files=frames(5),
         )
         assert response.status_code == 422
@@ -374,12 +390,54 @@ class TestKioskEnrolment:
         response = await client.post(
             "/biometric/enroll",
             headers=kiosk_headers,
-            data={"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]},
+            data={
+                "ticket": ticket,
+                "faceChallengeId": challenge["faceChallengeId"],
+                "consent": consent.version(),
+            },
             files=[("frames", (f"{i}.png", b"\x89PNG", "image/png")) for i in range(9)],
         )
         assert response.status_code == 422
         assert response.json()["code"] == "invalid_frames"
         assert fake_engine.calls == []
+
+    async def test_the_consent_is_stored_with_the_face(
+        self, client, db, fake_engine, kiosk_headers, face_headers, mail
+    ):
+        assert (await enrol_at_kiosk(client, kiosk_headers, face_headers)).is_success
+
+        rows = list(await db.scalars(select(FaceTemplate)))
+        assert {row.consent_version for row in rows} == {consent.version()}
+        assert all(row.consented_at is not None for row in rows)
+
+    @pytest.mark.parametrize("given", [None, "an-older-version"])
+    async def test_no_consent_to_the_current_text_enrols_nobody(
+        self, client, db, fake_engine, kiosk_headers, face_headers, mail, given
+    ):
+        ticket = await new_ticket(client, face_headers)
+        challenge = (await kiosk_capture(client, kiosk_headers, ticket)).json()
+        payload = {"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]}
+
+        refused = await client.post(
+            "/biometric/enroll",
+            headers=kiosk_headers,
+            data=payload if given is None else {**payload, "consent": given},
+            files=frames(9),
+        )
+        assert refused.status_code == 422
+        if given:
+            assert refused.json()["code"] == "consent_required"
+        assert fake_engine.calls == []
+        assert await db.scalar(select(FaceTemplate.id)) is None
+
+        # Asking the person again is the fix, so the capture is still good.
+        agreed = await client.post(
+            "/biometric/enroll",
+            headers=kiosk_headers,
+            data={**payload, "consent": consent.version()},
+            files=frames(9),
+        )
+        assert agreed.status_code == 201
 
     async def test_a_face_challenge_is_good_for_one_capture(
         self, client, fake_engine, kiosk_headers, face_headers
@@ -389,7 +447,11 @@ class TestKioskEnrolment:
         )
         ticket = await new_ticket(client, face_headers)
         challenge = (await kiosk_capture(client, kiosk_headers, ticket)).json()
-        payload = {"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]}
+        payload = {
+            "ticket": ticket,
+            "faceChallengeId": challenge["faceChallengeId"],
+            "consent": consent.version(),
+        }
         await client.post(
             "/biometric/enroll", headers=kiosk_headers, data=payload, files=frames(9)
         )

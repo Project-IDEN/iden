@@ -7,6 +7,7 @@ do it, and what the dashboard can see of them.
 import pytest
 from sqlalchemy import select
 
+from provider.biometric import consent
 from provider.biometric.engine_client import EnrollResult
 from provider.core.config import settings
 from provider.shared.models import AuditEvent, Client, ClientScope, Kiosk
@@ -92,7 +93,11 @@ async def enrol(client, headers, face_headers):
     return await client.post(
         "/biometric/enroll",
         headers=headers,
-        data={"ticket": ticket, "faceChallengeId": challenge["faceChallengeId"]},
+        data={
+            "ticket": ticket,
+            "faceChallengeId": challenge["faceChallengeId"],
+            "consent": consent.version(),
+        },
         files=faces.frames(len(challenge["steps"])),
     )
 
@@ -245,6 +250,22 @@ class TestPairing:
 
 
 class TestHeartbeat:
+    async def test_the_kiosk_is_given_the_consent_text(
+        self, client, device, monkeypatch
+    ):
+        _, headers = device
+        given = (await heartbeat(client, headers)).json()["consent"]
+        assert given["version"] == consent.version()
+        assert given["statements"] == consent.statements()
+        assert "not kept" in " ".join(given["statements"])
+
+        # The words say what this deployment does, and saying something else
+        # is a different consent.
+        monkeypatch.setattr(settings, "iden_biometric_keep_images", True)
+        kept = (await heartbeat(client, headers)).json()["consent"]
+        assert "also kept" in " ".join(kept["statements"])
+        assert kept["version"] != given["version"]
+
     async def test_reports_in_and_reads_its_settings(self, client, kiosk_admin, device):
         kiosk, headers = device
         await client.patch(

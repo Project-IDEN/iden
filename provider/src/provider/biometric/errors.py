@@ -57,6 +57,14 @@ class BadFrames(ValidationError):
     message = "The capture does not match what was asked for."
 
 
+class ConsentRequired(ValidationError):
+    code = "consent_required"
+    message = (
+        "The person has not agreed to the current consent text. Show it again "
+        "and ask them."
+    )
+
+
 class NotLive(ValidationError):
     """Told to a kiosk only — a supervised device, not an attacker's loop."""
 

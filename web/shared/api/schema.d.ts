@@ -1882,7 +1882,9 @@ export interface paths {
         put?: never;
         /**
          * Enrol the face in a capture
-         * @description Multipart: `ticket`, `faceChallengeId`, and one `frames` part per step of the challenge, in order, as JPEG.
+         * @description Multipart: `ticket`, `faceChallengeId`, `consent`, and one `frames` part per step of the challenge, in order, as JPEG.
+         *
+         *     `consent` is the version of the consent text the person agreed to, from the heartbeat's `consent`. Anything but the current version is refused with `422 consent_required`; the version and the time are stored with the face.
          *
          *     The capture must pass every liveness check: the anti-spoofing model, the head movements, and the same face throughout. Any face already enrolled on the account is replaced, and the person is told by email.
          *
@@ -2436,6 +2438,8 @@ export interface components {
             ticket: string;
             /** Facechallengeid */
             faceChallengeId: string;
+            /** Consent */
+            consent: string;
             /** Frames */
             frames: string[];
         };
@@ -2801,6 +2805,21 @@ export interface components {
              */
             redirectUrl: string;
         };
+        /** ConsentText */
+        ConsentText: {
+            /** Title */
+            title: string;
+            /**
+             * Statements
+             * @description Show each as a paragraph, in order.
+             */
+            statements: string[];
+            /**
+             * Version
+             * @description Send back as `consent` with the enrolment once the person agrees.
+             */
+            version: string;
+        };
         /** CredentialChangeResponse */
         CredentialChangeResponse: {
             /**
@@ -3135,6 +3154,8 @@ export interface components {
              * @description When to report in next.
              */
             heartbeatSeconds: number;
+            /** @description What to show a person, and have them agree to, before anything is captured. */
+            consent: components["schemas"]["ConsentText"];
         };
         /** KioskCreate */
         KioskCreate: {
@@ -8952,7 +8973,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description Poor capture, failed liveness, or frames that do not match the challenge */
+            /** @description No consent to the current text, poor capture, failed liveness, or frames that do not match the challenge */
             422: {
                 headers: {
                     [name: string]: unknown;

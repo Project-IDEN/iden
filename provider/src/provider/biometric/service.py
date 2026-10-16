@@ -7,6 +7,7 @@ results — encrypted embeddings, and photos only when the deployment asked.
 import base64
 import uuid
 from array import array
+from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, select
@@ -75,8 +76,11 @@ async def enrol(
     kiosk: Client,
     frames: list[bytes],
     challenge: FaceChallenge,
+    *,
+    consent_version: str,
 ) -> list[FaceTemplate]:
-    """Replace this person's face with the one in `frames`."""
+    """Replace this person's face with the one in `frames`, which they agreed
+    to under `consent_version`."""
     _matches_challenge(frames, challenge)
     result = await engine.enroll(frames, challenge.steps)
     if not result.usable:
@@ -89,6 +93,7 @@ async def enrol(
 
     previous = await templates(session, user.id)
     keep = settings.iden_biometric_keep_images and storage is not None
+    consented_at = datetime.now(UTC)
     rows = []
     for vector, quality, source in zip(
         result.embeddings, result.qualities, result.sources, strict=True
@@ -109,6 +114,8 @@ async def enrol(
                 quality=quality,
                 enrolled_by=kiosk.client_id,
                 image_key=image_key,
+                consent_version=consent_version,
+                consented_at=consented_at,
             )
         )
     # Old and new swap in one transaction: a failure leaves the previous face

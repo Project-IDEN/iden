@@ -14,16 +14,18 @@ from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.admin.kiosks import service as kiosks
-from provider.biometric import challenges, pairing, service, tickets
+from provider.biometric import challenges, consent, pairing, service, tickets
 from provider.biometric.deps import FaceStorageDep, read_frames, require_biometric
 from provider.biometric.engine_client import EngineDep
 from provider.biometric.errors import (
+    ConsentRequired,
     FaceChallengeInvalid,
     KioskOutOfService,
     PairingCodeInvalid,
     TicketInvalid,
 )
 from provider.biometric.schemas import (
+    ConsentText,
     Heartbeat,
     KioskChallengeRequest,
     KioskChallengeResponse,
@@ -168,6 +170,11 @@ async def heartbeat(
         location=kiosk.location,
         settings=kiosks.settings_of(kiosk),
         heartbeat_seconds=kiosks.HEARTBEAT_SECONDS,
+        consent=ConsentText(
+            title=consent.TITLE,
+            statements=consent.statements(),
+            version=consent.version(),
+        ),
     )
 
 
@@ -207,8 +214,12 @@ async def start_enrolment(
     status_code=201,
     summary="Enrol the face in a capture",
     description=(
-        "Multipart: `ticket`, `faceChallengeId`, and one `frames` part per step "
-        "of the challenge, in order, as JPEG.\n\n"
+        "Multipart: `ticket`, `faceChallengeId`, `consent`, and one `frames` part "
+        "per step of the challenge, in order, as JPEG.\n\n"
+        "`consent` is the version of the consent text the person agreed to, from "
+        "the heartbeat's `consent`. Anything but the current version is refused "
+        "with `422 consent_required`; the version and the time are stored with "
+        "the face.\n\n"
         "The capture must pass every liveness check: the anti-spoofing model, "
         "the head movements, and the same face throughout. Any face already enrolled on the account is replaced, and "
         "the person is told by email.\n\n"
@@ -221,8 +232,8 @@ async def start_enrolment(
         **CAPTURE_FAILURES,
         422: {
             "model": ErrorResponse,
-            "description": "Poor capture, failed liveness, or frames that do not "
-            "match the challenge",
+            "description": "No consent to the current text, poor capture, failed "
+            "liveness, or frames that do not match the challenge",
         },
         503: {"model": ErrorResponse, "description": "The engine is unavailable"},
     },
@@ -232,6 +243,7 @@ async def enrol(
     request: Request,
     ticket: Annotated[str, Form()],
     face_challenge_id: Annotated[str, Form(alias="faceChallengeId")],
+    consented: Annotated[str, Form(alias="consent", max_length=64)],
     frames: Annotated[list[UploadFile], File()],
     session: DBSessionDep,
     redis: RedisDep,
@@ -241,6 +253,9 @@ async def enrol(
 ) -> KioskEnrolment:
     user, _ = await _holder(session, redis, ticket, attempt=False)
     set_target(request, str(user.id))
+    # Before the challenge is spent: the fix is to ask the person again.
+    if consented != consent.version():
+        raise ConsentRequired
 
     challenge = await challenges.consume(redis, face_challenge_id, user.id, "enrol")
     if challenge is None:
@@ -254,6 +269,7 @@ async def enrol(
         kiosk.client,
         await read_frames(frames),
         challenge,
+        consent_version=consented,
     )
     await tickets.spend(redis, ticket, user.id)
     return KioskEnrolment(enrolled=True, samples=len(rows))

@@ -77,8 +77,20 @@ class Heartbeat(CamelCaseBaseModel):
     )
 
 
+class ConsentText(CamelCaseBaseModel):
+    title: str
+    statements: list[str] = Field(description="Show each as a paragraph, in order.")
+    version: str = Field(
+        description="Send back as `consent` with the enrolment once the person agrees."
+    )
+
+
 class KioskConfig(CamelCaseBaseModel):
     name: str
     location: str | None
     settings: KioskSettings
     heartbeat_seconds: int = Field(description="When to report in next.")
+    consent: ConsentText = Field(
+        description="What to show a person, and have them agree to, before "
+        "anything is captured."
+    )
