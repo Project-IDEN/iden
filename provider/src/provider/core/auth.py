@@ -7,6 +7,7 @@ from typing import Annotated
 
 import jwt
 from fastapi import Depends, HTTPException, Request
+from sqlalchemy import select
 
 from provider.authz.services.token_service import is_denylisted
 from provider.core.audit import set_actor
@@ -147,10 +148,13 @@ def require_scope(*required: str, audience: str | None = None):
         user_id = uuid.UUID(subject) if is_person else None
         # The authority is the account's, and a token outlives a deletion or a
         # deactivation by its whole lifetime — so the account is looked up on
-        # every request, not trusted from the token.
+        # every request, not trusted from the token. One column rather than the
+        # row: a `User` brings its groups, roles and scopes with it.
         if user_id is not None:
-            user = await session.get(User, user_id)
-            if user is None or not user.is_active:
+            active = await session.scalar(
+                select(User.is_active).where(User.id == user_id)
+            )
+            if not active:
                 raise _inactive()
         set_actor(request, user_id=user_id, client_id=claims["client_id"])
 

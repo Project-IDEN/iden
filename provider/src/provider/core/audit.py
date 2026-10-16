@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from fastapi import Request
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
@@ -239,9 +240,11 @@ async def _write(scope: Scope, body: bytes, status_code: int) -> None:
 
     try:
         async with session_factory() as session:
-            user = None
+            email = None
             if actor.user_id is not None:
-                user = await session.get(User, actor.user_id)
+                email = await session.scalar(
+                    select(User.email).where(User.id == actor.user_id)
+                )
 
             session.add(
                 AuditEvent(
@@ -256,10 +259,8 @@ async def _write(scope: Scope, body: bytes, status_code: int) -> None:
                     ),
                     # Gone when the account was deleted while the request ran;
                     # naming it anyway fails the foreign key and loses the entry.
-                    actor_user_id=user.id if user else None,
-                    actor_label=_clip_optional(
-                        user.email if user else None, ACTOR_LABEL_LIMIT
-                    ),
+                    actor_user_id=actor.user_id if email else None,
+                    actor_label=_clip_optional(email, ACTOR_LABEL_LIMIT),
                     actor_client=actor.client_id,
                     ip=_clip_optional(
                         scope["client"][0] if scope.get("client") else None, IP_LIMIT
