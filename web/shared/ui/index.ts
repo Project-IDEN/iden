@@ -95,7 +95,7 @@ export { ConfirmDialog, SecretRevealOnce } from "./confirm-dialog";
 export { DataTable, Pagination, type Column } from "./data-table";
 export { DateRangePicker } from "./calendar";
 export type { DateRange } from "react-day-picker";
-export { EmptyState, ErrorState, Spinner } from "./feedback";
+export { EmptyState, ErrorState, Notice, Spinner } from "./feedback";
 export { FaceCapture, type FaceCaptureChallenge } from "./face-capture";
 export { describeCaptureProblems } from "./capture-problems";
 export { Field, SearchInput } from "./field";

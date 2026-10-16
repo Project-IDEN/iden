@@ -1,11 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
-import { Button, Field, IdenError, Input } from "@iden/shared";
+import { Button, Field, IdenError, Input, Notice } from "@iden/shared";
 import { useForm } from "react-hook-form";
 import { Link, useSearchParams } from "react-router";
 import { z } from "zod";
 import { confirmPasswordReset, requestPasswordReset } from "../api";
 import { AuthLayout } from "../AuthLayout";
+import { duration } from "../duration";
 
 const request = z.object({ email: z.string().min(1, "Enter your email address.") });
 
@@ -87,12 +88,12 @@ export function ForgotRoute() {
           )}
         </Field>
 
-        {problem ? (
-          <p role="alert" className="text-body-sm text-error">
-            {problem.status === 429
-              ? `Too many requests. Try again in ${problem.retryAfter ?? 3600} seconds.`
-              : problem.message}
-          </p>
+        {problem?.status === 429 ? (
+          <Notice tone="caution" title="Too many requests">
+            Try again in {duration(problem.retryAfter ?? 3600)}.
+          </Notice>
+        ) : problem ? (
+          <Notice title={problem.message} />
         ) : null}
 
         <Button type="submit" variant="default" disabled={mutation.isPending}>
@@ -182,20 +183,15 @@ export function ResetRoute() {
           )}
         </Field>
 
-        {problem ? (
-          <p role="alert" className="text-body-sm text-error">
-            {spent ? (
-              <>
-                This reset link has expired or was already used.{" "}
-                <a className="text-primary underline-offset-2 hover:underline" href="/auth/forgot">
-                  Request a new one
-                </a>
-                .
-              </>
-            ) : (
-              problem.message
-            )}
-          </p>
+        {spent ? (
+          <Notice tone="info" title="This reset link has expired or was already used">
+            <a className="text-primary underline-offset-2 hover:underline" href="/auth/forgot">
+              Request a new one
+            </a>
+            .
+          </Notice>
+        ) : problem ? (
+          <Notice title={problem.message} />
         ) : null}
 
         <Button type="submit" variant="default" disabled={mutation.isPending}>

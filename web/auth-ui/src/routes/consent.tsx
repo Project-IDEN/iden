@@ -1,5 +1,5 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { AppLogo, Button, ErrorState, IdenError, ScopeChip, Spinner } from "@iden/shared";
+import { AppLogo, Button, ErrorState, IdenError, Notice, ScopeChip, Spinner } from "@iden/shared";
 import { useSearchParams } from "react-router";
 import { decideConsent, readChallenge } from "../api";
 import { AuthLayout } from "../AuthLayout";
@@ -92,11 +92,15 @@ function ConsentFlow({ challengeId }: { challengeId: string }) {
       </ul>
 
       {decide.isError ? (
-        <p role="alert" className="mt-5 text-body-sm text-error">
-          {decide.error instanceof IdenError && decide.error.status === 401
-            ? "Your sign-in timed out. Return to the application and start again."
-            : "That could not be recorded. Try again."}
-        </p>
+        <div className="mt-5">
+          {decide.error instanceof IdenError && decide.error.status === 401 ? (
+            <Notice tone="info" title="Your sign-in timed out">
+              Return to the application and start again.
+            </Notice>
+          ) : (
+            <Notice title="Your answer wasn't saved">Try again.</Notice>
+          )}
+        </div>
       ) : null}
 
       <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">

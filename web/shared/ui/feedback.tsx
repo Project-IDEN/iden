@@ -1,5 +1,6 @@
-import { Inbox, RotateCw, TriangleAlert, type LucideIcon } from "lucide-react";
+import { CircleAlert, Inbox, Info, RotateCw, TriangleAlert, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { cn } from "./cn";
 import { IdenError } from "../api/errors";
 import { Alert, AlertDescription, AlertTitle } from "./alert";
 import { Button } from "./button";
@@ -72,6 +73,45 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
         ) : null}
       </AlertDescription>
     </Alert>
+  );
+}
+
+const NOTICE_TONES = {
+  // The person can fix it: a wrong password, a code that did not match.
+  error: { box: "border-error/25 bg-error/[0.06]", icon: "text-error", Icon: CircleAlert },
+  // Nothing they did, and nothing lost: bad light, a busy service.
+  caution: {
+    box: "border-accent-amber/45 bg-accent-amber/10",
+    icon: "text-warning",
+    Icon: TriangleAlert,
+  },
+  // Not a failure at all, only what happens next: wait, or start again.
+  info: { box: "border-hairline bg-surface-soft", icon: "text-muted-foreground", Icon: Info },
+} as const;
+
+/**
+ * A message beside a form: what happened, in a title a glance can read, and
+ * what to do about it beneath. The tone says whose problem it is, so a rate
+ * limit never looks like the person's mistake.
+ */
+export function Notice({
+  tone = "error",
+  title,
+  children,
+}: {
+  tone?: keyof typeof NOTICE_TONES;
+  title: ReactNode;
+  children?: ReactNode;
+}) {
+  const { box, icon, Icon } = NOTICE_TONES[tone];
+  return (
+    <div role="alert" className={cn("flex gap-3 rounded-lg border px-4 py-3", box)}>
+      <Icon aria-hidden="true" className={cn("mt-0.5 h-4 w-4 shrink-0", icon)} />
+      <div className="min-w-0">
+        <p className="text-body-sm font-medium text-ink">{title}</p>
+        {children ? <div className="mt-1 text-body-sm text-body">{children}</div> : null}
+      </div>
+    </div>
   );
 }
 

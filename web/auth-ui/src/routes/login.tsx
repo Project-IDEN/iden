@@ -8,7 +8,7 @@ import {
   IdenError,
   Input,
   Spinner,
-  describeCaptureProblems,
+  Notice,
 } from "@iden/shared";
 import { KeyRound, ScanFace } from "lucide-react";
 import { useState } from "react";
@@ -24,6 +24,8 @@ import {
   type AuthStep,
 } from "../api";
 import { AuthLayout } from "../AuthLayout";
+import { duration } from "../duration";
+import { FaceOutcome } from "./face-outcome";
 
 const credentials = z.object({
   email: z.string().min(1, "Enter your email address."),
@@ -254,22 +256,35 @@ function CredentialsStep({
 function SignInProblem({ problem }: { problem: IdenError | null }) {
   if (!problem) return null;
 
-  const message =
-    problem.status === 401
-      ? "That email and password do not match an account."
-      : problem.code === "inactive_user"
-        ? "This account has been deactivated. Contact your administrator to restore it."
-        : problem.status === 429
-          ? `Too many attempts. Try again in ${problem.retryAfter ?? 60} seconds.`
-          : problem.status === 404
-            ? "This sign-in request expired. Return to the application and start again."
-            : problem.message;
-
-  return (
-    <p role="alert" className="text-body-sm text-error">
-      {message}
-    </p>
-  );
+  if (problem.status === 401) {
+    return (
+      <Notice title="That email and password don't match">
+        Check both, or reset your password below.
+      </Notice>
+    );
+  }
+  if (problem.code === "inactive_user") {
+    return (
+      <Notice tone="info" title="This account is deactivated">
+        Contact your administrator to restore it.
+      </Notice>
+    );
+  }
+  if (problem.status === 429) {
+    return (
+      <Notice tone="caution" title="Too many attempts">
+        Try again in {duration(problem.retryAfter ?? 60)}.
+      </Notice>
+    );
+  }
+  if (problem.status === 404) {
+    return (
+      <Notice tone="info" title="This sign-in request expired">
+        Return to the application and start again.
+      </Notice>
+    );
+  }
+  return <Notice title={problem.message} />;
 }
 
 function MethodChoice({
@@ -358,23 +373,6 @@ function FaceStep({
       : faceChallenge.error instanceof IdenError
         ? faceChallenge.error
         : null;
-  const tips =
-    problem?.code === "poor_capture" ? describeCaptureProblems(problem.details.reasons) : [];
-  const message =
-    problem?.code === "poor_capture"
-      ? "We couldn't see you clearly enough."
-      : problem?.code === "face_rejected"
-        ? "That didn't match. Try again, or use another method."
-        : problem?.code === "face_enrolment_outdated"
-          ? "Your face enrolment is out of date. Enrol again at a kiosk, and use another method for now."
-          : problem?.code === "engine_unavailable"
-            ? "Face checks are unavailable right now. Use another method."
-            : problem?.status === 429
-              ? `Too many attempts. Try again in ${problem.retryAfter ?? 60} seconds, or use another method.`
-              : problem?.status === 401
-                ? "Your sign-in timed out. Return to the application and start again."
-                : problem?.message;
-
   function retry() {
     submit.reset();
     setAttempt((value) => value + 1);
@@ -389,23 +387,7 @@ function FaceStep({
       footer={<SwitchMethod onSwitch={onSwitch} />}
     >
       {problem ? (
-        <div role="alert" className="flex flex-col gap-4">
-          <p className="text-body-sm text-error">{message}</p>
-          {tips.length ? (
-            <ul className="list-disc pl-5 text-body-sm text-body">
-              {tips.map((tip) => (
-                <li key={tip}>{tip}</li>
-              ))}
-            </ul>
-          ) : null}
-          {problem.status !== 429 &&
-          problem.status !== 401 &&
-          problem.code !== "face_enrolment_outdated" ? (
-            <Button variant="default" onClick={retry}>
-              Try again
-            </Button>
-          ) : null}
-        </div>
+        <FaceOutcome problem={problem} onRetry={retry} onSwitch={onSwitch} />
       ) : working(submit) ? (
         <Spinner label={submit.isPending ? "Checking it's you" : `Returning to ${clientName}`} />
       ) : faceChallenge.data ? (
@@ -442,14 +424,6 @@ function TotpStep({
   });
 
   const problem = mutation.error instanceof IdenError ? mutation.error : null;
-  const message =
-    problem?.code === "invalid_totp_code"
-      ? "That code is not right. Codes change every 30 seconds — try the current one."
-      : problem?.status === 401
-        ? "Your sign-in timed out. Return to the application and start again."
-        : problem?.status === 429
-          ? `Too many attempts. Try again in ${problem.retryAfter ?? 60} seconds.`
-          : problem?.message;
 
   return (
     <AuthLayout
@@ -482,11 +456,7 @@ function TotpStep({
           )}
         </Field>
 
-        {message ? (
-          <p role="alert" className="text-body-sm text-error">
-            {message}
-          </p>
-        ) : null}
+        <TotpProblem problem={problem} />
 
         <Button type="submit" variant="default" disabled={working(mutation)}>
           {working(mutation) ? "Checking…" : "Continue"}
@@ -494,4 +464,30 @@ function TotpStep({
       </form>
     </AuthLayout>
   );
+}
+
+function TotpProblem({ problem }: { problem: IdenError | null }) {
+  if (!problem) return null;
+  if (problem.code === "invalid_totp_code") {
+    return (
+      <Notice title="That code didn't work">
+        Codes change every 30 seconds, and each works once. Enter the one showing now.
+      </Notice>
+    );
+  }
+  if (problem.status === 401) {
+    return (
+      <Notice tone="info" title="Your sign-in timed out">
+        Return to the application and start again.
+      </Notice>
+    );
+  }
+  if (problem.status === 429) {
+    return (
+      <Notice tone="caution" title="Too many attempts">
+        Try again in {duration(problem.retryAfter ?? 60)}.
+      </Notice>
+    );
+  }
+  return <Notice title={problem.message} />;
 }
