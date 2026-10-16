@@ -29,10 +29,11 @@ sequenceDiagram
     P->>D: sign in, Security → Enrol at a kiosk
     D->>I: POST /entity/face/ticket (recent sign-in)
     I-->>D: ticket → shown as a QR code
+    P->>K: reads what enrolling involves, agrees
     P->>K: shows the QR code
     K->>I: POST /biometric/enroll/challenge (kiosk token + ticket)
     I-->>K: "Enrolling Jane D." + what to capture
-    K->>I: POST /biometric/enroll (frames)
+    K->>I: POST /biometric/enroll (frames + consent version)
     I-->>P: email: a face was enrolled at Library Kiosk 2
 ```
 
@@ -47,6 +48,20 @@ A ticket:
 - allows five capture attempts — poor light should not end the visit, but a ticket is not a way to
   try forever
 - is gone once a face is enrolled with it, and asking for a new one retires the old one
+
+### Consent
+
+Before the camera turns on, the kiosk shows what enrolling involves — the photos, the encrypted
+template, what replacing a face and removing one mean — and asks the person to agree. *No, thanks*
+ends the visit with nothing captured.
+
+The words come from IDEN (`biometric/consent.py`), not the kiosk, because they describe what this
+deployment does: with `IDEN_BIOMETRIC_KEEP_IMAGES=true` they say the photos are kept. Their version
+is a hash of the words, so changing either the wording or that setting is a new version. The kiosk
+sends the version the person agreed to with the capture; IDEN refuses anything but the current one
+(`consent_required`) and stores the version and the time with the face, in
+`face_templates.consent_version` and `consented_at`. Faces enrolled before consent was asked for have
+neither.
 
 ### Kiosks are registered devices
 

@@ -196,8 +196,10 @@ Everything is done with `iden-kiosk`, on the Pi or over SSH. It asks for `sudo` 
 
 **When nobody is using it**, the kiosk shows an idle screen: what it is for, the three steps to
 enrol, and the time — with the camera **off**, so it films nobody passing by. Touching the screen
-opens the QR scanner. Every visit ends back there: a result, *Not me*, *Back*, or nobody touching the
-screen for the **Clear the screen after** time set in the dashboard.
+shows what enrolling involves and asks the person to agree; only then does the QR scanner open. See
+[Consent](../concepts/biometrics.md#consent). Every visit ends back there: a result, *No, thanks*,
+*Not me*, *Back*, or nobody touching the screen for the **Clear the screen after** time set in the
+dashboard.
 
 In kiosk mode Chromium cannot be closed from the screen: if it exits for any reason, it is back two
 seconds later. Leave kiosk mode from a terminal, usually over SSH: `iden-kiosk stop`.
