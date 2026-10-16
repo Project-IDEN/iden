@@ -639,11 +639,18 @@ class TestSignIn:
         challenge_id = await begin(client, acr_values="urn:iden:acr:mfa-face")
         await sign_in(client, challenge_id)
 
-        statuses = [
-            (await face_step(client, challenge_id)).status_code for _ in range(6)
-        ]
+        tries = [(await face_step(client, challenge_id)).json() for _ in range(3)]
+        assert [t["code"] for t in tries] == ["face_rejected"] * 3
+        assert [t["details"]["attemptsLeft"] for t in tries] == [2, 1, 0]
+        assert 0 < tries[-1]["details"]["retryAfter"] <= 900
+        assert "retryAfter" not in tries[0]["details"]
 
-        assert statuses == [401] * 5 + [429]
+        # Out of tries, refused before another capture is asked for.
+        refused = await client.post(
+            "/api/v1/auth/biometric/challenge", json={"challengeId": challenge_id}
+        )
+        assert refused.status_code == 429
+        assert int(refused.headers["retry-after"]) > 0
 
     async def test_a_match_that_is_not_live_is_not_an_authentication(
         self, client, fake_engine, enrolled

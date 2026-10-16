@@ -366,6 +366,10 @@ async def _face_step(
             "model": ErrorResponse,
             "description": "Challenge expired, or no face enrolled",
         },
+        429: {
+            "model": ErrorResponse,
+            "description": "No face tries left on this account for now",
+        },
         501: {"model": ErrorResponse, "description": "Biometric module not enabled"},
     },
     dependencies=[Depends(ratelimit.FACE_PER_IP)],
@@ -377,6 +381,9 @@ async def face_challenge(
     redis: RedisDep,
 ) -> FaceChallengeResponse:
     _, _, user = await _face_step(login_session, body.challenge_id, session, redis)
+    # Here as well as at the capture, so someone out of tries is told before
+    # they go through one.
+    await ratelimit.guard(redis, identity=str(user.id), **ratelimit.FACE_FAILURES)
     if not await face.is_enrolled(session, user.id):
         raise HTTPException(status_code=404, detail=FaceNotEnrolled())
     return FaceChallengeResponse.of(await challenges.issue(redis, user.id, "login"))
@@ -395,7 +402,10 @@ async def face_challenge(
         "liveness is not an authentication.\n\n"
         "`422 poor_capture` lists what to fix and does not count as a failed "
         "attempt. `401 face_rejected` does, and deliberately does not say "
-        "whether the face did not match or was not live.\n\n"
+        "whether the face did not match or was not live. Its "
+        "`details.attemptsLeft` says how many of the three tries in fifteen "
+        "minutes remain, and on the last `details.retryAfter` says in how many "
+        "seconds face sign-in opens again; until then it answers `429`.\n\n"
         "**Required scope:** none — requires an existing session."
     ),
     responses={
@@ -442,12 +452,21 @@ async def biometric(
             session, engine, user.id, await read_frames(frames), face_challenge
         )
     except FaceRejected as exc:
-        await ratelimit.record_failure(
+        failures = await ratelimit.record_failure(
             redis,
             ratelimit.FACE_FAILURES["bucket"],
             str(user.id),
             window=ratelimit.FACE_FAILURES["window"],
         )
+        left = max(ratelimit.FACE_FAILURES["limit"] - failures, 0)
+        exc.details["attemptsLeft"] = left
+        if left == 0:
+            exc.details["retryAfter"] = await ratelimit.seconds_left(
+                redis,
+                ratelimit.FACE_FAILURES["bucket"],
+                str(user.id),
+                window=ratelimit.FACE_FAILURES["window"],
+            )
         raise HTTPException(status_code=401, detail=exc) from exc
 
     await ratelimit.clear(redis, ratelimit.FACE_FAILURES["bucket"], str(user.id))

@@ -370,7 +370,7 @@ export interface paths {
          *
          *     Adds `face` to the session's `amr` only when the capture is **live** — it passes the anti-spoofing model and shows one face throughout — **and** matches the face enrolled on this account. A match without liveness is not an authentication.
          *
-         *     `422 poor_capture` lists what to fix and does not count as a failed attempt. `401 face_rejected` does, and deliberately does not say whether the face did not match or was not live.
+         *     `422 poor_capture` lists what to fix and does not count as a failed attempt. `401 face_rejected` does, and deliberately does not say whether the face did not match or was not live. Its `details.attemptsLeft` says how many of the three tries in fifteen minutes remain, and on the last `details.retryAfter` says in how many seconds face sign-in opens again; until then it answers `429`.
          *
          *     **Required scope:** none — requires an existing session.
          */
@@ -5039,6 +5039,15 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+            /** @description No face tries left on this account for now */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Biometric module not enabled */

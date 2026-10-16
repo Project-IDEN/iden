@@ -153,8 +153,8 @@ async def handle_http_exception(
     that raises HTTPException.
 
     A route that raises with a domain error as the detail keeps that error's
-    code: `totp_not_enrolled` and `invalid_totp_code` are both 400 and a caller
-    has to tell them apart.
+    code and details: `totp_not_enrolled` and `invalid_totp_code` are both 400
+    and a caller has to tell them apart.
     """
     code = (
         exc.detail.code
@@ -162,7 +162,11 @@ async def handle_http_exception(
         else STATUS_CODES.get(exc.status_code, "error")
     )
     set_error(request, code)
-    body = ErrorResponse(code=code, message=str(exc.detail))
+    body = ErrorResponse(
+        code=code,
+        message=str(exc.detail),
+        details=exc.detail.details if isinstance(exc.detail, IdenError) else {},
+    )
     return JSONResponse(
         status_code=exc.status_code,
         content=body.model_dump(by_alias=True),

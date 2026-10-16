@@ -86,16 +86,26 @@ async def guard(
     key = f"ratelimit:{bucket}:{identity}"
     count = int(await redis.get(key) or 0)
     if count >= limit:
-        ttl = await redis.ttl(key)
-        raise RateLimitedError(retry_after=ttl if ttl and ttl > 0 else window)
+        raise RateLimitedError(
+            retry_after=await seconds_left(redis, bucket, identity, window=window)
+        )
+
+
+async def seconds_left(redis: Redis, bucket: str, identity: str, *, window: int) -> int:
+    """Until this identity's window ends and its failures are forgotten."""
+    ttl = await redis.ttl(f"ratelimit:{bucket}:{identity}")
+    return ttl if ttl and ttl > 0 else window
 
 
 async def record_failure(
     redis: Redis, bucket: str, identity: str, *, window: int
-) -> None:
+) -> int:
+    """Count one failure, and return how many this window now holds."""
     key = f"ratelimit:{bucket}:{identity}"
-    if await redis.incr(key) == 1:
+    failures = await redis.incr(key)
+    if failures == 1:
         await redis.expire(key, window)
+    return failures
 
 
 async def clear(redis: Redis, bucket: str, identity: str) -> None:
@@ -133,7 +143,8 @@ LOGIN_FAILURES = {"bucket": "login-fail", "limit": 8, "window": 900}
 TOTP_FAILURES = {"bucket": "totp-fail", "limit": 8, "window": 900}
 # Fewer than a code allows: a face that fails is a spoof being tuned at least as
 # often as a person in bad light, and bad light is a 422 that does not count.
-FACE_FAILURES = {"bucket": "face-fail", "limit": 5, "window": 900}
+# Three is what the sign-in page tells people they have.
+FACE_FAILURES = {"bucket": "face-fail", "limit": 3, "window": 900}
 
 # So the endpoint cannot be used to bury someone in mail they did not ask for.
 RESET_PER_ADDRESS = {"bucket": "reset-addr", "limit": 3, "window": 3600}
