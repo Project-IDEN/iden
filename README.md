@@ -486,7 +486,7 @@ flowchart TB
     direction TB
 
     subgraph Middleware["Middleware Stack"]
-      MW1["request-id + structlog"] --> MW2["rate limiter (Redis)"] --> MW3["CORS / security headers"]
+      MW1["body limit"] --> MW2["security headers"] --> MW3["CORS"] --> MW4["audit log"] --> MW5["request-id + structlog"]
     end
 
     subgraph AuthZMod["AuthZ Module"]

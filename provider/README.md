@@ -967,18 +967,21 @@ Where a request goes, and which file owns each step:
 
 ```text
 nginx
-  → core/app.py            request-id + structlog binding
-  → rate limiter           Redis fixed window                       (Phase 6)
-  → CORS / security headers
+  → core/bodylimit.py      refuse an oversized body before anything reads it
+  → core/headers.py        security headers, on every response
+  → CORS
+  → core/audit.py          record every state-changing request, after the response
+  → core/app.py            request id, bound into every log line
   → routes.py              validate the request body via schemas.py
+      · rate limited?      core/ratelimit.py dependency, Redis fixed window → 429
       · resource server?   core/auth.require_scope(...)
-                           verify signature + iss + aud + exp
+                           verify signature + iss + aud + exp + typ
                            reject denylisted jti  → 401
                            check required scope   → 403
+                           account still active?  → 401 (one column, every request)
       · authz endpoint?    session_store / challenge_store
   → service.py             DB work via DBSessionDep; raises domain errors
-  → routes.py              domain error → HTTPException
-  → core/errors.py         → the documented JSON error shape
+  → core/app.py            domain error → status + the documented JSON error shape
 ```
 
 `401` versus `403` is a deliberate distinction: `401` means *authenticate again*, `403` means
