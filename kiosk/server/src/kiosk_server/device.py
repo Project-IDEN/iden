@@ -50,6 +50,7 @@ class Device:
             location=self.config.get("location"),
             settings=self.config.get("settings", {}),
             online=self.online,
+            consent=self.config.get("consent"),
             version=settings.kiosk_version,
         )
 

@@ -15,6 +15,8 @@ from fastapi.testclient import TestClient
 from kiosk_server import credentials
 from kiosk_server.config import settings
 
+CONSENT = {"title": "Before we take your photos", "statements": ["…"], "version": "v1"}
+
 
 class FakeIden:
     def __init__(self) -> None:
@@ -71,6 +73,7 @@ class FakeIden:
                     "location": "Level 1",
                     "settings": {"idleSeconds": 45, "inService": True},
                     "heartbeatSeconds": 60,
+                    "consent": CONSENT,
                 },
             )
         if path == "/biometric/enroll/challenge":
@@ -196,7 +199,7 @@ def test_iden_errors_reach_the_ui_unchanged(paired):
 
     response = paired.post(
         "/api/enrol",
-        data={"ticket": "good-ticket", "faceChallengeId": "c1"},
+        data={"ticket": "good-ticket", "faceChallengeId": "c1", "consent": "v1"},
         files=[("frames", ("0.jpg", b"\xff\xd8 one", "image/jpeg"))],
     )
     assert response.status_code == 422
@@ -206,7 +209,7 @@ def test_iden_errors_reach_the_ui_unchanged(paired):
 def test_frames_are_forwarded_in_order(paired, iden):
     paired.post(
         "/api/enrol",
-        data={"ticket": "good-ticket", "faceChallengeId": "c1"},
+        data={"ticket": "good-ticket", "faceChallengeId": "c1", "consent": "v1"},
         files=[
             ("frames", (f"{i}.jpg", b"frame-%d" % i, "image/jpeg")) for i in range(3)
         ],
@@ -214,12 +217,23 @@ def test_frames_are_forwarded_in_order(paired, iden):
     sent = iden.requests[-1].content
     assert sent.index(b"frame-0") < sent.index(b"frame-1") < sent.index(b"frame-2")
     assert b'name="faceChallengeId"' in sent
+    assert b'name="consent"\r\n\r\nv1' in sent
+
+
+def test_an_enrolment_without_consent_is_refused_here(paired, iden):
+    response = paired.post(
+        "/api/enrol",
+        data={"ticket": "good-ticket", "faceChallengeId": "c1"},
+        files=[("frames", ("0.jpg", b"frame", "image/jpeg"))],
+    )
+    assert response.status_code == 422
+    assert not any(r.url.path == "/biometric/enroll" for r in iden.requests)
 
 
 def test_too_many_frames_are_refused_here(paired, iden):
     response = paired.post(
         "/api/enrol",
-        data={"ticket": "good-ticket", "faceChallengeId": "c1"},
+        data={"ticket": "good-ticket", "faceChallengeId": "c1", "consent": "v1"},
         files=[("frames", (f"{i}.jpg", b"x", "image/jpeg")) for i in range(17)],
     )
     assert response.status_code == 422
@@ -255,6 +269,7 @@ async def test_a_heartbeat_reports_the_camera_and_reads_the_settings(iden):
     assert state.settings["idleSeconds"] == 45
     assert state.location == "Level 1"
     assert state.online is True
+    assert state.consent == CONSENT
 
 
 @pytest.fixture

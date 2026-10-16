@@ -29,6 +29,11 @@ class KioskState(CamelCaseBaseModel):
     online: bool | None = Field(
         description="Whether IDEN answered the last request; null before the first."
     )
+    consent: dict[str, Any] | None = Field(
+        description="What a person must agree to before a capture: `title`, "
+        "`statements` and `version`, from IDEN. Null until the first heartbeat "
+        "answers."
+    )
     version: str
 
 

@@ -12,6 +12,15 @@ export interface KioskState {
   };
   /** null until the kiosk server has asked IDEN anything. */
   online: boolean | null;
+  /** What a person agrees to before anything is captured; null until IDEN has answered. */
+  consent: ConsentText | null;
+  version: string;
+}
+
+export interface ConsentText {
+  title: string;
+  statements: string[];
+  /** Sent back with the enrolment, so IDEN records which words were agreed to. */
   version: string;
 }
 
@@ -63,10 +72,11 @@ export const reportCamera = (camera: string | null) => send<null>("/api/camera",
 export const startEnrolment = (ticket: string) =>
   send<EnrolmentChallenge>("/api/enrol/start", json({ ticket }));
 
-export function enrol(ticket: string, faceChallengeId: string, frames: Blob[]) {
+export function enrol(ticket: string, faceChallengeId: string, consent: string, frames: Blob[]) {
   const form = new FormData();
   form.append("ticket", ticket);
   form.append("faceChallengeId", faceChallengeId);
+  form.append("consent", consent);
   frames.forEach((frame, index) => form.append("frames", frame, `${index}.jpg`));
   return send<{ enrolled: true; samples: number }>("/api/enrol", { method: "POST", body: form });
 }

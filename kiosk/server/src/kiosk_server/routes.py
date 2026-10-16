@@ -96,6 +96,7 @@ async def enrol(
     device: DeviceDep,
     ticket: Annotated[str, Form()],
     face_challenge_id: Annotated[str, Form(alias="faceChallengeId")],
+    consent: Annotated[str, Form(max_length=64)],
     frames: Annotated[list[UploadFile], File()],
 ) -> Response:
     if not 0 < len(frames) <= MAX_FRAMES:
@@ -113,7 +114,11 @@ async def enrol(
         device,
         "POST",
         "/biometric/enroll",
-        data={"ticket": ticket, "faceChallengeId": face_challenge_id},
+        data={
+            "ticket": ticket,
+            "faceChallengeId": face_challenge_id,
+            "consent": consent,
+        },
         files=files,
     )
     _log_outcome(response)

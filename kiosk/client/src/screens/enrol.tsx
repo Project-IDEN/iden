@@ -14,11 +14,13 @@ import {
 import { useIdle } from "../hooks/use-idle";
 import { useQrScanner } from "../hooks/use-qr-scanner";
 import { CameraView } from "./camera-view";
+import { Consent } from "./consent";
 import { Idle } from "./idle";
 import { BigButton, Lede, Screen, Title } from "./layout";
 
 type Phase =
   | { kind: "idle" }
+  | { kind: "consent" }
   | { kind: "welcome" }
   | { kind: "starting" }
   | { kind: "confirm"; ticket: string; challenge: EnrolmentChallenge }
@@ -31,15 +33,20 @@ const DONE_SECONDS = 8;
 const MAX_TICKET = 512;
 
 /**
- * One person's visit: touch the idle screen, show the QR code from the
- * dashboard, confirm the name, follow the capture, hear the result. Every way
- * out — a result, Not me, Back, or nobody touching the screen for the kiosk's
- * idle time — returns to the idle screen, with the camera off and nothing of
- * the person kept.
+ * One person's visit: touch the idle screen, agree to what enrolling does, show
+ * the QR code from the dashboard, confirm the name, follow the capture, hear the
+ * result. Every way out — a result, No thanks, Not me, Back, or nobody touching
+ * the screen for the kiosk's idle time — returns to the idle screen, with the
+ * camera off and nothing of the person kept, their agreement included.
  */
 export function Enrolment({ state }: { state: KioskState }) {
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
-  const reset = useCallback(() => setPhase({ kind: "idle" }), []);
+  // The consent version this person agreed to, sent with their capture.
+  const [agreed, setAgreed] = useState<string | null>(null);
+  const reset = useCallback(() => {
+    setAgreed(null);
+    setPhase({ kind: "idle" });
+  }, []);
   const settings = state.settings;
 
   useIdle(phase.kind !== "idle" && phase.kind !== "checking", settings.idleSeconds ?? 90, reset);
@@ -63,7 +70,7 @@ export function Enrolment({ state }: { state: KioskState }) {
   async function submit(ticket: string, challenge: EnrolmentChallenge, frames: Blob[]) {
     setPhase({ kind: "checking", name: challenge.displayName });
     try {
-      await enrol(ticket, challenge.faceChallengeId, frames);
+      await enrol(ticket, challenge.faceChallengeId, agreed ?? "", frames);
       setPhase({ kind: "done", name: challenge.displayName });
     } catch (error) {
       setPhase(explain(error, { ticket, left: challenge.attemptsLeft }));
@@ -74,7 +81,32 @@ export function Enrolment({ state }: { state: KioskState }) {
 
   switch (phase.kind) {
     case "idle":
-      return <Idle state={state} onStart={() => setPhase({ kind: "welcome" })} />;
+      return <Idle state={state} onStart={() => setPhase({ kind: "consent" })} />;
+
+    case "consent": {
+      const consent = state.consent;
+      if (!consent) {
+        return (
+          <Screen name={state.name} footer={footer}>
+            <Title>Not ready yet</Title>
+            <Lede>This kiosk is still connecting to IDEN. Try again in a minute.</Lede>
+            <BigButton onClick={reset}>Finish</BigButton>
+          </Screen>
+        );
+      }
+      return (
+        <Consent
+          name={state.name}
+          footer={footer}
+          consent={consent}
+          onAgree={() => {
+            setAgreed(consent.version);
+            setPhase({ kind: "welcome" });
+          }}
+          onDecline={reset}
+        />
+      );
+    }
 
     case "welcome":
     case "starting":
@@ -271,6 +303,13 @@ function explain(error: unknown, retry?: { ticket: string; left: number }): Phas
         title: "That took too long",
         lines: ["Start again when you're ready."],
         retry,
+      };
+    case "consent_required":
+      // The wording changed during the visit — a setting changed in IDEN.
+      return {
+        kind: "problem",
+        title: "Please read this again",
+        lines: ["What enrolling involves has changed. Start again to read it before you agree."],
       };
     case "enrolment_ticket_invalid":
       return {
