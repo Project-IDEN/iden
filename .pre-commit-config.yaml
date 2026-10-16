@@ -89,6 +89,33 @@ repos:
         pass_filenames: false
         require_serial: true
 
+      # perf/ is a standalone uv script, not a project; it borrows the
+      # provider's tools, whose environment already has httpx.
+      - id: perf-ruff-format
+        name: ruff format (perf)
+        entry: uv run --project provider ruff format --force-exclude
+        language: system
+        types_or: [python, pyi]
+        files: ^perf/
+        require_serial: true
+
+      - id: perf-ruff-check
+        name: ruff check (perf)
+        entry: uv run --project provider ruff check --force-exclude --fix
+        language: system
+        types_or: [python, pyi]
+        files: ^perf/
+        require_serial: true
+
+      - id: perf-pyright
+        name: pyright (perf)
+        entry: bash -c 'cd provider && uv run pyright ../perf'
+        language: system
+        types_or: [python, pyi]
+        files: ^perf/
+        pass_filenames: false
+        require_serial: true
+
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v6.0.0
     hooks:

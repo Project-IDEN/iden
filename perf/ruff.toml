@@ -1,0 +1,4 @@
+# The rules provider/, engine/ and kiosk/server/ lint with.
+[lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = ["E501"]
