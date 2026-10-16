@@ -19,7 +19,7 @@ import { APP_TYPES, SELF_SERVICE_TYPES, type AppType } from "../../app/app-types
 import { isAbsoluteUri, lines } from "../../app/forms";
 import { SecretHandover } from "../../app/handover";
 import { LogoPicker } from "../../app/logo";
-import { uploadLogo, type LogoNotice } from "../../app/logo-upload";
+import { storeLogo, type LogoNotice } from "../../app/logo-upload";
 import { NotSet, ReviewItem, ReviewList, Wizard, type Step } from "../../app/wizard";
 import { APPLICATIONS, useApplicationWrite, type ApplicationCreated } from "./api";
 
@@ -67,18 +67,6 @@ export function ApplicationCreateRoute() {
     },
   });
 
-  // The app exists by now, so a logo that fails to upload must not lose it —
-  // least of all a secret shown only once. It is reported where it can be fixed.
-  async function storeLogo(id: string) {
-    if (!logo) return true;
-    try {
-      await uploadLogo(api, `${APPLICATIONS}/${id}`, logo);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   const create = useApplicationWrite<Values, Registered>(null, async (values) => {
     const response = await api.post<ApplicationCreated>(APPLICATIONS, {
       name: values.name,
@@ -88,7 +76,8 @@ export function ApplicationCreateRoute() {
       redirectUris: lines(values.redirectUris),
       postLogoutRedirectUris: lines(values.postLogoutRedirectUris),
     });
-    return { record: response.data, logoFailed: !(await storeLogo(response.data.id)) };
+    const stored = await storeLogo(api, `${APPLICATIONS}/${response.data.id}`, logo);
+    return { record: response.data, logoFailed: !stored };
   });
 
   const appType = useWatch({ control: form.control, name: "appType" }) as AppType;

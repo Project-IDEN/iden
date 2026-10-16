@@ -22,7 +22,7 @@ import { APP_TYPES, type AppType } from "../../app/app-types";
 import { isAbsoluteUri, lines } from "../../app/forms";
 import { SecretHandover } from "../../app/handover";
 import { LogoPicker } from "../../app/logo";
-import { uploadLogo, type LogoNotice } from "../../app/logo-upload";
+import { storeLogo, type LogoNotice } from "../../app/logo-upload";
 import { NotSet, ReviewItem, ReviewList, Wizard, type Step } from "../../app/wizard";
 import { useWrite, type ClientCreated } from "./api";
 import { useScopeOptions } from "./options";
@@ -91,18 +91,6 @@ export function ClientCreateRoute() {
     },
   });
 
-  // The client exists by now, so a logo that fails to upload must not lose it —
-  // least of all a secret shown only once. It is reported where it can be fixed.
-  async function storeLogo(id: string) {
-    if (!logo) return true;
-    try {
-      await uploadLogo(api, `/admin/clients/${id}`, logo);
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
   const create = useWrite<Values, Registered>(["/admin/clients"], async (values) => {
     const kind = APP_TYPES[values.appType];
     const response = await api.post<ClientCreated>("/admin/clients", {
@@ -118,7 +106,8 @@ export function ClientCreateRoute() {
       grantableScopeIds: values.grantableScopeIds,
       grantedScopeIds: values.grantedScopeIds,
     });
-    return { record: response.data, logoFailed: !(await storeLogo(response.data.id)) };
+    const stored = await storeLogo(api, `/admin/clients/${response.data.id}`, logo);
+    return { record: response.data, logoFailed: !stored };
   });
 
   const appType = useWatch({ control: form.control, name: "appType" }) as AppType;

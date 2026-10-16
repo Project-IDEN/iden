@@ -205,7 +205,7 @@ export function UserDetailRoute() {
               : "No roles."}
           </p>
         ) : roleOptions.data ? (
-          <RoleEditor
+          <SetEditor
             key={record.roles.map((role) => role.id).join(",")}
             options={roleOptions.data}
             initial={new Set(record.roles.map((role) => role.id))}
@@ -228,7 +228,7 @@ export function UserDetailRoute() {
             {record.directScopes.length > 0 ? record.directScopes.join(", ") : "None."}
           </p>
         ) : scopeOptions.data ? (
-          <RoleEditor
+          <SetEditor
             key={record.directScopes.join(",")}
             options={scopeOptions.data}
             initial={selectedScopeIds}
@@ -322,7 +322,7 @@ export function UserDetailRoute() {
 }
 
 /** A picker with its own save button, since these endpoints replace the whole set. */
-function RoleEditor({
+function SetEditor({
   options,
   initial,
   onSave,
