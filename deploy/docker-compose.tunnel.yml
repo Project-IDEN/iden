@@ -69,7 +69,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:2026.9.1
+    image: cloudflare/cloudflared:latest
     # `run` with a token needs no config file and no mounted credentials: the
     # token names the tunnel and carries its secret, and the ingress rules live
     # in the Cloudflare dashboard. Point the tunnel's public hostname at
