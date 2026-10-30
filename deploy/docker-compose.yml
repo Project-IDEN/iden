@@ -36,8 +36,8 @@ services:
       - postgres-data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U iden -d iden"]
-      interval: 5s
-      timeout: 3s
+      interval: 60s
+      timeout: 5s
       retries: 10
     restart: unless-stopped
 
@@ -54,8 +54,8 @@ services:
       - redis-data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "-a", "${IDEN_REDIS_PASSWORD:-iden}", "ping"]
-      interval: 5s
-      timeout: 3s
+      interval: 60s
+      timeout: 5s
       retries: 10
     restart: unless-stopped
 
@@ -81,8 +81,8 @@ services:
       # address rather than by name: `localhost` resolves to ::1 in this image
       # and nothing listens there.
       test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1:8333/status"]
-      interval: 5s
-      timeout: 3s
+      interval: 60s
+      timeout: 5s
       retries: 20
     restart: unless-stopped
 
