@@ -51,7 +51,7 @@ real_ip_header CF-Connecting-IP;
 # Python, while this refuses a flood before Python is involved. Keyed on
 # $binary_remote_addr, which real_ip has already corrected — otherwise it would
 # limit the tunnel as one client, which is the entire internet in one bucket.
-limit_req_zone $binary_remote_addr zone=iden_credentials:10m rate=10r/s;
+limit_req_zone $binary_remote_addr zone=iden_credentials:10m rate=30r/s;
 # Default is 503, which reads as an outage and carries no Retry-After. RFC 6585
 # says 429, and that is what client libraries back off on.
 limit_req_status 429;
