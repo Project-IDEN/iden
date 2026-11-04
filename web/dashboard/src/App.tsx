@@ -1,4 +1,4 @@
-import { ADMIN_SCOPES, BIOMETRIC_SCOPES, Brand, Button, ErrorState, Spinner } from "@iden/shared";
+import { ADMIN_SCOPES, BIOMETRIC_SCOPES, Brand, Spinner } from "@iden/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { ErrorResponse } from "oidc-client-ts";
@@ -8,6 +8,7 @@ import { IdenAuthProvider } from "./app/auth";
 import { basePath, config } from "./app/config";
 import { hereState } from "./app/session";
 import { Shell } from "./app/shell";
+import { SignInFailed } from "./app/sign-in-failed";
 import { ProfileRoute } from "./features/account/profile";
 import { SecurityRoute } from "./features/account/security";
 import { ConnectionsRoute, PermissionsRoute, SessionsRoute } from "./features/account/activity";
@@ -154,16 +155,7 @@ function RequireSignIn({ children }: { children: ReactNode }) {
   const signedOut = wasSignedOut(auth.error);
 
   if (auth.error && !signedOut) {
-    return (
-      <Centered>
-        <div className="max-w-md flex flex-col justify-center items-center">
-          <ErrorState error={auth.error} />
-          <Button className="mt-4" variant="default" onClick={() => void auth.signinRedirect()}>
-            Try signing in again
-          </Button>
-        </div>
-      </Centered>
-    );
+    return <SignInFailed detail={auth.error.message} onRetry={() => void auth.signinRedirect()} />;
   }
 
   if (signedOut || !auth.isAuthenticated) {
