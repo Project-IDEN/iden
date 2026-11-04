@@ -2,6 +2,7 @@ import { Camera, ScanFace } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Button } from "./button";
 import { cn } from "./cn";
+import { Notice } from "./feedback";
 
 /**
  * The face step of sign-in: a few frames looking straight at the camera.
@@ -102,10 +103,9 @@ export function FaceCapture({
 
   if (camera === "denied") {
     return (
-      <p role="alert" className="text-body-sm text-error">
-        The camera is unavailable. Allow camera access for this page in your browser, or use another
-        way to sign in.
-      </p>
+      <Notice tone="caution" title="The camera is unavailable">
+        Allow camera access for this page in your browser, or use another way to sign in.
+      </Notice>
     );
   }
 

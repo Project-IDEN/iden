@@ -1,4 +1,4 @@
-import { AppLogo, Button, IdenError } from "@iden/shared";
+import { AppLogo, Button, IdenError, Notice } from "@iden/shared";
 import { ImageUp } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useLocation } from "react-router";
@@ -149,12 +149,13 @@ function LogoRow({
       <AppLogo name={name || "?"} src={src} size="lg" />
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">{actions}</div>
-        <p
-          role={problem ? "alert" : undefined}
-          className={`mt-2 text-caption ${problem ? "text-destructive" : "text-muted-foreground"}`}
-        >
-          {problem ?? hint}
-        </p>
+        {problem ? (
+          <div className="mt-3">
+            <Notice title={problem} />
+          </div>
+        ) : (
+          <p className="mt-2 text-caption text-muted-foreground">{hint}</p>
+        )}
         {input}
       </div>
     </div>

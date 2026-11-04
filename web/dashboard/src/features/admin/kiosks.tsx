@@ -5,6 +5,7 @@ import {
   ErrorState,
   Field,
   Input,
+  Notice,
   Pagination,
   ScopeChip,
   Spinner,
@@ -121,12 +122,12 @@ export function PairingPanel({ pairing, onRenew }: { pairing: PairingCode; onRen
 
   if (remaining === "0:00") {
     return (
-      <div className="flex flex-col items-start gap-3">
-        <p className="text-body-sm text-error">This pairing code has expired.</p>
-        <Button size="sm" onClick={onRenew}>
+      <Notice tone="info" title="This pairing code has expired">
+        <p>Codes last a few minutes. Get a new one and enter it on the device.</p>
+        <Button className="mt-3" size="sm" onClick={onRenew}>
           Get a new code
         </Button>
-      </div>
+      </Notice>
     );
   }
 
@@ -239,7 +240,11 @@ export function KioskDetailRoute() {
             </Button>
           </>
         )}
-        {newCode.error ? <ErrorState error={newCode.error} /> : null}
+        {newCode.error ? (
+          <div className="mt-4 max-w-prose">
+            <ErrorState error={newCode.error} />
+          </div>
+        ) : null}
       </section>
 
       <SettingsForm key={record.id} url={url} record={record} />
@@ -247,6 +252,11 @@ export function KioskDetailRoute() {
       <History url={url} />
 
       <section className="border-t border-hairline pt-8">
+        {remove.error ? (
+          <div className="mb-4 max-w-prose">
+            <ErrorState error={remove.error} />
+          </div>
+        ) : null}
         <Button variant="destructive" onClick={() => setRevoking(true)}>
           Revoke kiosk
         </Button>
@@ -260,7 +270,10 @@ export function KioskDetailRoute() {
         confirmLabel="Revoke kiosk"
         pending={remove.isPending}
         onConfirm={() =>
-          remove.mutate(undefined, { onSuccess: () => void navigate("/admin/kiosks") })
+          remove.mutate(undefined, {
+            onSuccess: () => void navigate("/admin/kiosks"),
+            onError: () => setRevoking(false),
+          })
         }
       />
     </>

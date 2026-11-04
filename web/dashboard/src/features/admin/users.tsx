@@ -215,6 +215,11 @@ export function UserDetailRoute() {
         ) : (
           <Spinner label="Loading roles" />
         )}
+        {setRoles.error ? (
+          <div className="mt-4 max-w-prose">
+            <ErrorState error={setRoles.error} />
+          </div>
+        ) : null}
       </section>
 
       <section className="mb-12">
@@ -239,6 +244,11 @@ export function UserDetailRoute() {
         ) : (
           <Spinner label="Loading scopes" />
         )}
+        {setScopes.error ? (
+          <div className="mt-4 max-w-prose">
+            <ErrorState error={setScopes.error} />
+          </div>
+        ) : null}
       </section>
 
       <section className="mb-12">
@@ -273,6 +283,11 @@ export function UserDetailRoute() {
             <SecretRevealOnce label="New one-time password" secret={issued} />
           </div>
         ) : null}
+        {resetPassword.error || remove.error ? (
+          <div className="mb-4 max-w-prose">
+            <ErrorState error={resetPassword.error ?? remove.error} />
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-3">
           <Button onClick={() => setResetting(true)}>Issue a new password</Button>
           {!isSelf ? (
@@ -302,6 +317,7 @@ export function UserDetailRoute() {
               setIssued(result.password);
               setResetting(false);
             },
+            onError: () => setResetting(false),
           })
         }
       />
@@ -314,7 +330,10 @@ export function UserDetailRoute() {
         confirmLabel="Delete user"
         pending={remove.isPending}
         onConfirm={() =>
-          remove.mutate(undefined, { onSuccess: () => void navigate("/admin/users") })
+          remove.mutate(undefined, {
+            onSuccess: () => void navigate("/admin/users"),
+            onError: () => setDeleting(false),
+          })
         }
       />
     </>

@@ -1,4 +1,4 @@
-import { Button, Field, IdenError, Input } from "@iden/shared";
+import { Button, Field, IdenError, Input, Notice } from "@iden/shared";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useApi } from "../../app/api";
@@ -85,11 +85,11 @@ export function PasswordSetting() {
           <StepUpNotice problem={problem} />
 
           {problem && !problem.stepUpMaxAge && problem.code !== "same_password" ? (
-            <p role="alert" className="text-body-sm text-error">
-              {problem.code === "wrong_password"
-                ? "That current password is not right."
-                : problem.message}
-            </p>
+            problem.code === "wrong_password" ? (
+              <Notice title="That current password is not right">Check it and try again.</Notice>
+            ) : (
+              <Notice title={problem.message} />
+            )
           ) : null}
 
           <Button

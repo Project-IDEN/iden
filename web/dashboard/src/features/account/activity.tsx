@@ -15,9 +15,10 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, MonitorSmartphone } from "lucide-react";
 import { useState } from "react";
 import { useApi } from "../../app/api";
-import { useSessionId, useStepUp } from "../../app/session";
+import { useSessionId } from "../../app/session";
 import { PageHeader } from "../../app/shell";
 import { ago, when } from "../../app/time";
+import { Problem } from "./security-setting";
 import { useConnections, usePermissions, useSessions, type Sessions } from "./api";
 
 const AMR_LABELS: Record<string, string> = {
@@ -45,7 +46,6 @@ export function SessionsRoute() {
   const api = useApi();
   const sessions = useSessions(api);
   const queryClient = useQueryClient();
-  const stepUp = useStepUp();
   const sessionId = useSessionId();
   const [pending, setPending] = useState<string | null>(null);
 
@@ -55,10 +55,10 @@ export function SessionsRoute() {
       setPending(null);
       void queryClient.invalidateQueries({ queryKey: ["sessions"] });
     },
+    onError: () => setPending(null),
   });
 
   const problem = revoke.error instanceof IdenError ? revoke.error : null;
-  const maxAge = problem?.stepUpMaxAge;
 
   if (sessions.isPending) return <Spinner label="Loading your sessions" />;
   if (sessions.isError)
@@ -76,15 +76,9 @@ export function SessionsRoute() {
     <>
       <PageHeader title="Sessions" lede="Devices and browsers currently signed in." />
 
-      {maxAge ? (
-        <div className="mb-6 rounded-lg border border-hairline bg-surface-soft p-5">
-          <p className="text-title-sm text-ink">Confirm it's you first</p>
-          <p className="mt-1 text-body-sm text-body">
-            Signing out a session needs a recent sign-in.
-          </p>
-          <Button className="mt-4" size="sm" variant="default" onClick={() => stepUp(maxAge)}>
-            Enter your password
-          </Button>
+      {problem ? (
+        <div className="mb-6 max-w-prose">
+          <Problem problem={problem} />
         </div>
       ) : null}
 
@@ -177,6 +171,7 @@ export function ConnectionsRoute() {
       setPending(null);
       void queryClient.invalidateQueries({ queryKey: ["connections"] });
     },
+    onError: () => setPending(null),
   });
 
   if (connections.isPending) return <Spinner label="Loading your connections" />;
@@ -186,6 +181,12 @@ export function ConnectionsRoute() {
   return (
     <>
       <PageHeader title="Connections" lede="Applications you have allowed to act on your behalf." />
+
+      {withdraw.error ? (
+        <div className="mb-6 max-w-prose">
+          <ErrorState error={withdraw.error} />
+        </div>
+      ) : null}
 
       {connections.data.connections.length === 0 ? (
         <EmptyState

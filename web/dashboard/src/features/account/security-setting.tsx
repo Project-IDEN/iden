@@ -1,5 +1,5 @@
 import type { IdenError } from "@iden/shared";
-import { Button, Row } from "@iden/shared";
+import { Button, Notice, Row } from "@iden/shared";
 import type { ReactNode } from "react";
 import { useStepUp } from "../../app/session";
 
@@ -77,15 +77,12 @@ export function StepUpNotice({ problem }: { problem: IdenError | null }) {
   if (!maxAge) return null;
 
   return (
-    <div className="rounded-lg border border-hairline bg-surface-soft p-5">
-      <p className="text-title-sm text-ink">Confirm it's you first</p>
-      <p className="mt-1 text-body-sm text-body">
-        Changing this needs a sign-in from the last {Math.round(maxAge / 60)} minutes.
-      </p>
-      <Button className="mt-4" size="sm" variant="default" onClick={() => stepUp(maxAge)}>
+    <Notice tone="info" title="Confirm it's you first">
+      <p>Changing this needs a sign-in from the last {Math.round(maxAge / 60)} minutes.</p>
+      <Button className="mt-3" size="sm" variant="default" onClick={() => stepUp(maxAge)}>
         Enter your password
       </Button>
-    </div>
+    </Notice>
   );
 }
 
@@ -93,9 +90,5 @@ export function StepUpNotice({ problem }: { problem: IdenError | null }) {
 export function Problem({ problem }: { problem: IdenError | null }) {
   if (!problem) return null;
   if (problem.stepUpMaxAge) return <StepUpNotice problem={problem} />;
-  return (
-    <p role="alert" className="text-body-sm text-error">
-      {problem.message}
-    </p>
-  );
+  return <Notice title={problem.message} />;
 }

@@ -5,6 +5,7 @@ import {
   EmptyState,
   ErrorState,
   IdenError,
+  Notice,
   Pagination,
   Row,
   RowCard,
@@ -68,9 +69,9 @@ export function ProfileFieldsRoute() {
       />
 
       {problem ? (
-        <p role="alert" className="mb-4 max-w-prose text-body-sm text-destructive">
-          {problem.message}
-        </p>
+        <div className="mb-4 max-w-prose">
+          <Notice title={problem.message} />
+        </div>
       ) : null}
 
       {fields.isPending ? (
@@ -106,7 +107,7 @@ export function ProfileFieldsRoute() {
         confirmLabel="Delete field"
         pending={remove.isPending}
         onConfirm={() =>
-          deleting && remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })
+          deleting && remove.mutate(deleting.id, { onSettled: () => setDeleting(null) })
         }
       />
     </>

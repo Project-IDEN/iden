@@ -1,4 +1,4 @@
-import { Avatar, Badge, Button, IdenError } from "@iden/shared";
+import { Avatar, Badge, Button, IdenError, Notice } from "@iden/shared";
 import { BadgeCheck, Camera } from "lucide-react";
 import { useRef } from "react";
 import { useApi } from "../../app/api";
@@ -56,12 +56,13 @@ export function IdentityHeader({ profile }: { profile: Profile }) {
           ) : null}
         </div>
 
-        <p
-          role={problem ? "alert" : undefined}
-          className={`mt-2 text-caption ${problem ? "text-destructive" : "text-muted-foreground"}`}
-        >
-          {problem ?? (busy ? "Working…" : HINT)}
-        </p>
+        {problem ? (
+          <div className="mt-3">
+            <Notice title={problem} />
+          </div>
+        ) : (
+          <p className="mt-2 text-caption text-muted-foreground">{busy ? "Working…" : HINT}</p>
+        )}
 
         <input
           ref={picker}

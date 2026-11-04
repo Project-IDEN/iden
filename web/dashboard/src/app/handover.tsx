@@ -1,4 +1,4 @@
-import { Button, SecretRevealOnce } from "@iden/shared";
+import { Button, Notice, SecretRevealOnce } from "@iden/shared";
 import { Link } from "react-router";
 
 /**
@@ -45,9 +45,9 @@ export function SecretHandover({
       </div>
 
       {notice ? (
-        <p role="alert" className="mt-4 text-body-sm text-destructive">
-          {notice}
-        </p>
+        <div className="mt-4">
+          <Notice tone="caution" title={notice} />
+        </div>
       ) : null}
 
       <div className="mt-8 flex gap-3">

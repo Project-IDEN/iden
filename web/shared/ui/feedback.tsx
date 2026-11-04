@@ -2,7 +2,6 @@ import { CircleAlert, Inbox, Info, RotateCw, TriangleAlert, type LucideIcon } fr
 import type { ReactNode } from "react";
 import { cn } from "./cn";
 import { IdenError } from "../api/errors";
-import { Alert, AlertDescription, AlertTitle } from "./alert";
 import { Button } from "./button";
 
 /**
@@ -42,37 +41,44 @@ export function EmptyState({
 }
 
 /**
- * Errors say what happened and what to do. The rate-limit and outage cases get
- * their own wording because "something went wrong" is wrong for both — the user
- * did nothing wrong, and waiting is the fix.
+ * Errors say what happened and what to do. The rate-limit, outage and offline
+ * cases get their own wording and the caution tone because "something went
+ * wrong" is wrong for all three — the person did nothing wrong, and waiting is
+ * the fix. It is a `Notice`, so a failed load looks like a failed sign-in.
  */
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
   const problem = error instanceof IdenError ? error : null;
-  const wait = problem?.retryAfter;
+  const status = problem?.status;
+  const offline = problem?.code === "network_error";
 
-  const message =
-    problem?.status === 429
-      ? `Too many attempts. Try again in ${wait ?? 60} seconds.`
-      : problem?.status === 503
-        ? "The server is not accepting requests right now. This is usually brief."
-        : (problem?.message ?? "Something went wrong.");
+  const title =
+    status === 429
+      ? "Too many attempts"
+      : status === 503
+        ? "The server is busy"
+        : offline
+          ? "Could not reach the server"
+          : (problem?.message ?? "Something went wrong");
+
+  const hint =
+    status === 429
+      ? `Try again in ${problem?.retryAfter ?? 60} seconds.`
+      : status === 503
+        ? "It is not accepting requests right now. This is usually brief."
+        : offline
+          ? "Check your connection and try again."
+          : null;
 
   return (
-    <Alert className="bg-secondary">
-      <TriangleAlert aria-hidden="true" className="text-destructive" />
-      <AlertTitle className="text-title-sm text-foreground">{message}</AlertTitle>
-      <AlertDescription>
-        {problem?.code && problem.status !== 429 ? (
-          <span className="font-identity text-caption text-muted-foreground">{problem.code}</span>
-        ) : null}
-        {onRetry ? (
-          <Button className="mt-3" size="sm" onClick={onRetry}>
-            <RotateCw aria-hidden="true" />
-            Try again
-          </Button>
-        ) : null}
-      </AlertDescription>
-    </Alert>
+    <Notice tone={status === 429 || status === 503 || offline ? "caution" : "error"} title={title}>
+      {hint ? <p>{hint}</p> : null}
+      {onRetry ? (
+        <Button className={hint ? "mt-3" : "mt-1"} variant="outline" size="sm" onClick={onRetry}>
+          <RotateCw aria-hidden="true" />
+          Try again
+        </Button>
+      ) : null}
+    </Notice>
   );
 }
 

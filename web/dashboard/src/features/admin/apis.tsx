@@ -11,6 +11,7 @@ import {
   ErrorState,
   Field,
   IdenError,
+  Notice,
   Input,
   Pagination,
   Row,
@@ -152,11 +153,16 @@ export function ApiDetailRoute() {
         </div>
 
         {scopeProblem ? (
-          <p role="alert" className="mb-4 max-w-prose text-body-sm text-error">
-            {scopeProblem.code === "scope_in_use"
-              ? "That scope is still bundled into a role or granted to a client. Remove it there first, or delete it anyway to have those references dropped."
-              : scopeProblem.message}
-          </p>
+          <div className="mb-4 max-w-prose">
+            {scopeProblem.code === "scope_in_use" ? (
+              <Notice title="That scope is still in use">
+                A role bundles it or a client is granted it. Remove it there first, or delete it
+                anyway to have those references dropped.
+              </Notice>
+            ) : (
+              <Notice title={scopeProblem.message} />
+            )}
+          </div>
         ) : null}
 
         {scopes.isPending ? (
@@ -196,11 +202,15 @@ export function ApiDetailRoute() {
       {record.data.isSystem ? null : (
         <section className="border-t border-hairline pt-8">
           {removeProblem ? (
-            <p role="alert" className="mb-4 max-w-prose text-body-sm text-error">
-              {removeProblem.code === "api_in_use"
-                ? "This API's scopes are still in use by roles or clients. Remove those references first."
-                : removeProblem.message}
-            </p>
+            <div className="mb-4 max-w-prose">
+              {removeProblem.code === "api_in_use" ? (
+                <Notice title="This API is still in use">
+                  Roles or clients still hold its scopes. Remove those references first.
+                </Notice>
+              ) : (
+                <Notice title={removeProblem.message} />
+              )}
+            </div>
           ) : null}
           <Button variant="destructive" onClick={() => setDeleting(true)}>
             Delete API

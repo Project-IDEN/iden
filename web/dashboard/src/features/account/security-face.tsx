@@ -1,4 +1,4 @@
-import { Button, ConfirmDialog, IdenError, StatusDot } from "@iden/shared";
+import { Button, ConfirmDialog, IdenError, Notice, StatusDot } from "@iden/shared";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { QRCodeSVG } from "qrcode.react";
 import { useState } from "react";
@@ -125,12 +125,12 @@ export function FaceSetting() {
             a few minutes. {face.enrolled ? "Enrolling replaces the face on file." : null}
           </p>
           {remaining === "0:00" ? (
-            <div className="flex flex-col items-start gap-3">
-              <p className="text-body-sm text-error">This code has expired.</p>
-              <Button size="sm" onClick={() => create.mutate()}>
+            <Notice tone="info" title="This code has expired">
+              <p>Get a new one and show it to the kiosk camera.</p>
+              <Button className="mt-3" size="sm" onClick={() => create.mutate()}>
                 Get a new code
               </Button>
-            </div>
+            </Notice>
           ) : (
             <>
               <div className="w-fit rounded-lg bg-canvas p-4 ring-1 ring-hairline">

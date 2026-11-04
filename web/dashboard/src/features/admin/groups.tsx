@@ -158,6 +158,11 @@ export function GroupDetailRoute() {
               onChange={setRoles}
               emptyLabel="No roles defined yet."
             />
+            {saveRoles.error ? (
+              <div className="mt-3 max-w-prose">
+                <ErrorState error={saveRoles.error} />
+              </div>
+            ) : null}
             <div className="mt-3 flex items-center gap-3">
               <Button
                 variant="default"
@@ -183,6 +188,12 @@ export function GroupDetailRoute() {
           <h2 className="text-title-lg text-ink">People</h2>
           <Button onClick={() => setAdding(true)}>Add people</Button>
         </div>
+
+        {removeMember.error ? (
+          <div className="mb-4 max-w-prose">
+            <ErrorState error={removeMember.error} />
+          </div>
+        ) : null}
 
         {members.isPending ? (
           <Spinner label="Loading members" />
@@ -217,6 +228,11 @@ export function GroupDetailRoute() {
       </section>
 
       <section className="border-t border-hairline pt-8">
+        {remove.error ? (
+          <div className="mb-4 max-w-prose">
+            <ErrorState error={remove.error} />
+          </div>
+        ) : null}
         <Button variant="destructive" onClick={() => setDeleting(true)}>
           Delete group
         </Button>
@@ -233,7 +249,9 @@ export function GroupDetailRoute() {
         pending={removeMember.isPending}
         onConfirm={() =>
           removingMember &&
-          removeMember.mutate(removingMember.id, { onSuccess: () => setRemovingMember(null) })
+          removeMember.mutate(removingMember.id, {
+            onSettled: () => setRemovingMember(null),
+          })
         }
       />
 
@@ -245,7 +263,10 @@ export function GroupDetailRoute() {
         confirmLabel="Delete group"
         pending={remove.isPending}
         onConfirm={() =>
-          remove.mutate(undefined, { onSuccess: () => void navigate("/admin/groups") })
+          remove.mutate(undefined, {
+            onSuccess: () => void navigate("/admin/groups"),
+            onError: () => setDeleting(false),
+          })
         }
       />
     </>
@@ -305,6 +326,12 @@ function AddMembersDialog({
             <Spinner label="Loading people" />
           )}
         </div>
+
+        {add.error ? (
+          <div className="mt-4">
+            <ErrorState error={add.error} />
+          </div>
+        ) : null}
 
         <div className="mt-8 flex justify-end gap-3">
           <DialogClose asChild>

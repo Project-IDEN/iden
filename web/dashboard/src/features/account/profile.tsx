@@ -1,4 +1,4 @@
-import { Button, ErrorState, Field, IdenError, Input, Spinner } from "@iden/shared";
+import { Button, ErrorState, Field, IdenError, Input, Notice, Spinner } from "@iden/shared";
 import { Lock } from "lucide-react";
 import { useForm, type UseFormRegisterReturn } from "react-hook-form";
 import { useApi } from "../../app/api";
@@ -97,9 +97,9 @@ export function ProfileRoute() {
           </div>
 
           {problem && problem.fieldErrors.length === 0 ? (
-            <p role="alert" className="mt-6 text-body-sm text-error">
-              {problem.message}
-            </p>
+            <div className="mt-6 max-w-prose">
+              <Notice title={problem.message} />
+            </div>
           ) : null}
 
           <div className="mt-8 flex items-center gap-4 border-t border-hairline-soft pt-6">

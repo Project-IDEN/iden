@@ -248,6 +248,12 @@ export function ClientDetailRoute() {
             </section>
           ) : null}
 
+          {saveScopes.error ? (
+            <div className="mb-6 max-w-prose">
+              <ErrorState error={saveScopes.error} />
+            </div>
+          ) : null}
+
           <div className="mb-12 flex items-center gap-3">
             <Button
               variant="default"
@@ -292,6 +298,11 @@ export function ClientDetailRoute() {
             <SecretRevealOnce label="New client secret" secret={secret} />
           </div>
         ) : null}
+        {rotate.error || remove.error ? (
+          <div className="mb-4 max-w-prose">
+            <ErrorState error={rotate.error ?? remove.error} />
+          </div>
+        ) : null}
         <div className="flex flex-wrap gap-3">
           {isConfidential ? <Button onClick={() => setRotating(true)}>Rotate secret</Button> : null}
           {record.isSystem ? null : (
@@ -321,6 +332,7 @@ export function ClientDetailRoute() {
               setSecret(result.clientSecret);
               setRotating(false);
             },
+            onError: () => setRotating(false),
           })
         }
       />
@@ -333,7 +345,10 @@ export function ClientDetailRoute() {
         confirmLabel="Delete client"
         pending={remove.isPending}
         onConfirm={() =>
-          remove.mutate(undefined, { onSuccess: () => void navigate("/admin/clients") })
+          remove.mutate(undefined, {
+            onSuccess: () => void navigate("/admin/clients"),
+            onError: () => setDeleting(false),
+          })
         }
       />
     </>

@@ -5,6 +5,7 @@ import {
   DataTable,
   ErrorState,
   IdenError,
+  Notice,
   Pagination,
   Row,
   RowCard,
@@ -158,9 +159,9 @@ export function RoleDetailRoute() {
               emptyLabel="No scopes are defined yet. Register an API and define its scopes first."
             />
             {saveProblem ? (
-              <p role="alert" className="mt-3 text-body-sm text-error">
-                {saveProblem.message}
-              </p>
+              <div className="mt-3 max-w-prose">
+                <Notice title={saveProblem.message} />
+              </div>
             ) : null}
             <div className="mt-3 flex items-center gap-3">
               <Button
@@ -185,11 +186,15 @@ export function RoleDetailRoute() {
       {record.isSystem ? null : (
         <section className="border-t border-hairline pt-8">
           {removeProblem ? (
-            <p role="alert" className="mb-4 max-w-prose text-body-sm text-error">
-              {removeProblem.code === "role_in_use"
-                ? "This role is still assigned to people or groups. Remove those assignments first."
-                : removeProblem.message}
-            </p>
+            <div className="mb-4 max-w-prose">
+              {removeProblem.code === "role_in_use" ? (
+                <Notice title="This role is still assigned">
+                  People or groups still hold it. Remove those assignments first.
+                </Notice>
+              ) : (
+                <Notice title={removeProblem.message} />
+              )}
+            </div>
           ) : null}
           <Button variant="destructive" onClick={() => setDeleting(true)}>
             Delete role
