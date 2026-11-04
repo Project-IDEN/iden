@@ -52,6 +52,6 @@ class RestrictedScopeOnOwnedClient(ValidationError):
 class KioskManaged(ConflictError):
     code = "kiosk_managed"
     message = (
-        "This client belongs to an enrolment kiosk. Change, re-pair, or revoke it "
-        "from the kiosk's own page."
+        "This client belongs to an enrolment kiosk. Change or re-pair it from the "
+        "kiosk's own page."
     )

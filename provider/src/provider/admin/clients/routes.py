@@ -294,14 +294,12 @@ async def delete_logo(
     summary="Delete an OAuth client",
     description=(
         "Every token and consent grant belonging to the client goes with it, "
-        "and so does its logo.\n\n" + FULL_ADMIN_NOTE
+        "and so does its logo. A kiosk's client takes its kiosk with it, exactly "
+        "as revoking the kiosk at `/admin/kiosks` does.\n\n" + FULL_ADMIN_NOTE
     ),
     responses={
         404: {"model": ErrorResponse, "description": "No such client"},
-        409: {
-            "model": ErrorResponse,
-            "description": "A bootstrap client, or one that belongs to a kiosk",
-        },
+        409: {"model": ErrorResponse, "description": "A bootstrap client"},
         403: NOT_FULL_ADMIN,
     },
     dependencies=[FULL_ADMIN],

@@ -163,7 +163,6 @@ class TestRegistering:
         for method, path in (
             ("patch", f"/admin/clients/{row.client_id}"),
             ("post", f"/admin/clients/{row.client_id}/rotate-secret"),
-            ("delete", f"/admin/clients/{row.client_id}"),
         ):
             kwargs = {"json": {"name": "x"}} if method == "patch" else {}
             response = await getattr(client, method)(path, headers=full, **kwargs)
@@ -353,6 +352,24 @@ class TestWhoMayEnrol:
         )
         assert response.status_code == 204
 
+        ticket = await faces.new_ticket(client, face_headers)
+        assert (await start(client, headers, ticket)).status_code == 401
+        assert (await heartbeat(client, headers)).status_code == 401
+
+    async def test_deleting_its_client_revokes_it_too(
+        self, client, db, token_for, kiosk_admin, device, face_headers
+    ):
+        kiosk, headers = device
+        client_id = await db.scalar(
+            select(Kiosk.client_id).where(Kiosk.id == kiosk["id"])
+        )
+        full = await token_for(*FULL_ADMIN_SCOPES)
+        response = await client.delete(f"/admin/clients/{client_id}", headers=full)
+        assert response.status_code == 204
+
+        assert (
+            await client.get(f"/admin/kiosks/{kiosk['id']}", headers=kiosk_admin)
+        ).status_code == 404
         ticket = await faces.new_ticket(client, face_headers)
         assert (await start(client, headers, ticket)).status_code == 401
         assert (await heartbeat(client, headers)).status_code == 401

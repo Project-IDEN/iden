@@ -200,7 +200,6 @@ async def delete_client(
     session: AsyncSession, client_id: UUID, storage: Storage | None
 ) -> None:
     client = await get_client(session, client_id)
-    await _refuse_kiosk(session, client)
     if client.is_system:
         raise SystemClientImmutable
 

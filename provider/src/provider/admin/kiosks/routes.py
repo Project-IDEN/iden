@@ -2,7 +2,7 @@
 
 Each kiosk signs in as a client of its own, created here and holding the
 `biometric:` scopes. Only this module changes those clients; `/admin/clients`
-refuses to.
+refuses to, except to delete one, which revokes its kiosk.
 """
 
 from typing import Any

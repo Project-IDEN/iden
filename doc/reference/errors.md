@@ -98,6 +98,6 @@ What the face routes answer, and what a screen should do about each.
 | `enrolment_ticket_invalid` | 404 | The kiosk ticket expired, was used, was replaced, or ran out of attempts. |
 | `kiosk_out_of_service` | 403 | The kiosk has been switched out of service in the dashboard. |
 | `pairing_code_invalid` | 404 | The kiosk pairing code expired, was used, or was replaced by a newer one. |
-| `kiosk_managed` | 409 | From `/admin/clients`: this client belongs to a kiosk. Change it at `/admin/kiosks`. |
+| `kiosk_managed` | 409 | From `/admin/clients`: this client belongs to a kiosk. Change or re-pair it at `/admin/kiosks`; deleting it is allowed and revokes the kiosk. |
 | `face_not_enrolled` | 404 | There is no face on this account to compare against. |
 | `face_enrolment_outdated` | 409 | The face was enrolled under an earlier model. Enrol again, or an administrator re-embeds. |
