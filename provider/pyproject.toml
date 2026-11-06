@@ -76,6 +76,9 @@ asyncio_mode = "auto"
 # that use it share one event loop; asyncpg connections cannot cross loops.
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
+markers = [
+    "integration: needs the real biometric engine; skipped when it is unreachable",
+]
 
 [tool.coverage.run]
 source = ["src/provider"]
