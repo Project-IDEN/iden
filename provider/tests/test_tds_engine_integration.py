@@ -1,0 +1,276 @@
+"""TDS section C: the provider against the real biometric engine — no fake.
+
+Skipped unless the engine answers `GET /health/ready` at IDEN_ENGINE_BASE_URL.
+
+How it was run (2026-11-06, RTX 5070 Ti laptop):
+
+    # the stores and the engine on its GPU overlay
+    IDEN_BIOMETRIC_ENABLED=true docker compose -f deploy/docker-compose.yml \
+        -f deploy/docker-compose.engine-gpu.yml up -d postgres redis engine
+
+    # the suite in a Linux container on the compose network (the Windows GBK
+    # locale breaks Alembic natively); engine/tests/data mounted at
+    # /engine/tests/data so the paths below resolve as they do in the repo
+    docker run --rm --network iden-dev_default \
+        -v C:/Capstone/iden/provider:/src:ro \
+        -v C:/Capstone/iden/engine/tests/data:/engine/tests/data:ro \
+        -e IDEN_DATABASE_URL=postgresql+asyncpg://iden:iden@postgres:5432/iden \
+        -e IDEN_REDIS_URL=redis://:iden@redis:6379/0 \
+        -e IDEN_ENGINE_BASE_URL=http://engine:8000 \
+        -e IDEN_SIGNING_KEY_DIR=/app/keys \
+        ghcr.io/astral-sh/uv:python3.14-trixie-slim sh -c \
+        "cp -r /src /app && rm -rf /app/.venv && cd /app && uv sync --frozen -q \
+         && uv run pytest -m integration tests/test_tds_engine_integration.py"
+
+The engine is reached with the token in provider/keys/engine.token, which the
+engine overlay mounts as its ENGINE_TOKEN_FILE.
+
+Faces (engine/tests/data/README.md has the sources): `astronaut.jpg` is the
+enrolled person, `sunita_williams.jpg` a different one. Both are still
+photographs, which settles what can be tested end to end:
+
+- Sign-in sends three frames looking straight ahead and asks for no movement,
+  so a still photograph is a valid sign-in capture.
+- Enrolment asks for two random head movements. A still photograph cannot
+  perform them, so a real enrolment needs a real capture: put frames named
+  `<step>_<n>.jpg` (`center_0.jpg` … `turn_left_2.jpg`, all four movements) in
+  engine/tests/data/enrol/ and `test_a_real_capture_enrols_encrypted_templates`
+  runs. Without them it is skipped, and the faces the sign-in tests compare
+  against are seeded through the engine's own `/embed` — the path re-embedding
+  after a model upgrade uses — rather than through a fake.
+"""
+
+import base64
+from pathlib import Path
+
+import httpx
+import jwt
+import pytest
+from sqlalchemy import func, select
+
+from provider.biometric import consent, service
+from provider.biometric.engine_client import HttpEngine
+from provider.core.config import settings
+from provider.core.security import decrypt_secret
+from provider.shared.models import FaceTemplate
+from tests import test_biometric as shared
+from tests.conftest import REDIRECT_URI
+from tests.flows import pkce_pair, query_of, sign_in, start
+from tests.test_biometric import new_ticket
+
+# The kiosk and ticket fixtures from `test_biometric.py` — but not its fake
+# engine, which is the point of this file.
+face_headers = shared.face_headers
+kiosk_headers = shared.kiosk_headers
+mail = shared.mail
+
+pytestmark = [
+    pytest.mark.integration,
+    pytest.mark.usefixtures("admin_user", "dashboard"),
+]
+
+DATA = Path(__file__).resolve().parents[2] / "engine" / "tests" / "data"
+ENROLLED = DATA / "astronaut.jpg"
+STRANGER = DATA / "sunita_williams.jpg"
+CAPTURE = DATA / "enrol"
+MFA_FACE = "urn:iden:acr:mfa-face"
+
+
+@pytest.fixture(scope="module", autouse=True)
+def engine_reachable():
+    try:
+        ready = httpx.get(f"{settings.iden_engine_base_url}/health/ready", timeout=5)
+    except httpx.HTTPError as exc:
+        pytest.skip(f"engine unreachable at {settings.iden_engine_base_url}: {exc!r}")
+    if ready.status_code != 200:
+        pytest.skip(f"engine not ready: {ready.status_code} {ready.text}")
+
+
+@pytest.fixture(autouse=True)
+def biometric_on(monkeypatch):
+    monkeypatch.setattr(settings, "iden_biometric_enabled", True)
+
+
+def jpeg(path: Path) -> bytes:
+    return path.read_bytes()
+
+
+def files(frames: list[bytes], content_type: str = "image/jpeg"):
+    return [
+        ("frames", (f"{i}.jpg", data, content_type)) for i, data in enumerate(frames)
+    ]
+
+
+@pytest.fixture
+async def seeded_face(db, admin_user):
+    """The administrator's face, embedded by the real engine from `astronaut.jpg`."""
+    result = await HttpEngine().embed([jpeg(ENROLLED)])
+    assert result.embeddings[0] is not None, "the engine found no face in astronaut.jpg"
+    db.add(
+        FaceTemplate(
+            user_id=admin_user.id,
+            model_version=result.model_version,
+            embedding_encrypted=service.pack(result.embeddings[0], admin_user.id),
+            quality=1.0,
+            enrolled_by="tds-seed",
+        )
+    )
+    await db.commit()
+
+
+async def face_sign_in(client, frames: list[bytes], content_type: str = "image/jpeg"):
+    """Password, then a face step with `frames`. Returns (verifier, challenge id, response)."""
+    verifier, challenge = pkce_pair()
+    challenge_id = query_of(await start(client, challenge, acr_values=MFA_FACE))[
+        "challenge"
+    ]
+    password = await sign_in(client, challenge_id)
+    assert password.json()["status"] == "method_required", password.text
+    issued = await client.post(
+        "/api/v1/auth/biometric/challenge", json={"challengeId": challenge_id}
+    )
+    assert issued.status_code == 200, issued.text
+    response = await client.post(
+        "/api/v1/auth/biometric",
+        data={
+            "challengeId": challenge_id,
+            "faceChallengeId": issued.json()["faceChallengeId"],
+        },
+        files=files(frames, content_type),
+    )
+    return verifier, response
+
+
+class TestC1Enrolment:
+    async def test_a_still_photograph_cannot_enrol(
+        self, client, db, admin_user, kiosk_headers, face_headers, mail
+    ):
+        """Enrolling from nine copies of one still photo is refused 422 not_live by the real engine and stores no template."""
+        ticket = await new_ticket(client, face_headers)
+        challenge = (
+            await client.post(
+                "/biometric/enroll/challenge",
+                headers=kiosk_headers,
+                json={"ticket": ticket},
+            )
+        ).json()
+
+        response = await client.post(
+            "/biometric/enroll",
+            headers=kiosk_headers,
+            data={
+                "ticket": ticket,
+                "faceChallengeId": challenge["faceChallengeId"],
+                "consent": consent.version(),
+            },
+            files=files([jpeg(ENROLLED)] * len(challenge["steps"])),
+        )
+
+        assert response.status_code == 422, response.text
+        assert response.json()["code"] == "not_live"
+        assert "actions" in response.json()["details"]["failed"]
+        stored = await db.scalar(
+            select(func.count())
+            .select_from(FaceTemplate)
+            .where(FaceTemplate.user_id == admin_user.id)
+        )
+        assert stored == 0
+
+    @pytest.mark.skipif(
+        not CAPTURE.is_dir(), reason=f"no head-movement capture in {CAPTURE}"
+    )
+    async def test_a_real_capture_enrols_encrypted_templates(
+        self, client, db, admin_user, kiosk_headers, face_headers, mail
+    ):
+        """A real capture following the challenge enrols through /biometric and stores only AES-GCM-encrypted 512-d embeddings."""
+        ticket = await new_ticket(client, face_headers)
+        challenge = (
+            await client.post(
+                "/biometric/enroll/challenge",
+                headers=kiosk_headers,
+                json={"ticket": ticket},
+            )
+        ).json()
+        seen: dict[str, int] = {}
+        frames = []
+        for step in challenge["steps"]:
+            index = seen.get(step, 0)
+            seen[step] = index + 1
+            frames.append(jpeg(CAPTURE / f"{step}_{index}.jpg"))
+
+        response = await client.post(
+            "/biometric/enroll",
+            headers=kiosk_headers,
+            data={
+                "ticket": ticket,
+                "faceChallengeId": challenge["faceChallengeId"],
+                "consent": consent.version(),
+            },
+            files=files(frames),
+        )
+
+        assert response.status_code == 201, response.text
+        rows = list(
+            await db.scalars(
+                select(FaceTemplate).where(FaceTemplate.user_id == admin_user.id)
+            )
+        )
+        assert rows and len(rows) == response.json()["samples"]
+        for row in rows:
+            assert row.embedding_encrypted.startswith("v1:")
+            raw = base64.b64decode(
+                decrypt_secret(row.embedding_encrypted, context=str(admin_user.id))
+            )
+            assert len(raw) == 512 * 4
+
+
+class TestC2SameFace:
+    async def test_the_enrolled_face_signs_in(self, client, seeded_face):
+        """Three frames of the enrolled person pass the real engine, and the token's amr contains face at acr mfa-face."""
+        verifier, response = await face_sign_in(client, [jpeg(ENROLLED)] * 3)
+
+        assert response.status_code == 200, response.text
+        assert response.json()["status"] == "complete"
+        code = query_of(await client.get(response.json()["resumeUrl"]))["code"]
+        tokens = (
+            await client.post(
+                "/oauth2/token",
+                data={
+                    "grant_type": "authorization_code",
+                    "code": code,
+                    "redirect_uri": REDIRECT_URI,
+                    "code_verifier": verifier,
+                    "client_id": "dashboard",
+                },
+            )
+        ).json()
+        claims = jwt.decode(tokens["access_token"], options={"verify_signature": False})
+        assert "face" in claims["amr"]
+        assert claims["acr"] == MFA_FACE
+
+
+class TestC3DifferentFace:
+    async def test_another_persons_face_is_rejected(self, client, seeded_face):
+        """Three frames of a different person are rejected 401 face_rejected, with one attempt counted."""
+        _, response = await face_sign_in(client, [jpeg(STRANGER)] * 3)
+
+        assert response.status_code == 401, response.text
+        assert response.json()["code"] == "face_rejected"
+        assert response.json()["details"]["attemptsLeft"] == 2
+
+
+class TestC4NotAJpeg:
+    async def test_a_non_jpeg_frame_is_a_4xx(self, client, seeded_face):
+        """A PNG sent as image/jpeg is refused by the real engine and answered 422 invalid_frames, not a 5xx."""
+        import io
+
+        from PIL import Image
+
+        out = io.BytesIO()
+        Image.open(ENROLLED).resize((256, 256)).save(out, format="PNG")
+        png = out.getvalue()
+
+        _, response = await face_sign_in(client, [png] * 3)
+
+        assert 400 <= response.status_code < 500, response.text
+        assert response.json()["code"] == "invalid_frames"
