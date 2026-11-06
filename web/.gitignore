@@ -1,3 +1,6 @@
 node_modules/
 dist/
 *.local
+
+# Playwright: what global setup created for one run
+e2e/.state.json

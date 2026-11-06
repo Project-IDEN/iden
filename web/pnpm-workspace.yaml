@@ -2,6 +2,7 @@ packages:
   - shared
   - auth-ui
   - dashboard
+  - e2e
 
 allowBuilds:
   esbuild: true
