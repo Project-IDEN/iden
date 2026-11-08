@@ -91,7 +91,7 @@ export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./tool
    because shadcn was missing a box. */
 export { AppLogo } from "./app-logo";
 export { Avatar } from "./avatar";
-export { ConfirmDialog, SecretRevealOnce } from "./confirm-dialog";
+export { ConfirmDialog, CopyableValue, SecretRevealOnce } from "./confirm-dialog";
 export { DataTable, Pagination, type Column } from "./data-table";
 export { DateRangePicker } from "./calendar";
 export type { DateRange } from "react-day-picker";

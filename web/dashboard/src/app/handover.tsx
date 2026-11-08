@@ -1,4 +1,4 @@
-import { Button, Notice, SecretRevealOnce } from "@iden/shared";
+import { Button, CopyableValue, Notice, SecretRevealOnce } from "@iden/shared";
 import { Link } from "react-router";
 
 /**
@@ -9,7 +9,9 @@ import { Link } from "react-router";
  * to click is a page somebody clicks away from.
  *
  * `clientId` is shown only where IDEN generated it. An administrator chose
- * theirs and already knows it; a developer does not.
+ * theirs and already knows it; a developer does not. It is not a secret and is
+ * on the application's page for good, so it is offered for copying here but
+ * not labelled "shown once" — only the secret is.
  */
 export function SecretHandover({
   name,
@@ -40,7 +42,13 @@ export function SecretHandover({
       </p>
 
       <div className="mt-6 flex flex-col gap-4">
-        {clientId ? <SecretRevealOnce label="Client ID" secret={clientId} /> : null}
+        {clientId ? (
+          <CopyableValue
+            label="Client ID"
+            value={clientId}
+            note="Not a secret — it stays on this application's page, so you can copy it again any time."
+          />
+        ) : null}
         <SecretRevealOnce label="Client secret" secret={clientSecret} />
       </div>
 
