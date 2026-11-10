@@ -61,6 +61,25 @@ class TestA4VerifyWithoutAFace:
         assert response.json()["code"] == "face_not_enrolled"
 
 
+class TestWB3FrameCountAtSignIn:
+    """`biometric/service.py:153` → `_matches_challenge`, reached from sign-in rather than enrolment."""
+
+    async def test_too_few_frames_at_sign_in_is_422_invalid_frames(
+        self, client, fake_engine, enrolled
+    ):
+        """WB-3 P2: during face sign-in, uploading 2 frames for a 3-step challenge is refused with 422 invalid_frames before the engine is asked."""
+        challenge_id = await begin(client, acr_values=MFA_FACE)
+        await sign_in(client, challenge_id)
+        fake_engine.calls.clear()
+
+        response = await face_step(client, challenge_id, count=2)
+
+        assert response.status_code == 422
+        assert response.json()["code"] == "invalid_frames"
+        assert response.json()["message"] == "Expected 3 frames, received 2."
+        assert fake_engine.calls == []
+
+
 class TestB10QualityBeforeVersion:
     async def test_a_poor_capture_is_reported_before_an_outdated_enrolment(
         self, client, fake_engine, enrolled
