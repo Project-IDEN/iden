@@ -1,0 +1,19 @@
+{
+  "name": "iden-kiosk-e2e",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "summary": "node scripts/summary.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "^22.18.0",
+    "@types/qrcode": "^1.5.5",
+    "ffmpeg-static": "^5.2.0",
+    "qrcode": "^1.5.4",
+    "typescript": "^5.9.3"
+  }
+}
