@@ -10,6 +10,7 @@ from datetime import timedelta
 import pytest
 from sqlalchemy import update
 
+from provider.authz.services.auth_methods import outstanding
 from provider.authz.services.token_service import now
 from provider.shared.client_uris import MAX_URI_LENGTH, validate_backchannel_uri
 from provider.shared.enums import ClientType, GrantType
@@ -87,6 +88,26 @@ class TestA1ConsumeCode:
         assert response.json() == {
             "error": "invalid_grant",
             "error_description": "This code was issued to a different client.",
+        }
+
+    async def test_a_code_without_a_verifier_is_invalid_grant(self, client):
+        """WB-1 P6 (`service.py:162`, the `not code_verifier` short-circuit): a valid code redeemed with code_verifier omitted is refused with 400 invalid_grant "PKCE verification failed."."""
+        code, _ = await get_code(client)
+
+        response = await client.post(
+            "/oauth2/token",
+            data={
+                "grant_type": "authorization_code",
+                "code": code,
+                "redirect_uri": REDIRECT_URI,
+                "client_id": "dashboard",
+            },
+        )
+
+        assert response.status_code == 400
+        assert response.json() == {
+            "error": "invalid_grant",
+            "error_description": "PKCE verification failed.",
         }
 
 
@@ -212,3 +233,15 @@ class TestA5BackchannelUri:
 
         assert response.status_code == 422
         assert response.json()["code"] == "validation_error"
+
+
+class TestWB4Outstanding:
+    """`authz/services/auth_methods.py:131` — `reaching` empty, so `unused` is returned."""
+
+    def test_when_no_single_method_reaches_the_level_every_unused_one_is_offered(self):
+        """WB-4 P3: with nothing used yet and mfa-face required, no single added method reaches it, so outstanding returns every unused method, ["face", "otp", "pwd"]."""
+        assert outstanding([], {"pwd", "otp", "face"}, "urn:iden:acr:mfa-face") == [
+            "face",
+            "otp",
+            "pwd",
+        ]
