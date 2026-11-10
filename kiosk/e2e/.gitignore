@@ -1,0 +1,5 @@
+node_modules/
+# What one run created: the kiosk server's pairing, ids, generated camera files.
+.kiosk-data/
+.state.json
+media/

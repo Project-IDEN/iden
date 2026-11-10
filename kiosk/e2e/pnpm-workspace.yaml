@@ -1,0 +1,8 @@
+# A project of its own, beside kiosk/client rather than inside it: it tests the
+# kiosk from the outside and ships nothing to the device.
+packages:
+  - .
+
+# ffmpeg-static downloads its binary in a postinstall script.
+allowBuilds:
+  ffmpeg-static: true
