@@ -84,7 +84,7 @@ All in `tests/m07.spec.ts`, in this order (TC-197 pairs the kiosk the rest use):
 | TC-203 | A fresh ticket's QR shows the test user's display name on the confirm screen |
 | TC-205 | "No, that's not me" returns to idle; the test user has no face |
 | TC-204 | A ticket whose Redis key was expired is refused ("This code can't be used") |
-| TC-209 | A face at 15 % brightness through the capture, with the real head tracker |
+| TC-209 | *fixme*: needs a live person — a still photo cannot follow the head tracker. Run by hand |
 | TC-209 (timed-capture path) | The same with the head tracker blocked, so the frames reach the engine |
 | TC-210 | Left on the confirm screen, the kiosk returns to idle after `idleSeconds` |
 

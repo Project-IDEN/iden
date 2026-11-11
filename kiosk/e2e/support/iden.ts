@@ -165,10 +165,9 @@ export async function kioskRecord(): Promise<KioskRecord> {
 }
 
 export async function setKioskSettings(settings: Partial<KioskRecord["settings"]>) {
-  const token = await adminToken();
-  const current = await api<KioskRecord>(token, "GET", `/admin/kiosks/${loadState().kiosk.id}`);
+  const current = await kioskRecord();
   // The settings object is replaced as a whole, so the rest is carried over.
-  return api<KioskRecord>(token, "PATCH", `/admin/kiosks/${loadState().kiosk.id}`, {
+  return api<KioskRecord>(await adminToken(), "PATCH", `/admin/kiosks/${loadState().kiosk.id}`, {
     settings: { ...current.settings, ...settings },
   });
 }

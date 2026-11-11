@@ -9,11 +9,7 @@ async function askForReset(page: Page, email: string) {
   await page.getByLabel("Email").fill(email);
   await page.getByRole("button", { name: "Send reset link" }).click();
   await expect(page.getByRole("heading", { name: "Check your email" })).toBeVisible();
-  const text = (await page.getByText(/belongs to an account/).innerText()).replace(
-    email,
-    "<email>",
-  );
-  return text;
+  return (await page.getByText(/belongs to an account/).innerText()).replace(email, "<email>");
 }
 
 /** D9 — Asking for a reset with a known and with an unknown address shows the identical response, so it cannot reveal who has an account. */

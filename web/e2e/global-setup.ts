@@ -26,8 +26,7 @@ export default async function globalSetup() {
     "GET",
     "/admin/roles?limit=200",
   );
-  const member = roles.items.find((role) => role.name === "member");
-  const memberRole = member?.id;
+  const memberRole = roles.items.find((role) => role.name === "member")?.id;
   if (!memberRole) throw new Error("the seeded `member` role is missing; run scripts.seed");
 
   const run = randomBytes(3).toString("hex");
