@@ -288,6 +288,17 @@ async def test_a_heartbeat_reports_the_camera_and_reads_the_settings(iden):
     assert state.consent == CONSENT
 
 
+@pytest.mark.parametrize(("sent", "used"), [(0, 5), (-30, 5), (90, 90)])
+def test_the_heartbeat_interval_has_a_floor(iden, sent, used):
+    """Whatever IDEN answers, the loop never spins."""
+    from kiosk_server.device import Device
+
+    device = Device(httpx.AsyncClient())
+    device.config = {"heartbeatSeconds": sent}
+
+    assert device.heartbeat_seconds == used
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"

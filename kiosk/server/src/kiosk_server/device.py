@@ -143,4 +143,5 @@ class Device:
 
     @property
     def heartbeat_seconds(self) -> int:
-        return self.config.get("heartbeatSeconds", 60)
+        # From IDEN, so not trusted to be sane: zero or less would spin the loop.
+        return max(5, int(self.config.get("heartbeatSeconds", 60)))
