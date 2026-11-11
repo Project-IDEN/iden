@@ -170,7 +170,7 @@ What each group does:
 
 - **`IDEN_ENV=prod`** marks the session cookie `Secure`, sends HSTS, and removes `/docs`, `/redoc`
   and `/openapi.json`. It also makes the provider refuse to start on an `http://` issuer, a store
-  password printed in the repository, or `IDEN_FORWARDED_ALLOW_IPS=*`.
+  password printed in the repository or shorter than 16 characters, or `IDEN_FORWARDED_ALLOW_IPS=*`.
 - **`IDEN_ALLOWED_ADMIN_ORIGINS` stays empty.** Everything is on one origin, so the dashboard's
   calls to the provider aren't cross-origin and there's nothing to allow.
 - **`IDEN_FORWARDED_ALLOW_IPS`** is the Docker network nginx proxies from. It lets the provider see
