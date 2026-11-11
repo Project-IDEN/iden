@@ -75,6 +75,15 @@ class TestUpload:
         assert response.status_code == 422
         assert response.json()["code"] == "invalid_image"
 
+    async def test_a_format_outside_the_four_is_refused(self, client, entity_headers):
+        """Pillow would decode a TIFF; IDEN takes JPEG, PNG, WebP and GIF only."""
+        response = await upload(
+            client, entity_headers, an_image(fmt="TIFF"), "me.tiff", "image/tiff"
+        )
+
+        assert response.status_code == 422
+        assert response.json()["code"] == "invalid_image"
+
     async def test_a_decompression_bomb_is_refused(self, client, entity_headers):
         """A few bytes declaring a 20,000-pixel square: Pillow refuses it in
         `open`, before any pixel is decoded."""
