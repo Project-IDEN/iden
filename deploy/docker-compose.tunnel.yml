@@ -42,7 +42,7 @@ services:
       AWS_SECRET_ACCESS_KEY: ${IDEN_S3_SECRET_KEY:?set IDEN_S3_SECRET_KEY in deploy/.env}
 
   nginx:
-    image: nginx:1.31-alpine
+    image: nginx:1.31.8-alpine
     volumes:
       # Copy nginx/iden.conf.example to nginx/iden.conf and edit that. Mounted
       # over default.conf so the image's own server block, which also listens
@@ -69,7 +69,7 @@ services:
     restart: unless-stopped
 
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.10.7
     # `run` with a token needs no config file and no mounted credentials: the
     # token names the tunnel and carries its secret, and the ingress rules live
     # in the Cloudflare dashboard. Point the tunnel's public hostname at

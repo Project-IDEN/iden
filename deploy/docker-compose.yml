@@ -21,7 +21,7 @@ services:
     # Bookworm on purpose. Deployments before Phase 5 ran pgvector/pgvector:pg18,
     # which is bookworm too; moving an existing data volume to a newer glibc
     # changes how text sorts and quietly invalidates every text index.
-    image: postgres:18-bookworm
+    image: postgres:18.6-bookworm
     environment:
       POSTGRES_USER: iden
       # Defaulted so `up` with no .env still works on a laptop, and named here so
@@ -42,7 +42,7 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:8-alpine
+    image: redis:8.10.3-alpine
     # Redis holds every live session, and a session id is the cookie — so read
     # access to it is read access to every signed-in account. cloudflared shares
     # this network and is a third-party image.

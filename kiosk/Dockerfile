@@ -9,7 +9,7 @@
 # The client is JavaScript and CSS, the same on every platform, so it is built
 # once on the build machine's own architecture. Run under emulation instead —
 # arm64 on an x86 laptop — Node is slow and its native tools can crash.
-FROM --platform=$BUILDPLATFORM node:22-alpine AS client
+FROM --platform=$BUILDPLATFORM node:22.23.4-alpine AS client
 RUN corepack enable
 WORKDIR /app
 COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./
@@ -18,7 +18,7 @@ COPY client/ .
 RUN pnpm build
 
 
-FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim AS server
+FROM ghcr.io/astral-sh/uv:0.13.7-python3.14-trixie-slim AS server
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
 COPY server/pyproject.toml server/uv.lock ./
@@ -29,7 +29,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
 
-FROM python:3.14-slim-trixie
+FROM python:3.14.10-slim-trixie
 
 ARG VERSION=dev
 RUN useradd --create-home --uid 1000 kiosk && install -d -o kiosk -g kiosk /data

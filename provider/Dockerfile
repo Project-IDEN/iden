@@ -2,7 +2,7 @@
 
 # Dependencies are installed in their own stage and copied forward, so the
 # runtime image carries no uv, no build tools, and no lockfile.
-FROM ghcr.io/astral-sh/uv:python3.14-trixie-slim AS builder
+FROM ghcr.io/astral-sh/uv:0.13.7-python3.14-trixie-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
 
-FROM python:3.14-slim-trixie
+FROM python:3.14.10-slim-trixie
 
 # Not root. A container that is compromised should not also be privileged.
 RUN useradd --create-home --uid 1000 iden
