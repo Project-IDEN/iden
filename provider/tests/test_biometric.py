@@ -623,3 +623,20 @@ class TestReembed:
         assert service.unpack(moved.embedding_encrypted, admin_user.id) == (
             pytest.approx([0.9, 0.1, 0.0, 0.0])
         )
+
+
+async def test_attempts_at_once_cannot_exceed_the_limit(redis):
+    """Each capture counts one attempt. Read-modify-write let concurrent
+    captures each see the same count, so a ticket could outlast its limit."""
+    import asyncio
+    import uuid
+
+    from provider.biometric import tickets
+
+    ticket, _ = await tickets.issue(redis, uuid.uuid7())
+
+    results = await asyncio.gather(
+        *(tickets.holder(redis, ticket, attempt=True) for _ in range(10))
+    )
+
+    assert sum(result is not None for result in results) == tickets.MAX_ATTEMPTS
