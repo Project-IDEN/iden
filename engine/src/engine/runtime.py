@@ -70,6 +70,7 @@ class Models:
     detector: ort.InferenceSession
     recognizer: ort.InferenceSession
     anti_spoofing: ort.InferenceSession
+    landmarker: ort.InferenceSession
 
     @property
     def device(self) -> str:
@@ -84,4 +85,5 @@ def load(manifest: Manifest, model_dir: Path, device: str) -> Models:
         detector=_session(model_dir, manifest.detector, providers),
         recognizer=_session(model_dir, manifest.recognizer, providers),
         anti_spoofing=_session(model_dir, manifest.anti_spoofing, providers),
+        landmarker=_session(model_dir, manifest.landmarks, providers),
     )

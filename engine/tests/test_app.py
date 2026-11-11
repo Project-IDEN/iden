@@ -56,7 +56,7 @@ def test_steps_must_describe_every_frame(client, face_image):
         "/enroll",
         headers=AUTH,
         files=_upload(face_image, 3),
-        data={"meta": json.dumps({"steps": ["center", "smile", "center"]})},
+        data={"meta": json.dumps({"steps": ["center", "frown", "center"]})},
     )
     assert response.status_code == 400
     response = client.post(

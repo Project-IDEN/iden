@@ -7,11 +7,16 @@ step it was captured for.
 
 from typing import Literal, get_args
 
-Action = Literal["turn_left", "turn_right", "look_up", "look_down"]
+Movement = Literal["turn_left", "turn_right", "look_up", "look_down"]
+# Judged on the 106-point landmarks rather than head pose; enrolment only.
+Expression = Literal["blink", "smile"]
+Action = Movement | Expression
 
 CENTRE = "center"
 
-ACTIONS: tuple[str, ...] = get_args(Action)
+MOVEMENTS: tuple[str, ...] = get_args(Movement)
+EXPRESSIONS: tuple[str, ...] = get_args(Expression)
+ACTIONS: tuple[str, ...] = MOVEMENTS + EXPRESSIONS
 
 
 def is_valid(step: str) -> bool:
