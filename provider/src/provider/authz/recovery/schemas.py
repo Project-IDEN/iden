@@ -1,10 +1,13 @@
-from pydantic import Field
+from typing import Annotated
+
+from pydantic import Field, StringConstraints
 
 from provider.core.schemas import CamelCaseBaseModel
 
 
 class PasswordResetRequest(CamelCaseBaseModel):
-    email: str = Field(max_length=255)
+    # Stored addresses are lowercase; a mailbox is case-insensitive.
+    email: Annotated[str, StringConstraints(max_length=255, to_lower=True)]
 
 
 class PasswordResetConfirm(CamelCaseBaseModel):

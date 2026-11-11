@@ -34,7 +34,12 @@ from provider.authz.oauth.service import (
     issue_code,
     redirect_uri_registered,
 )
-from provider.authz.services import auth_methods, challenge_store, session_store
+from provider.authz.services import (
+    auth_methods,
+    challenge_store,
+    pkce,
+    session_store,
+)
 from provider.authz.services import token_service as tokens
 from provider.authz.services.scope_resolver import (
     parse_scope,
@@ -58,6 +63,8 @@ from provider.shared.models import RefreshToken, User
 
 router = APIRouter(prefix="/oauth2", tags=["oauth2"])
 
+# The width of `authorization_codes.nonce`, which carries it to the ID token.
+MAX_NONCE_LENGTH = 255
 
 # What `prompt=none` returns in place of each interaction it refused to start.
 SILENT_ERRORS = {
@@ -248,6 +255,14 @@ async def authorize(
 
     if code_challenge_method != CodeChallengeMethod.S256:
         raise fail("invalid_request", "code_challenge_method must be S256.")
+
+    if not pkce.is_s256_challenge(code_challenge):
+        raise fail("invalid_request", "code_challenge must be 43 base64url characters.")
+
+    if nonce is not None and len(nonce) > MAX_NONCE_LENGTH:
+        raise fail(
+            "invalid_request", f"nonce must be at most {MAX_NONCE_LENGTH} characters."
+        )
 
     prompts = set(prompt.split()) if prompt else set()
     if unknown := prompts - set(Prompt):
@@ -535,9 +550,13 @@ async def _userinfo(
         )
 
     user = await session.get(User, claims["sub"])
-    if user is None:
+    # A token outlives a deactivation by its whole lifetime, so the account is
+    # checked here, as `require_scope` does for every other bearer route.
+    if user is None or not user.is_active:
         raise OAuthError(
-            "invalid_token", "The subject no longer exists.", status_code=401
+            "invalid_token",
+            "The subject no longer exists or is deactivated.",
+            status_code=401,
         )
 
     return UserInfoResponse(

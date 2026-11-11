@@ -182,7 +182,7 @@ async def seed_client(
 
 async def seed_admin_user(session: AsyncSession, roles: dict[str, Role]) -> str | None:
     """Create the bootstrap administrator. Returns the password only on creation."""
-    email = settings.iden_bootstrap_admin_email
+    email = settings.iden_bootstrap_admin_email.lower()
     user = await session.scalar(select(User).where(User.email == email))
     if user is not None:
         return None

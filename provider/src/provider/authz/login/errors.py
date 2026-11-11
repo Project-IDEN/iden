@@ -6,11 +6,6 @@ class InvalidCredentials(IdenError):
     message = "Email or password is incorrect."
 
 
-class InactiveUser(IdenError):
-    code = "inactive_user"
-    message = "This account is disabled."
-
-
 class ChallengeNotFound(IdenError):
     code = "challenge_not_found"
     message = "This login attempt has expired. Start again from the application."

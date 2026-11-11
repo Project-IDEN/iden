@@ -7,7 +7,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.authz.login.errors import (
-    InactiveUser,
     InvalidCredentials,
     InvalidTotpCode,
     TotpNotEnrolled,
@@ -37,11 +36,12 @@ async def authenticate_password(
         await verify_secret_async(_DUMMY_HASH, password)
         raise InvalidCredentials
 
+    # A disabled account answers like a wrong password. Saying "disabled" only
+    # to the right password would confirm that password to whoever is guessing.
     if not await verify_secret_async(user.password_hash, password):
         raise InvalidCredentials
-
     if not user.is_active:
-        raise InactiveUser
+        raise InvalidCredentials
 
     user.last_login_at = datetime.now(UTC)
     return user

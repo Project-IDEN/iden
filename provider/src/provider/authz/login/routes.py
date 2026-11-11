@@ -18,7 +18,6 @@ from provider.authz import session_cookie
 from provider.authz.deps import LoginSessionDep
 from provider.authz.login.errors import (
     ChallengeNotFound,
-    InactiveUser,
     InvalidCredentials,
     InvalidTotpCode,
     NoSession,
@@ -166,8 +165,10 @@ async def read_challenge(
         "**Required scope:** none — this is how a session is established."
     ),
     responses={
-        401: {"model": ErrorResponse, "description": "Email or password incorrect"},
-        403: {"model": ErrorResponse, "description": "Account disabled"},
+        401: {
+            "model": ErrorResponse,
+            "description": "Email or password incorrect, or the account is disabled",
+        },
         404: {"model": ErrorResponse, "description": "Challenge expired or unknown"},
         429: {
             "model": ErrorResponse,
@@ -202,8 +203,6 @@ async def login(
             window=ratelimit.LOGIN_FAILURES["window"],
         )
         raise HTTPException(status_code=401, detail=exc) from exc
-    except InactiveUser as exc:
-        raise HTTPException(status_code=403, detail=exc) from exc
 
     # Cleared on success, so someone under attack can still sign in with the
     # password they know.
@@ -279,6 +278,7 @@ async def login(
 async def totp(
     body: TotpRequest,
     request: Request,
+    response: Response,
     login_session: LoginSessionDep,
     session: DBSessionDep,
     redis: RedisDep,
@@ -314,6 +314,7 @@ async def totp(
     await ratelimit.clear(redis, ratelimit.TOTP_FAILURES["bucket"], str(user.id))
 
     await session_store.add_method(redis, login_session, AmrMethod.OTP)
+    session_cookie.set_session(response, login_session.id)
     return await _next_step(
         login_session, challenge, await enrolled_methods(session, user.id)
     )
@@ -427,6 +428,7 @@ async def face_challenge(
 )
 async def biometric(
     request: Request,
+    response: Response,
     challenge_id: Annotated[str, Form(alias="challengeId")],
     face_challenge_id: Annotated[str, Form(alias="faceChallengeId")],
     frames: Annotated[list[UploadFile], File()],
@@ -472,6 +474,7 @@ async def biometric(
     await ratelimit.clear(redis, ratelimit.FACE_FAILURES["bucket"], str(user.id))
 
     login_session = await session_store.add_method(redis, login_session, AmrMethod.FACE)
+    session_cookie.set_session(response, login_session.id)
     return await _next_step(
         login_session, challenge, await enrolled_methods(session, user.id)
     )

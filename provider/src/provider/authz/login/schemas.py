@@ -1,6 +1,6 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field
+from pydantic import Field, StringConstraints
 
 from provider.core.schemas import CamelCaseBaseModel
 
@@ -9,7 +9,8 @@ class LoginRequest(CamelCaseBaseModel):
     challenge_id: str = Field(
         description="From the `challenge` query parameter on the login page."
     )
-    email: str
+    # Stored addresses are lowercase; a mailbox is case-insensitive.
+    email: Annotated[str, StringConstraints(to_lower=True)]
     password: str
 
 

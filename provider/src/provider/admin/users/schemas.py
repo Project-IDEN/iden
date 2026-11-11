@@ -28,7 +28,7 @@ class UserCreate(CamelCaseBaseModel):
         ),
     )
     username: str = Field(max_length=64, pattern=USERNAME_PATTERN)
-    display_name: str | None = None
+    display_name: str | None = Field(default=None, max_length=255)
     password: str | None = Field(
         default=None,
         min_length=12,
@@ -45,7 +45,7 @@ class UserUpdate(CamelCaseBaseModel):
     model_config = CamelCaseBaseModel.model_config | ConfigDict(extra="forbid")
 
     username: str | None = Field(default=None, max_length=64, pattern=USERNAME_PATTERN)
-    display_name: str | None = None
+    display_name: str | None = Field(default=None, max_length=255)
     is_active: bool | None = Field(
         default=None,
         description="Deactivating blocks login and refresh, but leaves the record intact.",

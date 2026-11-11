@@ -158,11 +158,13 @@ async def verify(
         challenge.steps,
         [unpack(row.embedding_encrypted, user_id) for row in rows],
     )
+    # Quality first: a dark or blurred capture is something the person can fix
+    # in front of the camera, and an outdated enrolment is not.
+    if not result.usable:
+        raise PoorCapture(reasons=result.reasons)
     # Compared under another model, the similarity means nothing.
     if result.model_version != stored_version:
         raise FaceOutdated
-    if not result.usable:
-        raise PoorCapture(reasons=result.reasons)
     if not (result.live and result.matched):
         raise FaceRejected
 
