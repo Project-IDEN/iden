@@ -75,8 +75,12 @@ async def lifespan(app: FastAPI):
 
 
 def require_token(authorization: Annotated[str | None, Header()] = None) -> None:
+    # Read per request so the token can be rotated without a restart — which is
+    # also how the file can come back empty after the startup check passed.
     expected = settings.token()
     if expected is None:
+        if settings.engine_env == "prod":
+            raise HTTPException(status_code=503, detail="No token is configured.")
         return
     presented = (authorization or "").removeprefix("Bearer ")
     if not secrets.compare_digest(presented.encode(), expected.encode()):
