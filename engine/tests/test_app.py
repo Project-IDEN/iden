@@ -2,6 +2,7 @@ import json
 
 import cv2
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from engine import app as app_module
@@ -98,3 +99,24 @@ def test_verify_compares_against_the_templates_sent(client, face_image):
     body = response.json()
     assert response.status_code == 200
     assert body["usable"] and body["matched"]
+
+
+class TestATokenThatGoesMissing:
+    """Startup refuses prod without a token, but the file is read per request:
+    emptied afterwards, it must close the engine, not open it."""
+
+    def test_prod_refuses_every_caller(self, tmp_path, monkeypatch):
+        token_file = tmp_path / "engine.token"
+        token_file.write_text("")
+        monkeypatch.setattr(settings, "engine_token_file", token_file)
+        monkeypatch.setattr(settings, "engine_env", "prod")
+
+        with pytest.raises(HTTPException) as refused:
+            app_module.require_token(authorization="Bearer anything")
+
+        assert refused.value.status_code == 503
+
+    def test_dev_still_runs_without_one(self, monkeypatch):
+        monkeypatch.setattr(settings, "engine_token_file", None)
+
+        app_module.require_token(authorization=None)
