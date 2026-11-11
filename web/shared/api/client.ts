@@ -13,9 +13,16 @@ export interface ClientOptions {
   withCredentials: boolean;
   /** Supplies the current access token, when there is one. */
   getToken?: () => string | undefined;
+  /** Called when a request is refused with `401`: the token is no longer good. */
+  onUnauthorized?: () => void;
 }
 
-export function createClient({ issuer, withCredentials, getToken }: ClientOptions): AxiosInstance {
+export function createClient({
+  issuer,
+  withCredentials,
+  getToken,
+  onUnauthorized,
+}: ClientOptions): AxiosInstance {
   const client = axios.create({
     baseURL: issuer,
     withCredentials,
@@ -32,7 +39,11 @@ export function createClient({ issuer, withCredentials, getToken }: ClientOption
   // `error.response?.data?.detail` and guesses.
   client.interceptors.response.use(
     (response) => response,
-    (error: unknown) => Promise.reject(toIdenError(error)),
+    (error: unknown) => {
+      const idenError = toIdenError(error);
+      if (idenError.status === 401) onUnauthorized?.();
+      return Promise.reject(idenError);
+    },
   );
 
   return client;

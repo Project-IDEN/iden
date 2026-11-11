@@ -60,6 +60,7 @@ export default async function globalSetup() {
     totp: await account("totp"),
     sessions: await account("sessions"),
     consent: await account("consent"),
+    revoked: await account("revoked"),
     thirdParty: { id: thirdParty.id, clientId: thirdParty.clientId },
   });
 }
