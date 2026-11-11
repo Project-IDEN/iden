@@ -14,6 +14,7 @@ Create Date: 2026-11-11 11:17:45.754302
 
 from collections.abc import Sequence
 
+import sqlalchemy as sa
 from alembic import op
 
 revision: str = "dde2fd7fd82b"
@@ -23,6 +24,26 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    # Two accounts that differ only by case would both become one address, and
+    # the unique index would stop the upgrade halfway with an IntegrityError
+    # that names neither. Stop first, and say which.
+    clashes = (
+        op.get_bind()
+        .execute(
+            sa.text(
+                "SELECT lower(email) FROM users GROUP BY lower(email) "
+                "HAVING count(*) > 1"
+            )
+        )
+        .scalars()
+        .all()
+    )
+    if clashes:
+        raise RuntimeError(
+            "These addresses belong to more than one account, differing only by "
+            f"capitalisation: {', '.join(clashes)}. Delete or rename one account "
+            "of each, then upgrade again."
+        )
     op.execute("UPDATE users SET email = lower(email) WHERE email <> lower(email)")
 
 
