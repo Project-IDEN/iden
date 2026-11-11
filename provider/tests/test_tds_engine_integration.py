@@ -15,10 +15,11 @@ photographs, which settles what can be tested end to end:
 
 - Sign-in sends three frames looking straight ahead and asks for no movement,
   so a still photograph is a valid sign-in capture.
-- Enrolment asks for two random head movements. A still photograph cannot
-  perform them, so a real enrolment needs a real capture: put frames named
-  `<step>_<n>.jpg` (`center_0.jpg` … `turn_left_2.jpg`, all four movements) in
-  engine/tests/data/enrol/ and `test_a_real_capture_enrols_encrypted_templates`
+- Enrolment asks for two random actions: head movements, a blink, a smile. A
+  still photograph cannot perform them, so a real enrolment needs a real
+  capture: `engine/scripts/capture_actions.py` writes `<step>_<n>.jpg`
+  (`center_0.jpg` … `smile_2.jpg`, all six actions) to
+  engine/tests/data/actions/, and `test_a_real_capture_enrols_encrypted_templates`
   runs. Without them it is skipped, and the faces the sign-in tests compare
   against are seeded through the engine's own `/embed` — the path re-embedding
   after a model upgrade uses — rather than through a fake.
@@ -51,7 +52,16 @@ pytestmark = [
 DATA = Path(__file__).resolve().parents[2] / "engine" / "tests" / "data"
 ENROLLED = DATA / "astronaut.jpg"
 STRANGER = DATA / "sunita_williams.jpg"
-CAPTURE = DATA / "enrol"
+CAPTURE = DATA / "actions"
+CAPTURED_STEPS = (
+    "center",
+    "turn_left",
+    "turn_right",
+    "look_up",
+    "look_down",
+    "blink",
+    "smile",
+)
 MFA_FACE = "urn:iden:acr:mfa-face"
 
 
@@ -152,7 +162,12 @@ class TestC1Enrolment:
         assert stored == 0
 
     @pytest.mark.skipif(
-        not CAPTURE.is_dir(), reason=f"no head-movement capture in {CAPTURE}"
+        not all(
+            (CAPTURE / f"{step}_{n}.jpg").is_file()
+            for step in CAPTURED_STEPS
+            for n in range(3)
+        ),
+        reason=f"no capture of every action in {CAPTURE}",
     )
     async def test_a_real_capture_enrols_encrypted_templates(
         self, client, db, admin_user, kiosk_headers, face_headers, mail

@@ -9,7 +9,9 @@ created by NASA."). Source: https://commons.wikimedia.org/wiki/File:Sunita_Willi
 512×512, JPEG quality 90, so it is framed like a kiosk capture. Used by
 provider/tests/test_tds_engine_integration.py as "a different person".
 
-enrol/ (optional, not committed unless a consenting team member provides it) —
-a real head-movement capture, `<step>_<n>.jpg` for `center` and the four
-movements, three frames each. Needed for the real-enrolment integration test;
-a still photograph cannot perform the movements an enrolment asks for.
+actions/ (optional, git-ignored, never committed) — a consenting team member's
+own capture: `<step>_<n>.jpg`, three frames each for `center` and the six
+actions (`turn_left`, `turn_right`, `look_up`, `look_down`, `blink`, `smile`),
+written by `uv run python -m scripts.capture_actions` from a webcam. Read by
+tests/test_actions_real.py and provider/tests/test_tds_engine_integration.py;
+both skip without it. A still photograph cannot blink, smile or move.
