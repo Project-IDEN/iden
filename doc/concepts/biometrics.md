@@ -105,10 +105,10 @@ the checks below, and each stops something different:
 | Check | How | Stops |
 |---|---|---|
 | **Anti-spoofing model** | InsightFace's liveness model judges each straight-ahead frame | Printed photos, phone and screen replays |
-| **Head movements** — enrolment only | Two of *turn left, turn right, look up, look down*, drawn at random for this attempt, measured from facial landmarks | A still photo; a recording made before the attempt began |
+| **Actions** — enrolment only | Two of *turn left, turn right, look up, look down, blink, smile*, drawn at random for this attempt, measured from facial landmarks against the person's own face looking ahead | A still photo; a recording made before the attempt began |
 | **Consistency** | Every frame must show the same person | Swapping faces partway through |
 
-The movements are asked for at the kiosk, once, when the face is enrolled. Sign-in asks for none: a
+The actions are asked for at the kiosk, once, when the face is enrolled. Sign-in asks for none: a
 few frames looking straight at the camera, judged by the anti-spoofing model, because turning your
 head at every sign-in is a chore people would avoid the face step over. What a face proves at
 sign-in therefore rests on the anti-spoofing model alone.
@@ -116,13 +116,15 @@ sign-in therefore rests on the anti-spoofing model alone.
 Either way, what to capture is a **challenge**: issued by IDEN, good for one capture, two minutes,
 and one person. A capture made for one attempt is useless for the next.
 
-The kiosk waits for each movement rather than timing it. A head tracker running in the page
+The kiosk waits for each action rather than timing it. A face tracker running in the page
 (MediaPipe's face landmarker, built into the kiosk image, with no picture leaving the page for it)
-follows the head. Each movement is announced two seconds ahead, starts with a tone, and ends with a
-chime once its frames are taken — the person cannot read the screen with their head turned. A
-movement waits up to eight seconds for a turn of about 25° or a tilt of about 20°, and lasts at
-least five, so nobody is hurried into the next. The tracker only decides when the frames are taken:
-the engine judges every one of them itself, against a lower bar, so a modified page gains nothing.
+follows the head, the eyes and the mouth. Each action is announced two seconds ahead, starts with a
+tone, and ends with a chime once its frames are taken — the person cannot read the screen with their
+head turned. An action waits up to eight seconds — for a turn of about 25°, a tilt of about 20°, the
+eyes open, closed and open again, or a smile held — and lasts at least five, so nobody is hurried
+into the next. The tracker only decides when the frames are taken: the engine judges every one of
+them itself, so a modified page gains nothing. A straight-ahead frame caught mid-blink is left out
+of the anti-spoofing check and never kept as a template.
 
 When a capture is not good enough to judge — too dark, too far away, blurred, two faces — nothing is
 decided. The person is told what to fix, and it does not count as a failed attempt. A capture that is

@@ -16,10 +16,10 @@ neither too dark nor too bright. When it is not, the person is told what to fix,
 decided. These failures are `poor_capture`.
 
 **Is it a live person?** Three checks, and every one must pass: an anti-spoofing model judges the
-straight-ahead frames, the head follows two movements drawn at random, and the face is the same
-person throughout. These failures are `not_live`. The camera cannot break them outright, but a dark,
-grainy or blurred picture makes the anti-spoofing model less sure and the landmarks the movements
-are measured from less steady.
+straight-ahead frames, the person does two actions drawn at random — a head movement, a blink or a
+smile — and the face is the same person throughout. These failures are `not_live`. The camera
+cannot break them outright, but a dark, grainy or blurred picture makes the anti-spoofing model less
+sure and the landmarks the actions are measured from less steady.
 
 A webcam left on its automatic settings can get in the way:
 
@@ -258,7 +258,7 @@ The same failures, without the details, are on the kiosk's page in the dashboard
 | `out_of_frame` | The face is at the edge of the picture, or so close it nearly fills it: too little around it for the anti-spoofing model to judge. | Usually the person. If it is constant, the camera is aimed off where people stand, or the lens is too narrow. |
 | `multiple_faces` | A second face is in view. | Something behind the kiosk: a poster, a mirror, a queue. |
 | `not_live`, `anti_spoofing` | The anti-spoofing model judged the face not live. | Usually poor light or a noisy picture: more even light on the face, less `gain`. |
-| `not_live`, `actions` | An action was not seen: a head movement, a blink or a smile. | Usually the person. The kiosk waits for each action and chimes once it sees it, so this means the tracker in the page judged a turn, blink or smile the engine then found too small. Often enough, and `TRIGGER` in `kiosk/client/src/ui/capture-sequence.ts` (movements) or the thresholds in `kiosk/client/src/ui/capture-actions.ts` (blink, smile) need raising, or the engine's `blink_*` and `smile_gain` in `engine/models.toml` tuning: [docs/enrol-blink-smile.md](../../docs/enrol-blink-smile.md). |
+| `not_live`, `actions` | An action was not seen: a head movement, a blink or a smile. | Usually the person. The kiosk waits for each action and chimes once it sees it, so this means the tracker in the page judged a turn, blink or smile the engine then found too small. Often enough, and for a movement `TRIGGER` in `kiosk/client/src/ui/capture-sequence.ts` needs raising; for a blink or a smile, see [Tune the blink and smile](biometric-engine.md#tune-the-blink-and-smile). |
 | `not_live`, `consistent` | The face did not look like the same person throughout. | Someone else stepped in, or the frames were very poor. |
 
 A tuned kiosk passes nearly every first attempt from people who follow the instructions. A failure
