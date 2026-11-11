@@ -161,7 +161,7 @@ async def update_role(
         },
         403: {
             "model": ErrorResponse,
-            "description": "Would confer a scope the caller does not hold",
+            "description": "Would confer or take away a scope the caller does not hold",
         },
     },
 )
@@ -181,11 +181,16 @@ async def set_role_scopes(
     summary="Delete a role",
     description=(
         "Refused with `409` while the role is still assigned to users or groups. "
-        "Pass `force=true` to revoke it from all of them.\n\n"
+        "Pass `force=true` to revoke it from all of them. Refused when the role "
+        "carries an `admin:` or `biometric:` scope the caller does not hold.\n\n"
         "**Required scope:** `admin:roles:write`"
     ),
     responses={
         404: {"model": ErrorResponse, "description": "No such role"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Would take away a scope the caller does not hold",
+        },
         409: {
             "model": ErrorResponse,
             "description": (
@@ -193,14 +198,14 @@ async def set_role_scopes(
             ),
         },
     },
-    dependencies=[WRITE],
 )
 async def delete_role(
     role_id: UUID,
     session: DBSessionDep,
+    token: WriteToken,
     force: bool = Query(
         False, description="Delete even though the role is still assigned."
     ),
 ) -> Response:
-    await service.delete_role(session, role_id, force=force)
+    await service.delete_role(session, role_id, force=force, caller_scopes=token.scopes)
     return Response(status_code=204)

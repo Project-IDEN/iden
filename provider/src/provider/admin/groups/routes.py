@@ -138,7 +138,7 @@ async def update_group(
         409: {"model": ErrorResponse, "description": "Would leave no administrator"},
         403: {
             "model": ErrorResponse,
-            "description": "Would confer a scope the caller does not hold",
+            "description": "Would confer or take away a scope the caller does not hold",
         },
     },
 )
@@ -206,19 +206,24 @@ async def add_members(
     status_code=204,
     summary="Remove a member",
     description=(
-        "Removes the membership only — the user is untouched.\n\n"
+        "Removes the membership only — the user is untouched. Refused when the "
+        "group's roles carry an `admin:` or `biometric:` scope the caller does not "
+        "hold.\n\n"
         "**Required scope:** `admin:groups:write`"
     ),
     responses={
         404: {"model": ErrorResponse, "description": "No such group"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Would take away a scope the caller does not hold",
+        },
         409: {"model": ErrorResponse, "description": "Would leave no administrator"},
     },
-    dependencies=[WRITE],
 )
 async def remove_member(
-    group_id: UUID, user_id: UUID, session: DBSessionDep
+    group_id: UUID, user_id: UUID, session: DBSessionDep, token: WriteToken
 ) -> Response:
-    await service.remove_member(session, group_id, user_id)
+    await service.remove_member(session, group_id, user_id, caller_scopes=token.scopes)
     return Response(status_code=204)
 
 
@@ -228,15 +233,22 @@ async def remove_member(
     summary="Delete a group",
     description=(
         "Removes the group, its role bindings, and its memberships. **Users are "
-        "not deleted** — they simply lose whatever the group granted them.\n\n"
+        "not deleted** — they simply lose whatever the group granted them, which "
+        "is why the caller must hold every `admin:` or `biometric:` scope it "
+        "carries.\n\n"
         "**Required scope:** `admin:groups:write`"
     ),
     responses={
         404: {"model": ErrorResponse, "description": "No such group"},
+        403: {
+            "model": ErrorResponse,
+            "description": "Would take away a scope the caller does not hold",
+        },
         409: {"model": ErrorResponse, "description": "Would leave no administrator"},
     },
-    dependencies=[WRITE],
 )
-async def delete_group(group_id: UUID, session: DBSessionDep) -> Response:
-    await service.delete_group(session, group_id)
+async def delete_group(
+    group_id: UUID, session: DBSessionDep, token: WriteToken
+) -> Response:
+    await service.delete_group(session, group_id, caller_scopes=token.scopes)
     return Response(status_code=204)

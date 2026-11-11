@@ -109,9 +109,10 @@ async def set_group_roles(
 ) -> Group:
     """A group's roles reach every member, present and future."""
     group = await get_group(session, group_id)
+    before = list(group.roles)
     group.roles = await resolve_roles(session, role_ids)
     delegation.refuse_undelegatable(
-        caller_scopes, delegation.scopes_of_roles(group.roles)
+        caller_scopes, delegation.scopes_of_roles([*before, *group.roles])
     )
     await lockout.refuse_if_last(session)
     await session.commit()
@@ -170,8 +171,13 @@ async def add_members(
     await session.commit()
 
 
-async def remove_member(session: AsyncSession, group_id: UUID, user_id: UUID) -> None:
-    await get_group(session, group_id)
+async def remove_member(
+    session: AsyncSession, group_id: UUID, user_id: UUID, *, caller_scopes: set[str]
+) -> None:
+    group = await get_group(session, group_id)
+    delegation.refuse_undelegatable(
+        caller_scopes, delegation.scopes_of_roles(group.roles)
+    )
     await session.execute(
         delete(user_groups).where(
             user_groups.c.group_id == group_id, user_groups.c.user_id == user_id
@@ -181,9 +187,14 @@ async def remove_member(session: AsyncSession, group_id: UUID, user_id: UUID) ->
     await session.commit()
 
 
-async def delete_group(session: AsyncSession, group_id: UUID) -> None:
+async def delete_group(
+    session: AsyncSession, group_id: UUID, *, caller_scopes: set[str]
+) -> None:
     """Removes the group, its role bindings, and its memberships — never its users."""
     group = await get_group(session, group_id)
+    delegation.refuse_undelegatable(
+        caller_scopes, delegation.scopes_of_roles(group.roles)
+    )
     await session.delete(group)
     await lockout.refuse_if_last(session)
     await session.commit()
