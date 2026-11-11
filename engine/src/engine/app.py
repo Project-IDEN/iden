@@ -164,8 +164,14 @@ def verify(
     meta: Annotated[str, Form()],
 ) -> VerifyResult:
     parsed = _meta(VerifyMeta, meta)
+    loaded = models()
+    # The recogniser's width, not a constant: a template from another model
+    # would otherwise reach the comparison and fail there as a 500.
+    width = loaded.recognizer.get_outputs()[0].shape[-1]
+    if any(len(template) != width for template in parsed.templates):
+        raise HTTPException(status_code=400, detail="Templates do not fit the model.")
     return pipeline.verify(
-        models(), _frames(frames, parsed.steps), parsed.steps, parsed.templates
+        loaded, _frames(frames, parsed.steps), parsed.steps, parsed.templates
     )
 
 

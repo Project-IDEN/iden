@@ -76,4 +76,5 @@ class Meta(BaseModel):
 
 
 class VerifyMeta(Meta):
-    templates: list[list[float]] = Field(min_length=1)
+    # A person enrols a handful of samples; the ceiling keeps one request small.
+    templates: list[list[float]] = Field(min_length=1, max_length=64)
