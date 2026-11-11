@@ -1858,7 +1858,7 @@ export interface paths {
         put?: never;
         /**
          * Start a face capture for the person holding a ticket
-         * @description Reads the enrolment ticket from the person's QR code and returns what to capture: a few frames looking straight ahead, then two head movements chosen at random.
+         * @description Reads the enrolment ticket from the person's QR code and returns what to capture: a few frames looking straight ahead, then two actions chosen at random from the four head movements, a blink and a smile.
          *
          *     Every call counts one attempt against the ticket; a ticket allows 5.
          *
@@ -1886,7 +1886,7 @@ export interface paths {
          *
          *     `consent` is the version of the consent text the person agreed to, from the heartbeat's `consent`. Anything but the current version is refused with `422 consent_required`; the version and the time are stored with the face.
          *
-         *     The capture must pass every liveness check: the anti-spoofing model, the head movements, and the same face throughout. Any face already enrolled on the account is replaced, and the person is told by email.
+         *     The capture must pass every liveness check: the anti-spoofing model, the two actions, and the same face throughout. Any face already enrolled on the account is replaced, and the person is told by email.
          *
          *     A `422 poor_capture` lists what to fix (`too_dark`, `too_small`, `blurred`, …) and a `422 not_live` the checks that failed; both leave the ticket usable for another attempt.
          *
@@ -3123,9 +3123,9 @@ export interface components {
             faceChallengeId: string;
             /**
              * Steps
-             * @description One entry per frame to capture, in order. `center`: look straight at the camera. `turn_left` / `turn_right`: turn your head to *your* left or right. `look_up` / `look_down`: tilt your head.
+             * @description One entry per frame to capture, in order: three `center` frames (look straight at the camera), then three for each of two actions drawn at random. `turn_left` / `turn_right`: turn your head to *your* left or right. `look_up` / `look_down`: tilt your head. `blink`: eyes open, closed, open again. `smile`: a neutral face, then a smile, held.
              */
-            steps: ("center" | "turn_left" | "turn_right" | "look_up" | "look_down")[];
+            steps: ("center" | "turn_left" | "turn_right" | "look_up" | "look_down" | "blink" | "smile")[];
             /**
              * Expiresat
              * Format: date-time

@@ -8,6 +8,11 @@ from provider.biometric.challenges import FaceChallenge
 from provider.core.schemas import CamelCaseBaseModel
 
 Step = Literal["center", "turn_left", "turn_right", "look_up", "look_down"]
+# Enrolment also asks for a blink or a smile; sign-in never does, so its
+# response keeps `Step`.
+EnrolStep = Literal[
+    "center", "turn_left", "turn_right", "look_up", "look_down", "blink", "smile"
+]
 
 
 class FaceChallengeResponse(CamelCaseBaseModel):
@@ -38,6 +43,16 @@ class KioskChallengeRequest(CamelCaseBaseModel):
 
 
 class KioskChallengeResponse(FaceChallengeResponse):
+    steps: list[EnrolStep] = Field(  # pyright: ignore[reportIncompatibleVariableOverride]
+        description=(
+            "One entry per frame to capture, in order: three `center` frames "
+            "(look straight at the camera), then three for each of two actions "
+            "drawn at random. `turn_left` / `turn_right`: turn your head to "
+            "*your* left or right. `look_up` / `look_down`: tilt your head. "
+            "`blink`: eyes open, closed, open again. `smile`: a neutral face, "
+            "then a smile, held."
+        )
+    )
     display_name: str = Field(
         description="Show it, so the person can confirm it is their account."
     )
