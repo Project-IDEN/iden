@@ -62,7 +62,7 @@ jobs:
       - run: uv run pyright
       # The perf script is checked with the provider's tools, as the hook does.
       - run: uv run ruff check --config ../perf/ruff.toml ../perf
-      - run: uv run python -m scripts.gen_keys
+      # No gen_keys: with no key on disk the suite makes throwaway ones.
       - run: uv run pytest -q
 
   engine:
