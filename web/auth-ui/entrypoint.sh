@@ -8,7 +8,9 @@ set -e
 # syntax error and a blank page — and a value chosen to do so on purpose would
 # be running its own code on this origin.
 escape() {
-  printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
+  # Every value here is one line; a newline inside a string literal would end
+  # the script with a syntax error, so it becomes a space.
+  printf '%s' "$1" | tr '\n\r' '  ' | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g'
 }
 
 ISSUER="${IDEN_ISSUER:-http://localhost:8000}"
