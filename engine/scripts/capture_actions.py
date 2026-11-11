@@ -84,7 +84,7 @@ def evenly(shots: list[Shot]) -> list[Shot]:
     return [shots[i] for i in picks]
 
 
-def pick_blink(shots: list[Shot], neutral: Expression) -> list[Shot]:
+def pick_blink(shots: list[Shot]) -> list[Shot]:
     """Open, the most closed, open again: the widest-open frame either side of
     the deepest dip."""
     openness = [s.expression.eye_openness if s.expression else 0.0 for s in shots]
@@ -211,7 +211,7 @@ def main() -> None:
                     )
                     passed, said = True, "three frames looking ahead"
                 elif step == "blink":
-                    picked = pick_blink(shots, neutral)
+                    picked = pick_blink(shots)
                     passed, said = judge(models, centre, step, picked)
                 elif step == "smile":
                     picked = pick_smile(shots, neutral)

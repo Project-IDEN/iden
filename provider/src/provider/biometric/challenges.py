@@ -33,7 +33,6 @@ ACTIONS: tuple[str, ...] = (
     "blink",
     "smile",
 )
-# Per enrolment challenge.
 ACTIONS_PER_ENROLMENT = 2
 
 CENTRE_FRAMES = 3
