@@ -1,5 +1,9 @@
 # IDEN Frontends — Build Plan
 
+> **Build history.** This is the plan IDEN was built from, kept as the record of how and why. Where it
+> and the code disagree, the code is right; the current reference is the [README](../README.md) and
+> the [documentation](../doc/index.md).
+
 The phased plan for building the two browser applications in `web/`. Read
 [../README.md](../README.md) for the system-level architecture and
 [../provider/README.md](../provider/README.md) for the API these apps consume; read this file for the

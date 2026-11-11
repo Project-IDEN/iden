@@ -12,6 +12,10 @@ complete, self-hosted platform for answering the two questions every backend eve
 
 Everything deploys via Docker Compose.
 
+> **Status: a university capstone project.** IDEN is built to be demonstrated and studied, not to
+> protect real people's accounts. Read [Known Limitations](#known-limitations) before running it
+> anywhere that matters.
+
 ---
 
 ## Documentation
@@ -45,6 +49,7 @@ stays as the system-level overview; the server's own reference is
 - [Key Design Decisions](#key-design-decisions)
 - [Quick Start](#quick-start)
 - [Development Phases](#development-phases)
+- [Known Limitations](#known-limitations)
 - [Future Improvements — Standards Compliance](#future-improvements--standards-compliance)
 - [Open Design Questions](#open-design-questions)
 
@@ -685,16 +690,39 @@ build plan in [provider/PLAN.md](provider/PLAN.md).
 | **Phase 5** | Biometric module + Engine — kiosk enrolment, face as a second factor, liveness (feature-flagged) | Done |
 | **Phase 6** | Hardening — Docker, security headers, error contract, probes, coverage review | Done |
 | **Phase 7** | Frontends — auth-ui and dashboard SPAs | Done |
-| **Phase 8** | Kiosks — registered devices, pairing, health, the Raspberry Pi enrolment app | Done |
+| **Phase 8** | Kiosks — registered devices, pairing, health, the Raspberry Pi enrolment app | Done, not yet walked through on the real hardware |
 
-Phases 0–6 are broken down file-by-file in [provider/PLAN.md](provider/PLAN.md), and Phase 7 in
-[web/PLAN.md](web/PLAN.md). Tests ship with the
-phase that introduces the code — `uv run pytest` from `provider/` runs the suite.
+How each phase was built is recorded, file by file, in [provider/PLAN.md](provider/PLAN.md) (phases
+0–6) and [web/PLAN.md](web/PLAN.md) (phase 7). Both are build history; the current state is this
+file and [`doc/`](doc/index.md).
 
-Issues found in review are tracked in
-[provider/PLAN.md — Known issues](provider/PLAN.md#known-issues); six are fixed, the rest are
-scheduled. **IDEN is not yet ready for a deployment reachable by anyone but its developers** — there
-are no rate limits at the reverse proxy yet, and IDEN's own limits assume one in front of it.
+---
+
+## Known Limitations
+
+IDEN is a capstone project. What it does, it does carefully — but these are true of it today:
+
+- **Not production software.** It has been reviewed by the people who built it, not audited by
+  anyone else, and nobody is on call for it.
+- **The face models are for non-commercial research only.** The detector, recogniser, landmarker
+  and anti-spoofing model are InsightFace's (`buffalo_l` and its liveness model), and their licence
+  forbids commercial use. They are not in this repository or in any image: `scripts.fetch_models`
+  downloads them. Any use beyond research and demonstration needs weights licensed for it. Biometrics
+  are off unless `IDEN_BIOMETRIC_ENABLED=true`.
+- **Face recognition is uncalibrated.** The match threshold and the blink and smile thresholds were
+  chosen, not measured on IDEN's cameras
+  ([Calibrate the threshold](doc/operations/biometric-engine.md)).
+- **Liveness at sign-in is passive only.** The blink and smile are asked for at enrolment; signing in
+  relies on the anti-spoofing model alone. A face is therefore only ever a *second* factor, after a
+  password.
+- **IDEN sends no email.** There is no self-service password recovery — an administrator issues a new
+  password — and nobody is emailed when a face is enrolled on their account.
+- **The kiosk has not been walked through end to end on the real hardware**, nor its camera tuned
+  in the light it will stand in.
+- **A biometric engine on another machine is reached over plain HTTP.** Keep it on the same host, or
+  on a network you trust.
+
+The rest are in [Open issues](doc/roadmap.md#open-issues).
 
 ---
 

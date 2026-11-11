@@ -1,5 +1,9 @@
 # IDEN Provider — Build Plan
 
+> **Build history.** This is the plan IDEN was built from, kept as the record of how and why. Where it
+> and the code disagree, the code is right; the current reference is the [README](../README.md) and
+> the [documentation](../doc/index.md).
+
 The phased plan for building the IDEN backend (`provider/`). Read
 [README.md](README.md) for the reference material — data model, endpoints, env vars, conventions —
 and this file for the **order of work**.
