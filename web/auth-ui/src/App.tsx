@@ -2,6 +2,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
 import { LoginRoute } from "./routes/login";
 import { ConsentRoute } from "./routes/consent";
+import { LogoutRoute } from "./routes/logout";
 
 // Nothing here is worth refetching in the background: a challenge is single-use
 // and short-lived, and a stale re-read would replace a form the user is filling.
@@ -12,6 +13,7 @@ const queryClient = new QueryClient({
 const router = createBrowserRouter([
   { path: "/auth/login", element: <LoginRoute /> },
   { path: "/auth/consent", element: <ConsentRoute /> },
+  { path: "/auth/logout", element: <LogoutRoute /> },
   { path: "*", element: <Navigate to="/auth/login" replace /> },
 ]);
 

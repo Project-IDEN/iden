@@ -7,7 +7,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import { readFileSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { expect, type Page } from "@playwright/test";
+import { expect, type APIRequestContext, type Page } from "@playwright/test";
 
 export const ISSUER = process.env.E2E_ISSUER ?? "http://localhost:8000";
 export const AUTH_UI = process.env.E2E_AUTH_UI ?? "http://localhost:4000";
@@ -174,4 +174,21 @@ export async function expectSignedInAs(page: Page, name: string) {
 export async function signOut(page: Page) {
   await page.getByRole("button", { name: /Account menu/ }).click();
   await page.getByRole("menuitem", { name: "Sign out" }).click();
+}
+
+/** What /oauth2/authorize says about this browser's session, without showing any page (prompt=none). */
+export async function silentAuthorize(request: APIRequestContext) {
+  const url = new URL(`${ISSUER}/oauth2/authorize`);
+  url.search = new URLSearchParams({
+    client_id: "dashboard",
+    redirect_uri: `${CONSOLE}/callback`,
+    response_type: "code",
+    scope: "openid",
+    state: "e2e-silent",
+    code_challenge: pkce().challenge,
+    code_challenge_method: "S256",
+    prompt: "none",
+  }).toString();
+  const response = await request.get(url.toString(), { maxRedirects: 0 });
+  return new URL(response.headers()["location"] ?? "").searchParams;
 }

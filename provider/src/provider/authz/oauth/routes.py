@@ -139,6 +139,14 @@ def _hint_mismatch(
     return claims is None or claims.get("sub") != str(login_session.user_id)
 
 
+def _hint_names(
+    id_token_hint: str | None, login_session: session_store.Session
+) -> bool:
+    """Whether an `id_token_hint` is IDEN's and names this session's person."""
+    claims = _id_token_claims(id_token_hint) if id_token_hint else None
+    return claims is not None and claims.get("sub") == str(login_session.user_id)
+
+
 def _hinted_client(id_token_hint: str | None) -> str | None:
     """The client an `id_token_hint` was issued to, from its `aud`.
 
@@ -776,6 +784,9 @@ LOGOUT_DOCS = {
         "Available as both `GET` and `POST`, as RP-Initiated Logout 1.0 Section 2 "
         "requires. Prefer `POST`: it keeps `id_token_hint` out of browser "
         "history and out of the `Referer` header of whatever comes next.\n\n"
+        "A `GET` whose `idTokenHint` does not name the signed-in person is sent "
+        "to the sign-in UI, which asks before anything ends: any page can make "
+        "a browser load this URL. The page's answer is a `POST`.\n\n"
         "Access tokens already issued stay valid until they expire — they are "
         "self-contained by design, and their ten-minute lifetime is the trade "
         "that buys offline validation. Refresh tokens do not, so nothing can be "
@@ -785,7 +796,14 @@ LOGOUT_DOCS = {
         "it is not a credential for ending someone else's session.\n\n"
         "**Required scope:** none."
     ),
-    "responses": {303: {"description": "Redirect to post_logout_redirect_uri"}},
+    "responses": {
+        303: {
+            "description": (
+                "Redirect to post_logout_redirect_uri, or — for a GET without a "
+                "matching hint — to the sign-in UI to confirm"
+            )
+        }
+    },
 }
 
 
@@ -799,6 +817,23 @@ async def logout(
     post_logout_redirect_uri: Annotated[str | None, Query()] = None,
     state: Annotated[str | None, Query()] = None,
 ) -> Response:
+    # Any page can make a browser load this URL, and a GET carries the
+    # SameSite=Lax cookie — so without a hint naming this session's own person,
+    # the person is asked first (OIDC RP-Initiated Logout Section 2). The page
+    # asking answers with a POST, which a cross-site page cannot send with the
+    # cookie.
+    if login_session is not None and not _hint_names(id_token_hint, login_session):
+        params = {
+            "client_id": client_id,
+            "id_token_hint": id_token_hint,
+            "post_logout_redirect_uri": post_logout_redirect_uri,
+            "state": state,
+        }
+        query = urlencode({k: v for k, v in params.items() if v is not None})
+        return RedirectResponse(
+            f"{settings.iden_auth_ui_base_url}/auth/logout?{query}", status_code=303
+        )
+
     return await _logout(
         login_session,
         session,

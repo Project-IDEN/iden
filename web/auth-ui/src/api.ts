@@ -14,6 +14,27 @@ const issuer = readIssuer(import.meta.env.VITE_IDEN_ISSUER);
  */
 const client = createClient({ issuer, withCredentials: true });
 
+/**
+ * Ends the session with a POST, which a cross-site page cannot send with the
+ * cookie. Returns where to go next: the application's registered address when
+ * the provider redirected there, or null when there is nowhere to go.
+ */
+export async function signOut(params: URLSearchParams): Promise<string | null> {
+  const response = await fetch(new URL("/oauth2/logout", issuer), {
+    method: "POST",
+    body: params,
+    credentials: "include",
+    redirect: "manual",
+  });
+  if (response.type !== "opaqueredirect") return null;
+  // The provider redirects only to an address registered on the client, so
+  // following the one asked for is following the one it approved.
+  const target = new URL(params.get("post_logout_redirect_uri") ?? "");
+  const state = params.get("state");
+  if (state) target.searchParams.set("state", state);
+  return target.toString();
+}
+
 export function readChallenge(challengeId: string): Promise<Challenge> {
   return get<Challenge>(client, `/api/v1/auth/challenge/${challengeId}`);
 }

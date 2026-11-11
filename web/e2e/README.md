@@ -43,15 +43,16 @@ A full run signs in about fifteen times.
 
 ## What is covered
 
-| Id  | File                     | Behaviour                                                                 |
-| --- | ------------------------ | ------------------------------------------------------------------------- |
-| D1  | `tests/sign-in.spec.ts`  | Password sign-in lands on the dashboard showing the person's name         |
-| D2  | `tests/sign-in.spec.ts`  | A wrong password shows a notice and stays on the sign-in page             |
-| D3  | `tests/totp.spec.ts`     | Enrol TOTP on Security, sign out, sign in with password + TOTP (`otplib`) |
-| D4  | `tests/consent.spec.ts`  | Third-party client: approve → back with a code; deny → `access_denied`    |
-| D5  | `tests/access.spec.ts`   | A member has no admin navigation, and admin URLs are blocked              |
-| D6  | `tests/admin.spec.ts`    | Admin creates a user; the generated password is shown once                |
-| D7  | `tests/admin.spec.ts`    | Admin registers a confidential client; the secret is shown once           |
-| D8  | `tests/sessions.spec.ts` | Revoking another session ends it (`login_required` on its next request)   |
-| D10 | `tests/sign-in.spec.ts`  | Sign-out clears the session; a protected page goes back to sign-in        |
-| D11 | `tests/revoked.spec.ts`  | A deactivated account's next dashboard request goes back to sign-in       |
+| Id  | File                     | Behaviour                                                                         |
+| --- | ------------------------ | --------------------------------------------------------------------------------- |
+| D1  | `tests/sign-in.spec.ts`  | Password sign-in lands on the dashboard showing the person's name                 |
+| D2  | `tests/sign-in.spec.ts`  | A wrong password shows a notice and stays on the sign-in page                     |
+| D3  | `tests/totp.spec.ts`     | Enrol TOTP on Security, sign out, sign in with password + TOTP (`otplib`)         |
+| D4  | `tests/consent.spec.ts`  | Third-party client: approve → back with a code; deny → `access_denied`            |
+| D5  | `tests/access.spec.ts`   | A member has no admin navigation, and admin URLs are blocked                      |
+| D6  | `tests/admin.spec.ts`    | Admin creates a user; the generated password is shown once                        |
+| D7  | `tests/admin.spec.ts`    | Admin registers a confidential client; the secret is shown once                   |
+| D8  | `tests/sessions.spec.ts` | Revoking another session ends it (`login_required` on its next request)           |
+| D10 | `tests/sign-in.spec.ts`  | Sign-out clears the session; a protected page goes back to sign-in                |
+| D11 | `tests/revoked.spec.ts`  | A deactivated account's next dashboard request goes back to sign-in               |
+| D12 | `tests/logout.spec.ts`   | A logout link without `id_token_hint` asks first; stay keeps it, sign out ends it |
