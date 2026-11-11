@@ -93,6 +93,8 @@ files set it to `cuda`.
 | `ENGINE_MODEL_DIR` | `models` | Where `scripts.fetch_models` put the model files. |
 | `ENGINE_DEVICE` | `auto` | `auto` uses an NVIDIA GPU when one is visible; `cuda` refuses to start without one; `cpu` never uses it. |
 | `ENGINE_WORKERS` | `1` | Captures checked at once. Each holds its own copy of the models in memory. |
+| `ENGINE_MAX_INFLIGHT` | `2` | Captures computed at once within one worker. Each inference already uses every core, so more only slows them all. |
+| `ENGINE_QUEUE_SECONDS` | `10` | How long a capture waits for a slot before the engine answers `503` with `Retry-After`. Keep it under `IDEN_ENGINE_TIMEOUT`. |
 | `ENGINE_MANIFEST` | `models.toml` | The models, their checksums, and the thresholds calibrated for them. |
 | `ENGINE_ENV` | `dev` | `prod` hides `/docs` and requires the token. |
 | `ENGINE_LOG_LEVEL` | `info` | |

@@ -20,6 +20,12 @@ class Settings(BaseSettings):
     # loudly instead of quietly running twenty times slower.
     engine_device: Literal["auto", "cuda", "cpu"] = "auto"
     engine_workers: int = 1
+    # Captures computed at once within a worker. Every ONNX session already
+    # spreads one inference over all cores, so more only makes each slower.
+    engine_max_inflight: int = 2
+    # How long a capture waits for a slot before the engine answers 503. Under
+    # the provider's own timeout, so a refusal arrives before it gives up.
+    engine_queue_seconds: float = 10
 
     # A capture is 9 frames; this is the ceiling, not the expectation.
     engine_max_frames: int = 16
