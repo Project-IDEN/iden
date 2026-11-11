@@ -51,6 +51,11 @@ export function useCamera(prefer?: string | null) {
       }
       if (cancelled) return media.getTracks().forEach((track) => track.stop());
       stream = media;
+      // Unplugged mid-visit, the picture would freeze while everything else
+      // still said "ready". Saying it stopped also reports it to IDEN.
+      media.getVideoTracks()[0]?.addEventListener("ended", () => {
+        if (!cancelled) setStatus("denied");
+      });
       if (video.current) video.current.srcObject = media;
       setLabel(media.getVideoTracks()[0]?.label || null);
       setStatus("ready");

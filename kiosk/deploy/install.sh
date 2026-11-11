@@ -92,7 +92,14 @@ udevadm control --reload
 udevadm trigger --subsystem-match=video4linux --action=add
 systemctl enable --now iden-kiosk-display.service iden-kiosk-update.timer
 # No screen blanking: an idle kiosk still has to show how to use it.
-if command -v raspi-config >/dev/null; then raspi-config nonint do_blanking 1; fi
+if command -v raspi-config >/dev/null; then
+  raspi-config nonint do_blanking 1
+else
+  echo "    Not Raspberry Pi OS: turn off screen blanking in the desktop's settings yourself."
+fi
+# The idle screen shows the local time and date.
+echo "    Timezone: $(timedatectl show --value -p Timezone 2>/dev/null || echo unknown)" \
+  "(change with: sudo timedatectl set-timezone Region/City)"
 
 echo "==> Browser"
 # The camera is allowed for the kiosk app without a prompt, and for nothing else.
