@@ -1,4 +1,5 @@
 import json
+import threading
 
 import cv2
 import pytest
@@ -120,3 +121,28 @@ class TestATokenThatGoesMissing:
         monkeypatch.setattr(settings, "engine_token_file", None)
 
         app_module.require_token(authorization=None)
+
+
+class TestInferenceSlots:
+    def test_a_capture_past_the_cap_is_refused_with_retry_after(self, monkeypatch):
+        slots = threading.BoundedSemaphore(1)
+        monkeypatch.setattr(app_module, "_inflight", slots)
+        monkeypatch.setattr(settings, "engine_queue_seconds", 0.01)
+        slots.acquire()
+
+        with pytest.raises(HTTPException) as refused:
+            next(app_module.inference_slot())
+
+        assert refused.value.status_code == 503
+        assert refused.value.headers == {"Retry-After": "2"}
+
+    def test_a_slot_is_given_back_when_the_request_ends(self, monkeypatch):
+        slots = threading.BoundedSemaphore(1)
+        monkeypatch.setattr(app_module, "_inflight", slots)
+
+        held = app_module.inference_slot()
+        next(held)
+        assert not slots.acquire(blocking=False)
+        held.close()
+
+        assert slots.acquire(blocking=False)

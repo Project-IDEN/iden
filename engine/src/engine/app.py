@@ -6,6 +6,8 @@ verdicts. Nothing sent here outlives the request.
 """
 
 import secrets
+import threading
+from collections.abc import Generator
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -89,6 +91,28 @@ def require_token(authorization: Annotated[str | None, Header()] = None) -> None
 
 AUTH = [Depends(require_token)]
 
+_inflight = threading.BoundedSemaphore(settings.engine_max_inflight)
+
+
+def inference_slot() -> Generator[None]:
+    """Hold one of the engine's few inference slots for the request.
+
+    Without a cap every request runs at once and each gets slower, until all of
+    them outlast the provider's timeout — which abandons the request but not the
+    work. Waiting briefly, then refusing, keeps the ones that run fast.
+    """
+    if not _inflight.acquire(timeout=settings.engine_queue_seconds):
+        raise HTTPException(
+            status_code=503, detail="The engine is busy.", headers={"Retry-After": "2"}
+        )
+    try:
+        yield
+    finally:
+        _inflight.release()
+
+
+INFERENCE = [*AUTH, Depends(inference_slot)]
+
 app = FastAPI(
     title="IDEN Biometric Engine",
     version="0.0.1",
@@ -125,7 +149,7 @@ def _meta[M: Meta](kind: type[M], raw: str) -> M:
         raise HTTPException(status_code=400, detail="Malformed meta.") from exc
 
 
-@app.post("/enroll", response_model=EnrollResult, dependencies=AUTH)
+@app.post("/enroll", response_model=EnrollResult, dependencies=INFERENCE)
 def enroll(
     frames: Annotated[list[UploadFile], File()],
     meta: Annotated[str, Form()],
@@ -134,7 +158,7 @@ def enroll(
     return pipeline.enroll(models(), _frames(frames, steps), steps)
 
 
-@app.post("/verify", response_model=VerifyResult, dependencies=AUTH)
+@app.post("/verify", response_model=VerifyResult, dependencies=INFERENCE)
 def verify(
     frames: Annotated[list[UploadFile], File()],
     meta: Annotated[str, Form()],
@@ -145,7 +169,7 @@ def verify(
     )
 
 
-@app.post("/embed", response_model=EmbedResult, dependencies=AUTH)
+@app.post("/embed", response_model=EmbedResult, dependencies=INFERENCE)
 def embed_stills(frames: Annotated[list[UploadFile], File()]) -> EmbedResult:
     """Re-embed stored enrolment photos after a model change. No liveness."""
     return pipeline.embed_stills(models(), _frames(frames, ["center"] * len(frames)))
