@@ -1,3 +1,4 @@
+import { isExpression, pickerFor, type Expression } from "./capture-actions";
 import type { HeadTracker, Pose } from "./head-tracker";
 
 /**
@@ -11,8 +12,10 @@ import type { HeadTracker, Pose } from "./head-tracker";
  * the next, and fails after eight.
  *
  * With a head tracker, straight-ahead frames wait until the face is frontal
- * and a movement's frames until the head has gone far enough. Without one —
- * the tracker failed to load — they are taken on a timer.
+ * and a movement's frames until the head has gone far enough. A blink or a
+ * smile follows the same rhythm, and its frames are chosen from the tracker's
+ * blendshapes as it happens (`capture-actions.ts`). Without a tracker — it
+ * failed to load — every frame is taken on a timer.
  */
 
 export type Phase =
@@ -25,7 +28,12 @@ export interface Guide {
   phase: (phase: Phase) => void;
   /** How far the current movement has gone, 0 to 1; null outside a movement. */
   progress: (value: number | null) => void;
+  /** Take the camera's current picture as the capture's next frame. */
   take: () => Promise<void>;
+  /** The camera's current picture, not yet part of the capture. */
+  snap: () => Promise<Blob>;
+  /** Add a picture from `snap` as the capture's next frame. */
+  keep: (frame: Blob) => void;
   cue: (sound: "go" | "done") => void;
 }
 
@@ -100,15 +108,20 @@ function reach(step: string, pose: Pose | null, baseline: Pose): number {
   return (move.sign * (pose[move.axis] - baseline[move.axis])) / TRIGGER[move.axis];
 }
 
-/** One movement, start to finish; `reached` resolves once it has gone far
- * enough, or false when it never did. */
+async function takeEach(guide: Guide, count: number, gap: number) {
+  for (let i = 0; i < count; i += 1) {
+    await guide.take();
+    await wait(gap);
+  }
+}
+
+/** One action, start to finish; `perform` resolves once it was done and its
+ * frames taken, or false when it never was. */
 async function movement(
   index: number,
   step: string,
-  count: number,
   guide: Guide,
-  reached: () => Promise<boolean>,
-  gap: number,
+  perform: () => Promise<boolean>,
 ) {
   for (let seconds = PREPARE_SECONDS; seconds > 0; seconds -= 1) {
     guide.phase({ name: "prepare", index, step, seconds });
@@ -117,14 +130,39 @@ async function movement(
   const started = performance.now();
   guide.phase({ name: "move", index, step });
   guide.cue("go");
-  if (!(await reached())) throw new StepTimeout(step);
-  for (let i = 0; i < count; i += 1) {
-    await guide.take();
-    await wait(gap);
-  }
+  if (!(await perform())) throw new StepTimeout(step);
   guide.cue("done");
   guide.phase({ name: "done", index, step });
   await wait(ACTION_MIN_MS - (performance.now() - started));
+}
+
+/** A blink or a smile: its frames, chosen as it happens, kept in order once
+ * it is complete. False if it never was. */
+async function expressed(
+  step: Expression,
+  count: number,
+  tracker: HeadTracker,
+  guide: Guide,
+): Promise<boolean> {
+  const picker = pickerFor(step);
+  const frames: Blob[] = [];
+  const deadline = performance.now() + ACTION_MAX_MS;
+  while (performance.now() < deadline && !picker.done()) {
+    const reading = tracker.expression();
+    if (reading) {
+      const slot = picker.offer(reading[step], performance.now());
+      guide.progress(picker.progress());
+      if (slot !== null) frames[slot] = await guide.snap();
+    }
+    await wait(POLL_MS);
+  }
+  guide.progress(null);
+  if (!picker.done()) return false;
+  // The provider asks for three frames per action, one per slot; should it
+  // ever ask for another number, the extra frames are the expression held.
+  frames.slice(0, count).forEach((frame) => guide.keep(frame));
+  await takeEach(guide, count - Math.min(count, frames.length), HOLD_GAP_MS);
+  return true;
 }
 
 export async function guidedCapture(steps: string[], tracker: HeadTracker, guide: Guide) {
@@ -136,6 +174,10 @@ export async function guidedCapture(steps: string[], tracker: HeadTracker, guide
   let baseline: Pose = { yaw: 0, pitch: 0 };
 
   for (const [index, { step, count }] of groups(steps).entries()) {
+    if (isExpression(step)) {
+      await movement(index, step, guide, () => expressed(step, count, tracker, guide));
+      continue;
+    }
     if (MOVES[step]) {
       const moved = async () => {
         const done = await until(() => {
@@ -144,9 +186,10 @@ export async function guidedCapture(steps: string[], tracker: HeadTracker, guide
           return value >= 1;
         }, ACTION_MAX_MS);
         guide.progress(null);
+        if (done) await takeEach(guide, count, HOLD_GAP_MS);
         return done;
       };
-      await movement(index, step, count, guide, moved, HOLD_GAP_MS);
+      await movement(index, step, guide, moved);
       continue;
     }
 
@@ -173,9 +216,16 @@ export async function guidedCapture(steps: string[], tracker: HeadTracker, guide
 
 export async function timedCapture(steps: string[], guide: Guide) {
   for (const [index, { step, count }] of groups(steps).entries()) {
-    if (MOVES[step]) {
-      const turned = () => wait(TIMED_TURN_MS).then(() => true);
-      await movement(index, step, count, guide, turned, TIMED_HOLD_GAP_MS);
+    // Without a tracker, a blink or a smile is timed like a movement: the
+    // frames are spread over the moment it should happen, and the engine
+    // judges whether they caught it.
+    if (MOVES[step] || isExpression(step)) {
+      const turned = async () => {
+        await wait(TIMED_TURN_MS);
+        await takeEach(guide, count, TIMED_HOLD_GAP_MS);
+        return true;
+      };
+      await movement(index, step, guide, turned);
       continue;
     }
     guide.phase({ name: "look", index });

@@ -1,5 +1,16 @@
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Camera, Check, ScanFace } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
+  Camera,
+  Check,
+  EyeClosed,
+  ScanFace,
+  Smile,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { isExpression } from "./capture-actions";
 import {
   groups,
   guidedCapture,
@@ -16,10 +27,10 @@ import { useCamera } from "./use-camera";
 /**
  * A face capture that follows the provider's challenge, frame by frame.
  *
- * The provider sends one step per frame: `center` (look straight ahead) or a
- * head movement. The movements are drawn at random for every attempt, which is
- * what makes a recording made earlier useless — so the order here is the order
- * sent, never a fixed script.
+ * The provider sends one step per frame: `center` (look straight ahead), a
+ * head movement, a blink or a smile. The actions are drawn at random for every
+ * attempt, which is what makes a recording made earlier useless — so the order
+ * here is the order sent, never a fixed script.
  *
  * Frames are captured from the camera as it sees, unmirrored; only the preview
  * is mirrored, because people expect a mirror. "Turn to your left" therefore
@@ -41,7 +52,18 @@ const MOVES: Record<string, { label: string; icon: ReactNode }> = {
   turn_right: { label: "Turn your head to your right", icon: <ArrowRight /> },
   look_up: { label: "Tilt your head up", icon: <ArrowUp /> },
   look_down: { label: "Tilt your head down", icon: <ArrowDown /> },
+  blink: { label: "Blink slowly", icon: <EyeClosed /> },
+  smile: { label: "Smile", icon: <Smile /> },
 };
+
+/** What to say when an action was not seen in time. */
+function missed(step: string): string {
+  if (step === "center") return "We couldn't see your face. Stand in the oval, then start again.";
+  if (step === "blink") return "We didn't see you blink. Start again, and blink slowly.";
+  if (step === "smile")
+    return "We didn't see a smile. Start again, and smile until you hear the chime.";
+  return "We didn't see that movement. Start again, and keep going until you hear the chime.";
+}
 
 const LOOK = { label: "Look straight at the camera", icon: <ScanFace /> };
 
@@ -128,6 +150,10 @@ export function FaceCapture({
       take: async () => {
         frames.push(await frame());
       },
+      snap: frame,
+      keep: (taken) => {
+        frames.push(taken);
+      },
       cue: chime.play,
     };
     try {
@@ -138,9 +164,7 @@ export function FaceCapture({
         !(error instanceof StepTimeout)
           ? // The camera went away mid-capture: unplugged, or taken by another program.
             "The camera stopped. Check it is connected, then start again."
-          : error.step === "center"
-            ? "We couldn't see your face. Stand in the oval, then start again."
-            : "We didn't see that movement. Start again, and keep going until you hear the chime.",
+          : missed(error.step),
       );
       return;
     } finally {
@@ -199,7 +223,9 @@ export function FaceCapture({
             {progress !== null ? (
               <div
                 role="progressbar"
-                aria-label="How far you have turned"
+                aria-label={
+                  isExpression(phase.step) ? "How far you have got" : "How far you have turned"
+                }
                 aria-valuemin={0}
                 aria-valuemax={100}
                 aria-valuenow={Math.round(progress * 100)}
@@ -217,8 +243,9 @@ export function FaceCapture({
           </div>
         ) : idle ? (
           <p className="max-w-md text-title-md text-body short:text-body-md">
-            Stand about an arm's length away. Look straight at the camera, then turn or tilt your
-            head twice. Each time, keep going until you hear a chime, then face the screen again.
+            Stand about an arm's length away. Look straight at the camera, then do the two things
+            the screen asks: turn or tilt your head, blink, or smile. Each time, keep going until
+            you hear a chime, then face the screen again.
           </p>
         ) : null}
 
