@@ -1,4 +1,5 @@
 import { useRef, useState } from "react";
+import { useIdle } from "./hooks/use-idle";
 import { useKioskState } from "./hooks/use-kiosk-state";
 import { Enrolment } from "./screens/enrol";
 import { Maintenance } from "./screens/maintenance";
@@ -6,11 +7,15 @@ import { Setup } from "./screens/setup";
 import { Unavailable } from "./screens/status";
 
 const MAINTENANCE_HOLD_MS = 5000;
+// Staff who walk away leave the kiosk out of service, and on the pairing screen
+// with its camera scanning, until somebody notices.
+const MAINTENANCE_IDLE_SECONDS = 120;
 
 export function App() {
   const { state, reachable, refresh } = useKioskState();
   const [maintenance, setMaintenance] = useState<"closed" | "open" | "pairing">("closed");
   const hold = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useIdle(maintenance !== "closed", MAINTENANCE_IDLE_SECONDS, () => setMaintenance("closed"));
 
   // Staff reach maintenance with a long press where nobody rests a finger.
   const corner = (

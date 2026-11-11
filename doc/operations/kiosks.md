@@ -246,7 +246,8 @@ A kiosk whose credentials IDEN refuses forgets them and shows **Set up this kios
 
 Press and hold the top-left corner of the screen for five seconds. It shows the kiosk's name,
 whether IDEN and the kiosk server can be reached, and the software version, and offers **Pair
-again**. It needs no PIN: pairing needs a fresh code from an administrator anyway.
+again**. It needs no PIN: pairing needs a fresh code from an administrator anyway. Left untouched for
+two minutes, it closes itself — the pairing screen too — and the kiosk goes back to enrolling.
 
 ## Develop without a Pi
 
