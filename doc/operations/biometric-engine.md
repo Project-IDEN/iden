@@ -253,6 +253,60 @@ This is separate from [tuning the kiosk camera](kiosk-camera.md), and comes afte
 If too many genuine attempts are rejected at the threshold you need, improve the capture — light,
 camera, distance — rather than lowering it. A lower threshold is a weaker lock.
 
+## Tune the blink and smile
+
+Enrolment asks for two actions drawn from six: the four head movements, a blink and a smile. The
+blink and smile are judged on InsightFace's 106-point landmarks, always against the person's own
+face in the frames looking straight ahead, never against an absolute value — eyes and mouths differ
+in size. The thresholds that decide are in `engine/models.toml` `[policy]`, and none is calibrated
+yet:
+
+| Threshold | Default | Meaning |
+|---|---|---|
+| `blink_closed_ratio` | `0.6` | Eyes count as closed below this share of the person's own open-eye openness. |
+| `blink_open_ratio` | `0.85` | Eyes count as open at or above this share: before and after the blink, and for a straight-ahead frame to be judged by anti-spoofing or kept as a template. |
+| `smile_gain` | `0.1` | How far a smile must move the mouth beyond the person's neutral one, in inter-ocular distances: its widening plus its corners' lift. |
+
+The kiosk has numbers of its own in `kiosk/client/src/ui/capture-actions.ts` — MediaPipe blendshape
+scores from 0 to 1 (`BLINK_OPEN`, `BLINK_CLOSED`, `SMILE_NEUTRAL`, `SMILE_SMILING`, `SMILE_HOLD_MS`).
+They only decide when the kiosk takes a frame; the engine judges the frames itself.
+
+1. **Collect captures** from several consenting team members, with the kiosk's camera and light.
+   From `engine/`, with the models fetched:
+
+    ```bash
+    uv run python -m scripts.capture_actions --out tests/data/actions-<name>   # --camera 1 for another webcam
+    ```
+
+    It asks for consent, then guides each step in the terminal, keeps three frames per step as the
+    kiosk would, and prints the engine's verdict on them so a step can be done again. The photos are
+    of a person's face: the folders are git-ignored, and should be deleted once tuning is done.
+    Copied to `tests/data/actions/`, a capture also runs `tests/test_actions_real.py`.
+
+2. **Read the scores.** Every enrolment logs a `Liveness` line with `actions_score`, a score per
+   blink and smile step under `expression` (1.0 passes), and `eyes_open_frontal`: how many of the
+   frames looking ahead had the eyes open.
+
+3. **Move each threshold** so genuine actions pass with a margin and near-misses fail:
+
+    | What you see | Change |
+    |---|---|
+    | Genuine blinks scoring just under 1 — a fast blink, a blurred closed frame | Raise `blink_closed_ratio`, towards `0.7` |
+    | A squint passes as a blink | Lower `blink_closed_ratio` |
+    | `eyes_open_frontal` below `3/3` for people who did not blink | Lower `blink_open_ratio`, towards `0.75` |
+    | Genuine smiles scoring under 1 | Lower `smile_gain`, towards `0.07` |
+    | Talking or a grimace passes as a smile | Raise `smile_gain` |
+
+    When the kiosk is the bottleneck — the step times out though the person clearly blinked or
+    smiled — adjust its constants instead and rebuild the client; `pnpm test` in `kiosk/client`
+    shows which frames each change picks.
+
+4. **Restart the engine**, which reads `models.toml` at start-up, and replace "NOT CALIBRATED" in
+   it with where the values came from: how many people, which camera, when.
+
+`version` does not change for any of this: templates come from the recogniser alone, so faces
+already enrolled stay valid.
+
 ## Change the model
 
 1. Put the new model's file, checksum and calibrated threshold in `engine/models.toml`, and **change
