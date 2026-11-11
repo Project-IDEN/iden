@@ -12,13 +12,13 @@ the summary.
 | 1 | AuthZ core — discovery, JWKS, authorize + PKCE, token, userinfo, sign-in | :material-check-circle-outline: Done |
 | 2 | Admin — users, groups, roles, APIs, scopes, clients | :material-check-circle-outline: Done |
 | 3 | SSO — `prompt`, `max_age`, `sid`, single sign-out | :material-check-circle-outline: Done |
-| 4 | Self-service — profile, org-defined fields, credentials, TOTP, recovery | :material-check-circle-outline: Done |
+| 4 | Self-service — profile, org-defined fields, credentials, TOTP | :material-check-circle-outline: Done |
 | 5 | Biometrics — kiosk enrolment, face as a second factor, liveness | :material-check-circle-outline: Done |
 | 6 | Hardening — Docker, security headers, error contract, probes, coverage review | :material-check-circle-outline: Done |
 | 7 | Frontends — the sign-in UI and the dashboard | :material-check-circle-outline: Done |
 | 8 | Kiosks — registered devices, pairing, the Raspberry Pi enrolment app | :material-check-circle-outline: Done |
 
-Phase 7 shipped both browser applications: `auth-ui` (password, TOTP, consent and recovery) and the
+Phase 7 shipped both browser applications: `auth-ui` (password, TOTP and consent) and the
 dashboard (self-service plus all seven admin resources, each gated on its read scope). Their own
 phased plan, with the same *Status* notes, is
 [`web/PLAN.md`](https://github.com/Project-IDEN/iden/blob/dev/web/PLAN.md). What is outstanding there
@@ -48,6 +48,7 @@ the real hardware, and [its camera tuned](operations/kiosk-camera.md) in the lig
 | **KI-9** | One token can carry several audiences | Ask for admin and entity scopes together and both are in `aud`. Standard, but a compromised resource server could replay the token at the other. |
 | **KI-17** | An audit row is not atomic with its change | Written just after; a database failure in between loses the record. Logged loudly. |
 | **KI-18** | The engine speaks plain HTTP | On another machine, faces cross the network between it and the provider unencrypted. Until it serves TLS, keep both on a network you trust. |
+| **KI-19** | IDEN sends no email | There is no mail transport, so self-service password recovery was removed rather than shipped broken: an administrator resets a forgotten password. Nor is a person told by email when a face is enrolled on their account; it shows on their Security page and in the kiosk's history. Adding a transport brings both back. |
 
 ## Federation
 

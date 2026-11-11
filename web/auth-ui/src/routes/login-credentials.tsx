@@ -2,7 +2,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { Button, Field, IdenError, Input, Notice } from "@iden/shared";
 import { useForm } from "react-hook-form";
-import { Link } from "react-router";
 import { z } from "zod";
 import { signIn, type AuthStep } from "../api";
 import { working } from "../auth-step";
@@ -49,16 +48,7 @@ export function CredentialsStep({
           ? "This application is asking you to enter your password again before it continues."
           : "Enter the credentials for your organization account."
       }
-      footer={
-        // Carries the challenge so recovery can offer the way back. It is the
-        // same value already in this page's own URL.
-        <Link
-          className="text-primary underline-offset-2 hover:underline"
-          to={`/auth/forgot?challenge=${encodeURIComponent(challengeId)}`}
-        >
-          Forgot your password?
-        </Link>
-      }
+      footer="Forgot your password? Ask an administrator to issue you a new one."
     >
       <form
         noValidate

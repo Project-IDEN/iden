@@ -53,5 +53,4 @@ A full run signs in about fifteen times.
 | D6  | `tests/admin.spec.ts`    | Admin creates a user; the generated password is shown once                |
 | D7  | `tests/admin.spec.ts`    | Admin registers a confidential client; the secret is shown once           |
 | D8  | `tests/sessions.spec.ts` | Revoking another session ends it (`login_required` on its next request)   |
-| D9  | `tests/recovery.spec.ts` | Forgot password answers known and unknown addresses identically           |
 | D10 | `tests/sign-in.spec.ts`  | Sign-out clears the session; a protected page goes back to sign-in        |

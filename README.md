@@ -495,7 +495,6 @@ flowchart TB
       AZ3["/oauth2/authorize · /token · /userinfo"]
       AZ4["/oauth2/revoke · /introspect · /logout"]
       AZ5["/api/v1/auth/login · /totp · /biometric · /consent<br/>(records amr → derives acr)"]
-      AZ6["/api/v1/auth/password-reset<br/>(single-use token, no session needed)"]
     end
 
     subgraph AdminMod["Admin RS Module (scope-gated)"]
@@ -682,7 +681,7 @@ build plan in [provider/PLAN.md](provider/PLAN.md).
 | **Phase 1** | Provider AuthZ core — discovery, JWKS, authorize + PKCE, token, userinfo, login/consent | Done |
 | **Phase 2** | Provider Admin RS — users, groups, roles, APIs, scopes, clients (the access-control surface) | Done |
 | **Phase 3** | Provider SSO — `prompt`, `max_age`, `sid`, back-channel logout (single sign-*out*) | Done |
-| **Phase 4** | Provider Entity RS — self-service profile, org-defined fields, credentials, TOTP, recovery | Done |
+| **Phase 4** | Provider Entity RS — self-service profile, org-defined fields, credentials, TOTP | Done |
 | **Phase 5** | Biometric module + Engine — kiosk enrolment, face as a second factor, liveness (feature-flagged) | Done |
 | **Phase 6** | Hardening — Docker, security headers, error contract, probes, coverage review | Done |
 | **Phase 7** | Frontends — auth-ui and dashboard SPAs | Done |

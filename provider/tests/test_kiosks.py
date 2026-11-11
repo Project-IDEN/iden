@@ -312,7 +312,7 @@ class TestHeartbeat:
 
 class TestWhoMayEnrol:
     async def test_a_registered_kiosk_enrols_and_learns_the_attempts_left(
-        self, client, fake_engine, device, face_headers, mail
+        self, client, fake_engine, device, face_headers
     ):
         _, headers = device
         ticket = await faces.new_ticket(client, face_headers)
@@ -322,7 +322,6 @@ class TestWhoMayEnrol:
         assert first["attemptsLeft"] == 4
         assert second["attemptsLeft"] == 3
         assert (await enrol(client, headers, face_headers)).status_code == 201
-        assert mail[0]["body"].count("Library Kiosk 2") >= 1
 
     async def test_a_client_that_is_not_a_kiosk_may_not(
         self, client, db, kiosk, scope_of, face_headers
@@ -399,7 +398,7 @@ class TestWhoMayEnrol:
 
 class TestHistory:
     async def test_lists_what_it_enrolled_and_why_attempts_failed(
-        self, client, fake_engine, kiosk_admin, device, face_headers, mail, admin_user
+        self, client, fake_engine, kiosk_admin, device, face_headers, admin_user
     ):
         kiosk, headers = device
         live = fake_engine.enroll_result
@@ -425,7 +424,7 @@ class TestHistory:
         assert earlier["error"] == "poor_capture"
 
     async def test_another_kiosks_enrolments_are_not_listed(
-        self, client, fake_engine, kiosk_admin, device, face_headers, mail
+        self, client, fake_engine, kiosk_admin, device, face_headers
     ):
         _, headers = device
         await enrol(client, headers, face_headers)

@@ -62,14 +62,3 @@ export async function decideConsent(body: {
   const response = await client.post<ConsentResult>("/api/v1/auth/consent", body);
   return response.data;
 }
-
-export async function requestPasswordReset(email: string): Promise<void> {
-  await client.post("/api/v1/auth/password-reset", { email });
-}
-
-export async function confirmPasswordReset(body: {
-  token: string;
-  newPassword: string;
-}): Promise<void> {
-  await client.post("/api/v1/auth/password-reset/confirm", body);
-}

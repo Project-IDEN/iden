@@ -485,7 +485,7 @@ Get it wrong in one direction and every caller looks like the tunnel:
 
 - `TOKEN_PER_IP` stops being 120 requests a minute per caller and becomes 120 a minute for the whole
   deployment. At a few hundred active sessions that is an outage, and it looks like one.
-- `RESET_PER_IP` becomes ten password resets an hour, globally.
+- `LOGIN_PER_IP` limits every sign-in in the deployment as though it came from one person.
 - Every audit row records `172.31.250.x`, so the log can no longer answer *where did this
   administrator sign in from* — which is a large part of why it exists.
 

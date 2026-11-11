@@ -23,7 +23,6 @@ from provider.biometric.errors import (
     NotLive,
     PoorCapture,
 )
-from provider.core import notifier
 from provider.core.config import settings
 from provider.core.security import (
     decrypt_secret,
@@ -124,18 +123,6 @@ async def enrol(
     session.add_all(rows)
     await session.commit()
     await _delete_images(storage, previous)
-
-    # Enrolment adds a way to sign in as this person, so they hear about it
-    # from somewhere other than the kiosk — and know how to undo it.
-    await notifier.send(
-        to=user.email,
-        subject="A face was enrolled on your account",
-        body=(
-            f"Your face was enrolled at {kiosk.name}. If this was not you, remove "
-            f"it from Security in your account at {settings.iden_issuer} and "
-            "change your password."
-        ),
-    )
     return rows
 
 

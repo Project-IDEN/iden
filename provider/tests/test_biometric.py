@@ -132,8 +132,8 @@ class TestTickets:
 
 
 class TestKioskEnrolment:
-    async def test_enrolment_stores_encrypted_embeddings_and_tells_the_person(
-        self, client, db, fake_engine, kiosk_headers, face_headers, mail, admin_user
+    async def test_enrolment_stores_encrypted_embeddings(
+        self, client, db, fake_engine, kiosk_headers, face_headers, admin_user
     ):
         response = await enrol_at_kiosk(client, kiosk_headers, face_headers)
 
@@ -151,10 +151,9 @@ class TestKioskEnrolment:
         )
         for got, sent in zip(stored, sorted(VECTORS), strict=True):
             assert got == pytest.approx(sent)
-        assert mail and mail[0]["to"] == admin_user.email
 
     async def test_the_engine_is_asked_for_exactly_the_challenge(
-        self, client, fake_engine, kiosk_headers, face_headers, mail
+        self, client, fake_engine, kiosk_headers, face_headers
     ):
         await enrol_at_kiosk(client, kiosk_headers, face_headers)
         kind, count, steps = fake_engine.calls[0]
@@ -162,7 +161,7 @@ class TestKioskEnrolment:
         assert count == len(steps) == 9
 
     async def test_a_ticket_enrols_once(
-        self, client, fake_engine, kiosk_headers, face_headers, mail
+        self, client, fake_engine, kiosk_headers, face_headers
     ):
         ticket = await new_ticket(client, face_headers)
         challenge = (await kiosk_capture(client, kiosk_headers, ticket)).json()
@@ -261,7 +260,7 @@ class TestKioskEnrolment:
         assert fake_engine.calls == []
 
     async def test_the_consent_is_stored_with_the_face(
-        self, client, db, fake_engine, kiosk_headers, face_headers, mail
+        self, client, db, fake_engine, kiosk_headers, face_headers
     ):
         assert (await enrol_at_kiosk(client, kiosk_headers, face_headers)).is_success
 
@@ -271,7 +270,7 @@ class TestKioskEnrolment:
 
     @pytest.mark.parametrize("given", [None, "an-older-version"])
     async def test_no_consent_to_the_current_text_enrols_nobody(
-        self, client, db, fake_engine, kiosk_headers, face_headers, mail, given
+        self, client, db, fake_engine, kiosk_headers, face_headers, given
     ):
         ticket = await new_ticket(client, face_headers)
         challenge = (await kiosk_capture(client, kiosk_headers, ticket)).json()
@@ -321,7 +320,7 @@ class TestKioskEnrolment:
         assert replay.json()["code"] == "face_challenge_invalid"
 
     async def test_enrolling_again_replaces_the_face(
-        self, client, db, fake_engine, kiosk_headers, face_headers, mail
+        self, client, db, fake_engine, kiosk_headers, face_headers
     ):
         await enrol_at_kiosk(client, kiosk_headers, face_headers)
         fake_engine.enroll_result = fake_engine.enroll_result.model_copy(
@@ -331,7 +330,7 @@ class TestKioskEnrolment:
         assert len(list(await db.scalars(select(FaceTemplate)))) == 1
 
     async def test_the_audit_log_names_the_kiosk_and_the_person_but_no_ticket(
-        self, client, db, fake_engine, kiosk_headers, face_headers, mail, admin_user
+        self, client, db, fake_engine, kiosk_headers, face_headers, admin_user
     ):
         await enrol_at_kiosk(client, kiosk_headers, face_headers)
         event = await db.scalar(
@@ -349,7 +348,6 @@ class TestKioskEnrolment:
         fake_engine,
         kiosk_headers,
         face_headers,
-        mail,
         storage,
         monkeypatch,
         admin_user,
