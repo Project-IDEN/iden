@@ -41,7 +41,7 @@ services:
       - ./engine.token:/secrets/engine.token:ro
       - ../models:/app/models:ro
     ports:
-      - "${ENGINE_PUBLISH:-8000}:8000"
+      - "${ENGINE_PUBLISH:-127.0.0.1:8000}:8000"
     deploy:
       resources:
         reservations:

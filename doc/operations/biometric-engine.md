@@ -147,9 +147,10 @@ engine's folder holds everything it needs — its code, its `Dockerfile` and its
     ```
 
 4. **Choose where it listens.** `cp .env.example .env`, and set `ENGINE_PUBLISH` to the engine
-   machine's private address and a port: `10.0.0.5:8000`. A port alone listens on every interface,
-   and Docker's published ports bypass host firewalls such as `ufw`, so the address is what keeps
-   it private.
+   machine's private address and a port: `10.0.0.5:8000`. Left unset it listens on `127.0.0.1`
+   alone, which the provider on another machine cannot reach. Never set a port alone: that listens
+   on every interface, and Docker's published ports bypass host firewalls such as `ufw`, so the
+   address is what keeps it private.
 
 5. **Start it:**
 
