@@ -1,4 +1,10 @@
-import { FaceLandmarker, FilesetResolver, type NormalizedLandmark } from "@mediapipe/tasks-vision";
+import {
+  FaceLandmarker,
+  FilesetResolver,
+  type Category,
+  type NormalizedLandmark,
+} from "@mediapipe/tasks-vision";
+import type { Reading } from "./capture-actions";
 
 /**
  * Head pose in the browser, so a face capture can wait for a movement instead
@@ -8,6 +14,10 @@ import { FaceLandmarker, FilesetResolver, type NormalizedLandmark } from "@media
  * Yaw and pitch are the engine's own proxies (`engine/src/engine/pose.py`),
  * from the same five points — eyes, nose tip, mouth corners — taken from
  * MediaPipe's face mesh, so "turned far enough" means the same on both sides.
+ *
+ * It also reads the face's blendshapes, how closed the eyes are and how much
+ * the person smiles, so a blink or a smile step knows when to take its frames.
+ * The engine judges those frames on its own landmarks.
  */
 
 export interface Pose {
@@ -20,6 +30,8 @@ export interface Pose {
 export interface HeadTracker {
   /** The pose in the latest camera frame, or null while no face is in view. */
   latest: () => Pose | null;
+  /** Eyes and smile in the latest camera frame, or null while no face is in view. */
+  expression: () => Reading | null;
   stop: () => void;
 }
 
@@ -67,6 +79,23 @@ function poseOf(mesh: NormalizedLandmark[], width: number, height: number): Pose
   };
 }
 
+/** The mean of a left and right blendshape, or null if the model gave neither. */
+function both(shapes: Category[], name: string): number | null {
+  const scores = shapes
+    .filter(
+      (shape) => shape.categoryName === `${name}Left` || shape.categoryName === `${name}Right`,
+    )
+    .map((shape) => shape.score);
+  return scores.length ? scores.reduce((sum, score) => sum + score, 0) / scores.length : null;
+}
+
+function readingOf(shapes: Category[] | undefined): Reading | null {
+  if (!shapes) return null;
+  const blink = both(shapes, "eyeBlink");
+  const smile = both(shapes, "mouthSmile");
+  return blink === null || smile === null ? null : { blink, smile };
+}
+
 const loading = new Map<string, Promise<FaceLandmarker>>();
 
 /** The runtime and model are ~15 MB, so they load once per page. The GPU when
@@ -80,6 +109,7 @@ function load(files: string): Promise<FaceLandmarker> {
           baseOptions: { modelAssetPath: `${files}/face_landmarker.task`, delegate },
           runningMode: "VIDEO",
           numFaces: 1,
+          outputFaceBlendshapes: true,
         });
       return create("GPU").catch(() => create("CPU"));
     });
@@ -96,6 +126,7 @@ function load(files: string): Promise<FaceLandmarker> {
 export async function trackHead(video: HTMLVideoElement, files: string): Promise<HeadTracker> {
   const model = await load(files);
   let latest: Pose | null = null;
+  let expression: Reading | null = null;
   let running = true;
   let shown = -1;
 
@@ -103,8 +134,10 @@ export async function trackHead(video: HTMLVideoElement, files: string): Promise
     if (!running) return;
     if (video.readyState >= 2 && video.currentTime !== shown) {
       shown = video.currentTime;
-      const mesh = model.detectForVideo(video, performance.now()).faceLandmarks[0];
+      const result = model.detectForVideo(video, performance.now());
+      const mesh = result.faceLandmarks[0];
       latest = mesh ? poseOf(mesh, video.videoWidth, video.videoHeight) : null;
+      expression = mesh ? readingOf(result.faceBlendshapes[0]?.categories) : null;
     }
     requestAnimationFrame(step);
   };
@@ -112,6 +145,7 @@ export async function trackHead(video: HTMLVideoElement, files: string): Promise
 
   return {
     latest: () => latest,
+    expression: () => expression,
     stop: () => {
       running = false;
     },

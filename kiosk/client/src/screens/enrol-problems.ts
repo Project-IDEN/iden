@@ -84,7 +84,8 @@ export function explain(error: unknown, retry?: Retry): Problem {
 // The kiosk is supervised, so IDEN says which liveness checks failed. Each line
 // is what the person can do about it.
 const CHECK_ADVICE: Record<string, string> = {
-  actions: "Turn your head the way each arrow shows, and keep going until you hear the chime.",
+  actions:
+    "Do what each step shows: turn or tilt your head, blink slowly, or smile. Keep going until you hear the chime.",
   anti_spoofing: "Make sure your face is evenly lit, with nothing covering it, and try again.",
   consistent: "Only one person should be in front of the camera during the capture.",
 };
