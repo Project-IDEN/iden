@@ -79,3 +79,21 @@ async def test_only_levels_a_registered_method_reaches_are_advertised(
     body = (await client.get("/.well-known/openid-configuration")).json()
 
     assert body["acr_values_supported"] == ["urn:iden:acr:sfa", "urn:iden:acr:mfa"]
+
+
+async def test_every_identity_claim_is_advertised(client, catalogue):
+    """`picture` was released under `profile` but missing from this list. Built from
+    `identity_claims` itself, so a claim added there cannot be left out again."""
+    from provider.authz.services.token_service import identity_claims
+    from provider.shared.models import User
+
+    user = User(
+        email="ada@example.org",
+        username="ada",
+        display_name="Ada",
+        picture_key="photo.webp",
+    )
+    released = identity_claims(user, {"profile", "email"})
+
+    body = (await client.get("/.well-known/openid-configuration")).json()
+    assert set(released) <= set(body["claims_supported"])

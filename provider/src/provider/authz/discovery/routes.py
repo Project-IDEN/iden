@@ -87,6 +87,7 @@ async def _metadata(session: DBSessionDep) -> OpenIDConfiguration:
             "sid",
             "name",
             "preferred_username",
+            "picture",
             "email",
             "email_verified",
         ],
