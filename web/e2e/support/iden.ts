@@ -36,6 +36,7 @@ export interface State {
   totp: Account;
   sessions: Account;
   consent: Account;
+  revoked: Account;
   thirdParty: { id: string; clientId: string };
 }
 

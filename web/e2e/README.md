@@ -54,3 +54,4 @@ A full run signs in about fifteen times.
 | D7  | `tests/admin.spec.ts`    | Admin registers a confidential client; the secret is shown once           |
 | D8  | `tests/sessions.spec.ts` | Revoking another session ends it (`login_required` on its next request)   |
 | D10 | `tests/sign-in.spec.ts`  | Sign-out clears the session; a protected page goes back to sign-in        |
+| D11 | `tests/revoked.spec.ts`  | A deactivated account's next dashboard request goes back to sign-in       |
