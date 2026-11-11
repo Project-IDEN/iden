@@ -15,8 +15,7 @@ import pytest
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from provider.authz.oauth.errors import InvalidGrant
-from provider.authz.oauth.service import consume_code
+from provider.authz.oauth.service import CodeReuse, consume_code
 from provider.authz.services import token_service as tokens
 from provider.authz.services.pkce import create_challenge
 from provider.core.config import settings
@@ -79,7 +78,7 @@ async def test_a_second_redemption_blocks_until_the_first_commits(
 
         await first.commit()
 
-        with pytest.raises(InvalidGrant):
+        with pytest.raises(CodeReuse):
             await asyncio.wait_for(pending, timeout=5)
 
 

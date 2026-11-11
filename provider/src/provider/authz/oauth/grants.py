@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.authz.oauth.errors import InvalidClient, InvalidGrant
 from provider.authz.oauth.schemas import TokenResponse
-from provider.authz.oauth.service import consume_code
+from provider.authz.oauth.service import CodeReuse, consume_code
 from provider.authz.services import token_service as tokens
 from provider.authz.services.scope_resolver import (
     OFFLINE_ACCESS,
@@ -28,13 +28,19 @@ async def authorization_code(
     redirect_uri: str | None,
     code_verifier: str | None,
 ) -> TokenResponse:
-    record = await consume_code(
-        session,
-        code=code,
-        client=client,
-        redirect_uri=redirect_uri,
-        code_verifier=code_verifier,
-    )
+    try:
+        record = await consume_code(
+            session,
+            code=code,
+            client=client,
+            redirect_uri=redirect_uri,
+            code_verifier=code_verifier,
+        )
+    except CodeReuse as exc:
+        await session.commit()
+        raise InvalidGrant(
+            "This authorization code has already been used; what it issued is revoked."
+        ) from exc
     # Deactivating or deleting an account ends its sessions, but a code issued
     # a moment before still names it.
     user = await session.get(User, record.user_id)
