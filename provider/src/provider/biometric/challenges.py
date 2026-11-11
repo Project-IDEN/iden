@@ -1,7 +1,9 @@
 """What a person is asked to do in front of the camera, chosen at random.
 
-Enrolment asks for two head movements: a recording made before the challenge
-was issued cannot contain the right ones in the right order. Sign-in asks for
+Enrolment asks for two actions, drawn from head movements, a blink and a
+smile: a recording made before the challenge was issued cannot contain the
+right ones in the right order. The frames looking straight ahead always come
+first; they are the baseline each action is measured from. Sign-in asks for
 none — only frames looking straight ahead, judged by the anti-spoofing model —
 because it happens every day and enrolment once. Each challenge is good for one
 capture: `consume` deletes it as it reads it.
@@ -20,7 +22,19 @@ from provider.core.security import generate_token, hash_token
 
 Purpose = Literal["enrol", "login"]
 
-ACTIONS: tuple[str, ...] = ("turn_left", "turn_right", "look_up", "look_down")
+# Any two of these, never the same one twice. A blink and a smile are judged
+# by the engine from the frames, as the head movements are; the kiosk only
+# decides when to take them.
+ACTIONS: tuple[str, ...] = (
+    "turn_left",
+    "turn_right",
+    "look_up",
+    "look_down",
+    "blink",
+    "smile",
+)
+# Per enrolment challenge.
+ACTIONS_PER_ENROLMENT = 2
 
 CENTRE_FRAMES = 3
 FRAMES_PER_ACTION = 3
@@ -57,7 +71,9 @@ async def issue(redis: Redis, user_id: UUID, purpose: Purpose) -> FaceChallenge:
         id=generate_token(),
         user_id=user_id,
         purpose=purpose,
-        actions=_random.sample(ACTIONS, 2) if purpose == "enrol" else [],
+        actions=_random.sample(ACTIONS, ACTIONS_PER_ENROLMENT)
+        if purpose == "enrol"
+        else [],
         expires_at=datetime.now(UTC) + timedelta(seconds=TTL_SECONDS),
     )
     payload = {

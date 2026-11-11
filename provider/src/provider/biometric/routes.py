@@ -184,8 +184,9 @@ async def heartbeat(
     summary="Start a face capture for the person holding a ticket",
     description=(
         "Reads the enrolment ticket from the person's QR code and returns what "
-        "to capture: a few frames looking straight ahead, then two head "
-        "movements chosen at random.\n\n"
+        "to capture: a few frames looking straight ahead, then two actions "
+        "chosen at random from the four head movements, a blink and a smile."
+        "\n\n"
         "Every call counts one attempt against the ticket; a ticket allows "
         f"{tickets.MAX_ATTEMPTS}.\n\n"
         "**Required scope:** `biometric:enroll`"
@@ -221,7 +222,7 @@ async def start_enrolment(
         "with `422 consent_required`; the version and the time are stored with "
         "the face.\n\n"
         "The capture must pass every liveness check: the anti-spoofing model, "
-        "the head movements, and the same face throughout. Any face already enrolled on the account is replaced, and "
+        "the two actions, and the same face throughout. Any face already enrolled on the account is replaced, and "
         "the person is told by email.\n\n"
         "A `422 poor_capture` lists what to fix (`too_dark`, `too_small`, "
         "`blurred`, …) and a `422 not_live` the checks that failed; both leave "
