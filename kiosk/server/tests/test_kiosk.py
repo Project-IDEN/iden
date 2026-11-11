@@ -132,6 +132,22 @@ def test_pairing_keeps_the_secret_on_disk_for_the_owner_alone(paired, data_dir):
     assert state["name"] == "Library Kiosk 2"
 
 
+@pytest.mark.parametrize("left_behind", ["", '{"clientId": "kiosk-abc"'])
+def test_a_file_cut_short_by_a_power_loss_leaves_it_unpaired(
+    iden, data_dir, left_behind
+):
+    """Rather than a server that cannot start, and a screen stuck on
+    "Starting up…" until somebody deletes a file by hand."""
+    from kiosk_server.app import create_app
+
+    (data_dir / "credentials.json").write_text(left_behind)
+
+    app = create_app(httpx.MockTransport(iden.handle))
+    with TestClient(app, base_url="http://localhost") as client:
+        assert client.get("/api/state").json()["paired"] is False
+    assert not (data_dir / "credentials.json").exists()
+
+
 def test_a_wrong_code_is_passed_through(kiosk):
     response = kiosk.post("/api/pair", json={"code": "nope"})
     assert response.status_code == 404
