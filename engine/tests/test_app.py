@@ -102,6 +102,19 @@ def test_verify_compares_against_the_templates_sent(client, face_image):
     assert body["usable"] and body["matched"]
 
 
+@needs_models
+def test_a_template_of_the_wrong_width_is_refused(client, face_image):
+    """From another model, or truncated on the way: refused, not a 500."""
+    response = client.post(
+        "/verify",
+        headers=AUTH,
+        files=_upload(face_image, 3),
+        data={"meta": json.dumps({"steps": ["center"] * 3, "templates": [[0.1] * 3]})},
+    )
+
+    assert response.status_code == 400
+
+
 class TestATokenThatGoesMissing:
     """Startup refuses prod without a token, but the file is read per request:
     emptied afterwards, it must close the engine, not open it."""
