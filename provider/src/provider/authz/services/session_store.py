@@ -169,7 +169,15 @@ async def get(redis: Redis, session_id: str | None) -> Session | None:
     # Sliding expiry: an active session should not be logged out mid-use.
     # Unconditional, unlike the last_seen write below — this one is what keeps
     # the session alive, not what describes it.
-    await redis.expire(_key(session_id), settings.iden_session_ttl)
+    #
+    # The user index and the client list slide with it. Left to expire on their
+    # own, a session kept alive past a day drops out of the index — so a password
+    # reset or "sign out everywhere" no longer finds it — and out of the client
+    # list, so its end notifies no one.
+    ttl = settings.iden_session_ttl
+    await redis.expire(_key(session_id), ttl)
+    await redis.expire(_user_key(session.user_id), ttl)
+    await redis.expire(_clients_key(session_id), ttl)
 
     now = datetime.now(UTC)
     if (now - session.last_seen_at).total_seconds() > SEEN_RESOLUTION:

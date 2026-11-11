@@ -130,6 +130,30 @@ async def test_the_listing_carries_the_same_fields(redis):
     assert [(s.ip, s.user_agent) for s in listed] == [("203.0.113.7", CHROME_MAC)]
 
 
+class TestIndexesSlideWithTheSession:
+    """A session kept alive past `session_ttl` must stay findable: the user index
+    is what a password reset and "sign out everywhere" end sessions through, and
+    the client list is who hears about it."""
+
+    async def test_a_read_extends_the_user_index(self, redis):
+        user_id = uuid.uuid7()
+        session = await session_store.create(redis, user_id, "pwd")
+        await redis.expire(f"user_sessions:{user_id}", 5)
+
+        await session_store.get(redis, session.id)
+
+        assert await redis.ttl(f"user_sessions:{user_id}") > 5
+
+    async def test_a_read_extends_the_client_list(self, redis):
+        session = await session_store.create(redis, uuid.uuid7(), "pwd")
+        await session_store.add_client(redis, session.id, "app")
+        await redis.expire(f"session_clients:{session.public_id}", 5)
+
+        await session_store.get(redis, session.id)
+
+        assert await redis.ttl(f"session_clients:{session.public_id}") > 5
+
+
 async def _age_sign_in(redis, session_id: str, *, seconds: int) -> None:
     """Backdate `authenticated_at` while keeping the session in recent use."""
     key = f"session:{session_store.public_id_of(session_id)}"
