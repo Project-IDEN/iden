@@ -48,6 +48,7 @@ the real hardware, and [its camera tuned](operations/kiosk-camera.md) in the lig
 | **KI-17** | An audit row is not atomic with its change | Written just after; a database failure in between loses the record. Logged loudly. |
 | **KI-18** | The engine speaks plain HTTP | On another machine, faces cross the network between it and the provider unencrypted. Until it serves TLS, keep both on a network you trust. |
 | **KI-19** | IDEN sends no email | There is no mail transport, so self-service password recovery was removed rather than shipped broken: an administrator resets a forgotten password. Nor is a person told by email when a face is enrolled on their account; it shows on their Security page and in the kiosk's history. Adding a transport brings both back. |
+| **KI-20** | Administration does not require a second factor | An administrator who signed in with a password alone holds every admin scope they were granted; `acr` is recorded in the token but no admin route asks for more. Enrol an authenticator on every administrator account — IDEN then demands it at each sign-in. Requiring it, or a fresh sign-in before destructive changes, needs step-up handling across the dashboard's admin screens. |
 
 ## Federation
 
