@@ -87,9 +87,11 @@ GET /oauth2/logout
 `postLogoutRedirectUri` must be registered on the client, or IDEN returns `204` and goes nowhere —
 an unregistered redirect target is an open redirector.
 
-!!! note "A request with no session cookie ends nothing"
-    `id_token_hint` says who *was* signed in. It is not a credential for ending someone else's
-    session.
+!!! note "Send `id_token_hint`, or the person is asked"
+    Any page can make a browser load this URL, so a request whose hint does not name the person
+    signed in — or that has none — goes to a page asking them whether to sign out. With the hint,
+    they are signed out at once. Either way, a request with no session cookie ends nothing: the hint
+    says who *was* signed in, it is not a credential for ending someone else's session.
 
 ## What ending a session actually does
 
