@@ -101,8 +101,9 @@ async def set_role_scopes(
     if role.is_system:
         raise SystemRoleImmutable
 
+    before = list(role.scopes)
     role.scopes = await resolve_scopes(session, scope_ids)
-    delegation.refuse_undelegatable(caller_scopes, role.scopes)
+    delegation.refuse_undelegatable(caller_scopes, [*before, *role.scopes])
     await lockout.refuse_if_last(session)
     await session.commit()
     return role
@@ -123,10 +124,13 @@ async def role_in_use(session: AsyncSession, role_id: UUID) -> bool:
     )
 
 
-async def delete_role(session: AsyncSession, role_id: UUID, *, force: bool) -> None:
+async def delete_role(
+    session: AsyncSession, role_id: UUID, *, force: bool, caller_scopes: set[str]
+) -> None:
     role = await get_role(session, role_id)
     if role.is_system:
         raise SystemRoleImmutable
+    delegation.refuse_undelegatable(caller_scopes, role.scopes)
 
     if not force and await role_in_use(session, role_id):
         raise RoleInUse

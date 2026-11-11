@@ -3,7 +3,9 @@
 `admin:grants:write` decides *whether* somebody may assign permissions; this
 decides *which*. Two rules, and each is useless alone:
 
-- **granting** — you cannot confer a scope you lack (`refuse_undelegatable`)
+- **granting** — you cannot confer a scope you lack, nor take one away
+  (`refuse_undelegatable`). Otherwise the narrower administrator can strip a
+  role or group that a broader one depends on.
 - **borrowing** — you cannot act on a person holding more than you
   (`refuse_if_outranked`). Otherwise resetting a password and clearing an
   authenticator is a way to become somebody who already has what you wanted.
@@ -27,8 +29,8 @@ from provider.shared.scopes import RESTRICTED_PREFIXES
 class CannotDelegate(ForbiddenError):
     code = "cannot_delegate"
     message = (
-        "You cannot grant a permission you do not hold yourself. Ask somebody "
-        "who holds it, or have it granted to you first."
+        "You cannot grant or take away a permission you do not hold yourself. "
+        "Ask somebody who holds it, or have it granted to you first."
     )
 
 
@@ -47,11 +49,15 @@ def _restricted(scopes: Iterable[Scope]) -> set[str]:
 
 
 def refuse_undelegatable(caller_scopes: set[str], conferring: Iterable[Scope]) -> None:
-    """Raise unless every restricted scope in `conferring` is one the caller holds."""
+    """Raise unless every restricted scope in `conferring` is one the caller holds.
+
+    `conferring` is what changes hands either way: what a change grants, and
+    what it withdraws.
+    """
     beyond = sorted(_restricted(conferring) - caller_scopes)
     if beyond:
         raise CannotDelegate(
-            "You cannot grant a permission you do not hold yourself: "
+            "You cannot grant or take away a permission you do not hold yourself: "
             f"{', '.join(beyond)}.",
             scopes=beyond,
         )

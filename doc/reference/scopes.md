@@ -100,7 +100,8 @@ Not IDEN's to define — these come from the specification and behave as clients
 
 Holding a scope that assigns permissions does not let you assign *every* permission.
 
-**An `admin:` or `biometric:` scope can only be granted by somebody who already holds it.** The
+**An `admin:` or `biometric:` scope can only be granted — or taken away — by somebody who already
+holds it.** The
 check runs against the caller's own token, not their account — so an administrator working through a
 narrowly-scoped client cannot delegate past that token, and the rule applies unchanged to
 `client_credentials`, where there is no person at all. Anything else is refused with
@@ -112,6 +113,10 @@ It covers every route a scope can travel, not only the obvious one:
 - creating a user that already holds either
 - giving a group a role, or adding somebody to a group that has one
 - changing what a role means, which promotes everyone already holding it
+
+and the same routes in reverse: removing a scope from a role, a role from a group, or somebody from a
+group, and deleting a role or group that carries one. Without that half, an administrator who
+cannot grant `admin:scopes:write` could still take it from everyone who has it.
 
 **Your organization's own scopes are unrestricted**, and deliberately. An identity provider exists so
 that administrators can grant permissions they do not personally need; requiring a registrar to hold

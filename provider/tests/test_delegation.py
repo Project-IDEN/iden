@@ -256,6 +256,99 @@ class TestDelegationIsRefused:
         assert response.json()["code"] == "cannot_delegate"
 
 
+class TestTakingAwayIsRefused:
+    """Withdrawing a scope is as much a change in who holds it as granting one.
+    Otherwise a narrower administrator strips the role or group a broader one
+    depends on."""
+
+    @pytest.fixture
+    async def elevated_group(self, client, admin_headers, elevated_role, target):
+        group = (
+            await client.post(
+                "/admin/groups", json={"name": "Elevated"}, headers=admin_headers
+            )
+        ).json()
+        await client.put(
+            f"/admin/groups/{group['id']}/roles",
+            json={"roleIds": [elevated_role["id"]]},
+            headers=admin_headers,
+        )
+        await client.post(
+            f"/admin/groups/{group['id']}/members",
+            json={"userIds": [target["id"]]},
+            headers=admin_headers,
+        )
+        return group
+
+    async def test_by_removing_a_member(
+        self, client, limited_headers, elevated_group, target
+    ):
+        response = await client.delete(
+            f"/admin/groups/{elevated_group['id']}/members/{target['id']}",
+            headers=limited_headers,
+        )
+
+        assert response.status_code == 403
+        assert response.json()["code"] == "cannot_delegate"
+
+    async def test_by_deleting_the_group(self, client, limited_headers, elevated_group):
+        response = await client.delete(
+            f"/admin/groups/{elevated_group['id']}", headers=limited_headers
+        )
+
+        assert response.status_code == 403
+
+    async def test_by_unbinding_the_group_role(
+        self, client, limited_headers, elevated_group
+    ):
+        response = await client.put(
+            f"/admin/groups/{elevated_group['id']}/roles",
+            json={"roleIds": []},
+            headers=limited_headers,
+        )
+
+        assert response.status_code == 403
+
+    async def test_by_emptying_the_role(self, client, limited_headers, elevated_role):
+        response = await client.put(
+            f"/admin/roles/{elevated_role['id']}/scopes",
+            json={"scopeIds": []},
+            headers=limited_headers,
+        )
+
+        assert response.status_code == 403
+
+    async def test_by_deleting_the_role(self, client, limited_headers, elevated_role):
+        response = await client.delete(
+            f"/admin/roles/{elevated_role['id']}",
+            params={"force": "true"},
+            headers=limited_headers,
+        )
+
+        assert response.status_code == 403
+
+    async def test_what_the_caller_holds_they_may_still_take_away(
+        self, client, limited_headers, admin_headers, target
+    ):
+        group = (
+            await client.post(
+                "/admin/groups", json={"name": "Plain"}, headers=admin_headers
+            )
+        ).json()
+        await client.post(
+            f"/admin/groups/{group['id']}/members",
+            json={"userIds": [target["id"]]},
+            headers=admin_headers,
+        )
+
+        response = await client.delete(
+            f"/admin/groups/{group['id']}/members/{target['id']}",
+            headers=limited_headers,
+        )
+
+        assert response.status_code == 204
+
+
 class TestDelegationIsAllowed:
     """The rule has to leave an administrator able to administer."""
 
