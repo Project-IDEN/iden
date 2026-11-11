@@ -67,7 +67,7 @@ export function IdentityHeader({ profile }: { profile: Profile }) {
         <input
           ref={picker}
           type="file"
-          accept="image/*"
+          accept="image/png,image/jpeg,image/webp,image/gif"
           className="sr-only"
           onChange={(event) => {
             const file = event.target.files?.[0];

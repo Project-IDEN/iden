@@ -21,6 +21,11 @@ AVATAR_CONTENT_TYPE = "image/webp"
 # upload size limit does not see it coming.
 MAX_PIXELS = 40_000_000
 
+# What a browser can show and a person is likely to upload. Pillow reads many
+# more — TIFF, PSD, EPS among them — and each decoder is more code to trust with
+# bytes from anyone who has an account.
+FORMATS = ("JPEG", "PNG", "WEBP", "GIF")
+
 
 class InvalidImage(ValidationError):
     code = "invalid_image"
@@ -30,7 +35,7 @@ class InvalidImage(ValidationError):
 def _decode(data: bytes) -> Image.Image:
     """The upload as upright pixels, or `InvalidImage`."""
     try:
-        image = Image.open(io.BytesIO(data))
+        image = Image.open(io.BytesIO(data), formats=FORMATS)
         if image.width * image.height > MAX_PIXELS:
             raise InvalidImage("That image is too large to process.")
 
