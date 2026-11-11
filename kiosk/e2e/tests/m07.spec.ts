@@ -276,7 +276,11 @@ async function darkCapture(info: import("@playwright/test").TestInfo, name: stri
     await start.click();
 
     const serverProblem = page.getByRole("heading", { name: "We couldn't see your face clearly" });
-    const clientStopped = page.getByText(/We couldn't see your face\.|We didn't see that movement/);
+    // The client's own timeouts: no face, or an action not seen (a movement,
+    // a blink or a smile, whichever the challenge drew).
+    const clientStopped = page.getByText(
+      /We couldn't see your face\.|We didn't see (that movement|you blink|a smile)/,
+    );
     await expect(serverProblem.or(clientStopped)).toBeVisible({ timeout: 90_000 });
 
     await checkpoint(
