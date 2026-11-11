@@ -465,6 +465,32 @@ class TestIntrospection:
 
         assert body["active"] is False
 
+    async def test_a_deactivated_persons_token_is_inactive(
+        self, client, db, kiosk, member
+    ):
+        """Every resource server here refuses it; introspection must agree."""
+        from provider.authz.services import token_service
+
+        row, secret = kiosk
+        token, _, _ = await token_service.mint_access_token(
+            db,
+            subject=str(member.id),
+            client=row,
+            scopes={"entity:profile:read"},
+            acr="urn:iden:acr:sfa",
+            amr=["pwd"],
+            authenticated_at=token_service.now(),
+        )
+        form = {"token": token, "client_id": "kiosk", "client_secret": secret}
+        before = (await client.post("/oauth2/introspect", data=form)).json()
+        member.is_active = False
+        await db.commit()
+
+        after = (await client.post("/oauth2/introspect", data=form)).json()
+
+        assert before["active"] is True
+        assert after["active"] is False
+
     async def test_a_client_cannot_introspect_another_clients_token(
         self, client, kiosk
     ):

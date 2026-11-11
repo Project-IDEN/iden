@@ -64,6 +64,18 @@ def _is_uuid(value: str) -> bool:
     return True
 
 
+def person_of(claims: dict) -> uuid.UUID | None:
+    """The account an access token speaks for, or None for a client's own.
+
+    A client_credentials token's subject is the client itself, not a person —
+    and a client id may look like a user id.
+    """
+    subject = claims["sub"]
+    if subject == claims["client_id"] or not _is_uuid(subject):
+        return None
+    return uuid.UUID(subject)
+
+
 def _bearer(request: Request) -> str:
     header = request.headers.get("authorization", "")
     scheme, _, token = header.partition(" ")
@@ -141,11 +153,7 @@ def require_scope(*required: str, audience: str | None = None):
                 },
             )
 
-        # A client_credentials token's subject is the client itself, not a
-        # person — and a client id may look like a user id.
-        subject = claims["sub"]
-        is_person = subject != claims["client_id"] and _is_uuid(subject)
-        user_id = uuid.UUID(subject) if is_person else None
+        user_id = person_of(claims)
         # The authority is the account's, and a token outlives a deletion or a
         # deactivation by its whole lifetime — so the account is looked up on
         # every request, not trusted from the token. One column rather than the
