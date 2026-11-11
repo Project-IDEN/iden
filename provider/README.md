@@ -48,8 +48,11 @@ same guarantee by validating against the published JWKS.
 Python 3.14+, managed by [uv](https://docs.astral.sh/uv/), plus PostgreSQL and Redis:
 
 ```bash
-docker compose -f deploy/docker-compose.yml up -d    # postgres:18, redis:8
+docker compose -f deploy/docker-compose.yml up -d postgres redis seaweedfs
 ```
+
+Name the three: `up -d` alone also starts the containerised provider and both frontends, whose
+ports collide with the ones you are about to use.
 
 Then, from the repository root:
 
@@ -128,7 +131,7 @@ dependency list — `uv` owns it and the lockfile.
 **Running the tests:**
 
 ```bash
-uv run pytest                             # 398 tests, ~30s
+uv run pytest                             # the whole suite
 uv run pytest tests/test_scope_resolver.py -q
 ```
 
@@ -144,7 +147,7 @@ uv run pytest --cov=provider --cov-report=term-missing
 
 There is deliberately no threshold. Coverage here is a tool for finding gaps worth filling, not a
 gate — a build that fails below a number teaches people to write tests that touch lines rather than
-tests that check behaviour. It currently sits at 93%.
+tests that check behaviour.
 
 **The three checks**, all expected to be clean before a commit:
 
@@ -175,8 +178,7 @@ whitespace, oversized files). Unstaged work is stashed first, so what is checked
 being committed. A hook that rewrites a file fails the commit — `git add` the result and commit
 again.
 
-`uv run pytest` is deliberately **not** in the hook. It needs PostgreSQL and Redis running and takes
-about thirteen seconds; a gate that fails because Docker is down teaches people to reach for
+`uv run pytest` is deliberately **not** in the hook. It needs PostgreSQL and Redis running; a gate that fails because Docker is down teaches people to reach for
 `--no-verify`, and a hook everyone bypasses is worse than no hook. Run the suite yourself, or add it
 as a pre-push hook: `pre-commit install --hook-type pre-push`.
 
@@ -224,63 +226,10 @@ EMAIL=admin@localhost PASSWORD='a-new-passphrase' uv run python -m scripts.chang
 ## Configuration
 
 All settings are environment variables prefixed `IDEN_`, loaded by `core/config.py` via
-`pydantic-settings` from the process environment or `.env`.
-
-### Application
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `IDEN_ENV` | `dev` | `dev` or `prod`. Selects console vs JSON log rendering. |
-| `IDEN_LOG_LEVEL` | `info` | Root log level. |
-| `IDEN_API_PREFIX` | *(empty)* | Optional prefix applied to every mounted router. |
-| `IDEN_ALLOWED_ADMIN_ORIGINS` | `[]` | CORS allow-list for the dashboard SPA. |
-
-### Issuer & UI
-
-| Variable | Example | Purpose |
-|---|---|---|
-| `IDEN_ISSUER` | `http://localhost:8000` | The `iss` claim and the base for every advertised endpoint and system audience. Must match exactly what clients use, or signature validation succeeds and issuer validation fails. |
-| `IDEN_AUTH_UI_BASE_URL` | `http://localhost:4000` | Where `/oauth2/authorize` redirects for login and consent. |
-
-### Storage
-
-| Variable | Example |
-|---|---|
-| `IDEN_DATABASE_URL` | `postgresql+asyncpg://iden:iden@localhost:5432/iden` |
-| `IDEN_REDIS_URL` | `redis://localhost:6379/0` |
-
-### Crypto
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `IDEN_SIGNING_KEY_DIR` | `./keys` | Directory of PEM keypairs. Each file's stem becomes its `kid`, which is what makes rotation a config change rather than a rewrite. |
-| `IDEN_SIGNING_ALGORITHM` | `RS256` | JWT signing algorithm. |
-
-### Lifetimes
-
-| Variable | Default | Notes |
-|---|---|---|
-| `IDEN_ACCESS_TOKEN_TTL` | `600` (10 min) | Short on purpose — permission changes take effect at the next issuance. |
-| `IDEN_ID_TOKEN_TTL` | `600` | |
-| `IDEN_REFRESH_TOKEN_TTL` | `2592000` (30 d) | Sliding; rotated on every use. |
-| `IDEN_AUTH_CODE_TTL` | `60` | Single use. |
-| `IDEN_SESSION_TTL` | `86400` (24 h) | Sliding browser session. |
-| `IDEN_CHALLENGE_TTL` | `600` | Login/consent challenges. |
-| `IDEN_RATE_LIMIT_ENABLED` | `true` | Off only for a load test against a deployment you own. |
-| `IDEN_REFRESH_GRACE_PERIOD` | `30` | How long a spent refresh token keeps returning what it was already exchanged for. Set to `0` to make every second use theft — see below. |
-
-### Bootstrap & extensions
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `IDEN_BOOTSTRAP_ADMIN_EMAIL` | `admin@localhost` | Seeded administrator. |
-| `IDEN_BOOTSTRAP_ADMIN_PASSWORD` | *(generated)* | Generated and printed once if unset. |
-| `IDEN_BIOMETRIC_ENABLED` | `false` | Opens `/biometric/*` and `/entity/face*`, seeds the biometric API and face scopes, and registers the `face` auth method. |
-| `IDEN_ENGINE_BASE_URL` | `http://engine:8000` | Internal biometric engine. Only read when biometric is enabled. |
-| `IDEN_ENGINE_TOKEN_FILE` | `<keys>/engine.token` | The secret presented to the engine, written by `scripts.gen_keys`. |
-| `IDEN_ENGINE_TIMEOUT` | `20` | Seconds to wait for the engine. |
-| `IDEN_BIOMETRIC_KEEP_IMAGES` | `false` | Keep enrolment photos, encrypted, so `scripts.reembed_faces` can move faces to a new model. |
-| `IDEN_FACE_TICKET_TTL` | `900` | Seconds a kiosk enrolment ticket stays usable. |
+`pydantic-settings` from the process environment or `.env`. [`.env.example`](.env.example) carries
+every one with a comment, and the [Configuration reference](../doc/reference/configuration.md) lists
+them with their defaults. In `IDEN_ENV=prod` the provider refuses to start on an `http://` URL, a
+published default password, or `IDEN_FORWARDED_ALLOW_IPS='*'`.
 
 ---
 
@@ -520,44 +469,9 @@ for ten minutes.
 
 ### System scope catalogue
 
-Seeded by `scripts/seed.py` from `shared/scopes.py`, all flagged `is_system`.
-
-**API `admin`** — audience `{IDEN_ISSUER}/admin`
-
-| Scope | Allows |
-|---|---|
-| `admin:users:read` / `admin:users:write` | View / manage users, their roles, and direct grants |
-| `admin:groups:read` / `admin:groups:write` | View / manage groups, membership, and group roles |
-| `admin:roles:read` / `admin:roles:write` | View / manage roles and their scope bundles |
-| `admin:apis:read` / `admin:apis:write` | View / manage registered resource APIs |
-| `admin:scopes:read` / `admin:scopes:write` | View / manage scopes under an API |
-| `admin:clients:read` | View OAuth clients. Changing one needs every `admin:` scope (and `biometric:` when enabled) |
-| `admin:audit:read` | Read the audit log. No write scope exists — see below |
-| `admin:profile-fields:read` / `admin:profile-fields:write` | View / define the organization's profile fields |
-
-**API `entity`** — audience `{IDEN_ISSUER}/entity`
-
-| Scope | Allows |
-|---|---|
-| `entity:profile:read` / `entity:profile:write` | Read / update my own profile |
-| `entity:credentials:write` | Change my own password |
-| `entity:totp:read` / `entity:totp:enroll` | View / enrol and remove my TOTP credential |
-| `entity:sessions:read` / `entity:sessions:revoke` | List / revoke my active sessions |
-| `entity:connections:read` / `entity:connections:revoke` | See / withdraw the applications I have granted access to |
-| `entity:permissions:read` | See my own roles, groups, and effective scopes |
-| `entity:face:read` / `entity:face:write` | See my face enrolment / create a kiosk ticket, remove my face — only with `IDEN_BIOMETRIC_ENABLED` |
-
-**API `biometric`** — audience `{IDEN_ISSUER}/biometric`, seeded only when `IDEN_BIOMETRIC_ENABLED`
-
-| Scope | Allows |
-|---|---|
-| `biometric:enroll` | The kiosk's: enrol a face, given the ticket its owner created |
-| `biometric:device` | The kiosk's: report its health and read its settings |
-
-With the module on, the `admin` API also carries `admin:kiosks:read` / `admin:kiosks:write`: register,
-pair, configure and revoke kiosks.
-
-**Seeded roles:** `administrator` (all `admin:*` and `entity:*`) and `member` (all `entity:*`).
+Seeded by `scripts/seed.py` from `shared/scopes.py`, all flagged `is_system`, with two roles:
+`administrator` and `member`. Every scope, what it allows, and the delegation rules are in the
+[Scopes reference](../doc/reference/scopes.md).
 
 ### Adding a permission to your own API
 
@@ -592,7 +506,7 @@ session, and the login that authorised it is already in the log.
 
 | Column | Notes |
 |---|---|
-| `action` | Method plus **route template** — `POST /admin/users/{user_id}/roles`. The template groups; the resolved path would not. |
+| `action` | Method plus **route template** — `PUT /admin/users/{user_id}/roles`. The template groups; the resolved path would not. |
 | `target` | The last path parameter, which is the object being acted on: in `/admin/apis/{api_id}/scopes/{scope_id}` that is the scope. |
 | `status_code` | Refused attempts are recorded too. A wall of `403`s from one actor is the signal you want. |
 | `actor_user_id` / `actor_label` / `actor_client` | Who, by id, by email-at-the-time, and through which OAuth client. |
@@ -801,113 +715,9 @@ not a credential for ending someone else's session.
 
 ## Endpoint Reference
 
-`Auth` column: **public** = no credentials; **client** = client authentication; **bearer** = access
-token with the named scope; **session** = browser session cookie. `Phase` refers to [PLAN.md](PLAN.md).
-
-### Service
-
-| Method | Path | Auth | Purpose | Phase |
-|---|---|---|---|---|
-| `GET` | `/health` | public | Always `200`; the body reports whether PostgreSQL and Redis are reachable, so a monitor can tell *down* from *up and degraded* | 0 |
-| `GET` | `/health/live` | public | Liveness. `200` whenever the process can answer at all; touches no dependency. This is what an orchestrator restarts on | 6 |
-| `GET` | `/health/ready` | public | Readiness. `503` when PostgreSQL or Redis is unreachable, so a load balancer drains the replica without parsing a body. Never a reason to restart | 6 |
-
-### AuthZ — discovery & OAuth
-
-| Method | Path | Auth | Purpose | Phase |
-|---|---|---|---|---|
-| `GET` | `/.well-known/openid-configuration` | public | Provider metadata; `scopes_supported` is read live from the database | 1 |
-| `GET` | `/.well-known/jwks.json` | public | Public signing keys, one JWK per `kid` | 1 |
-| `GET` | `/oauth2/authorize` | session | Start authorization code + PKCE; redirects to `auth-ui` when login or consent is needed. Accepts `prompt`, `max_age`, `login_hint`, `id_token_hint` | 1, 3 |
-| `POST` | `/oauth2/token` | client | `authorization_code`, `refresh_token`, `client_credentials` | 1 |
-| `GET` | `/oauth2/userinfo` | bearer `openid` | Claims filtered by granted scopes | 1 |
-| `POST` | `/oauth2/revoke` | client | RFC 7009 — revoke a refresh family or denylist a `jti`. Public clients may revoke their own tokens | 1 |
-| `POST` | `/oauth2/introspect` | client | RFC 7662 — **confidential clients only**: the response describes someone else's token, and a `client_id` is public by definition | 1 |
-| `GET` | `/oauth2/logout` | session | Single sign-out: ends the session, revokes its refresh tokens, delivers a logout token to every client it reached | 1, 3 |
-
-### AuthZ — login & consent (consumed by `auth-ui`)
-
-| Method | Path | Auth | Purpose | Phase |
-|---|---|---|---|---|
-| `GET` | `/api/v1/auth/challenge/{id}` | public | Pending client name + requested scopes, for rendering the page | 1 |
-| `POST` | `/api/v1/auth/login` | public | Password login; appends `pwd` to the session `amr` | 1 |
-| `POST` | `/api/v1/auth/totp` | session | TOTP verification / step-up; appends `otp` | 1 |
-| `POST` | `/api/v1/auth/biometric` | session | Face login; appends `face`. `501` unless biometric is enabled | 1 stub / 4 |
-| `POST` | `/api/v1/auth/consent` | session | Persist or deny a consent grant, then resume `/authorize` | 1 |
-
-Login returns `complete` with a `resumeUrl`, or `method_required` with the `methods` still owed —
-when the person has an authenticator set up, or the client asked for a level a password alone does
-not reach and this person can reach it. It never reports `consentRequired`, and never refuses a level
-outright: both are decided by `/authorize`, which is the only endpoint that knows the full picture,
-and the browser reaches it again by following `resumeUrl`.
-
-### Admin RS
-
-| Method | Path | Scope | Phase |
-|---|---|---|---|
-| `GET` `POST` | `/admin/apis` | `admin:apis:read` / `:write` | 2 |
-| `GET` `PATCH` `DELETE` | `/admin/apis/{id}` | `admin:apis:read` / `:write` | 2 |
-| `GET` `POST` | `/admin/apis/{api_id}/scopes` | `admin:scopes:read` / `:write` | 2 |
-| `GET` `PATCH` `DELETE` | `/admin/scopes/{id}` | `admin:scopes:read` / `:write` | 2 |
-| `GET` `POST` | `/admin/roles` | `admin:roles:read` / `:write` | 2 |
-| `GET` `PATCH` `DELETE` | `/admin/roles/{id}` | `admin:roles:read` / `:write` | 2 |
-| `GET` `PUT` | `/admin/roles/{id}/scopes` | `admin:roles:read` / `:write` | 2 |
-| `GET` `POST` | `/admin/groups` | `admin:groups:read` / `:write` | 2 |
-| `GET` `PATCH` `DELETE` | `/admin/groups/{id}` | `admin:groups:read` / `:write` | 2 |
-| `PUT` | `/admin/groups/{id}/roles` | `admin:groups:write` | 2 |
-| `GET` `POST` | `/admin/groups/{id}/members` | `admin:groups:read` / `:write` | 2 |
-| `DELETE` | `/admin/groups/{id}/members/{userId}` | `admin:groups:write` | 2 |
-| `GET` `POST` | `/admin/users` | `admin:users:read` / `:write` | 2 |
-| `GET` `PATCH` `DELETE` | `/admin/users/{id}` | `admin:users:read` / `:write` | 2 |
-| `PUT` | `/admin/users/{id}/roles` | `admin:users:write` | 2 |
-| `PUT` | `/admin/users/{id}/scopes` | `admin:users:write` | 2 |
-| `POST` | `/admin/users/{id}/reset-password` | `admin:users:write` | 2 |
-| `GET` | `/admin/users/{id}/effective-scopes` | `admin:users:read` | 2 |
-| `GET` `POST` | `/admin/clients` | `admin:clients:read` / full administrator | 2 |
-| `GET` `PATCH` `DELETE` | `/admin/clients/{id}` | `admin:clients:read` / full administrator | 2 |
-| `POST` | `/admin/clients/{id}/rotate-secret` | full administrator | 2 |
-| `PUT` | `/admin/clients/{id}/scopes` | full administrator | 2 |
-| `GET` | `/admin/audit` | `admin:audit:read` | 2 |
-| `GET` `PATCH` | `/admin/users/{id}/profile` | `admin:users:read` / `:write` | 4 |
-| `GET` `POST` | `/admin/profile-fields` | `admin:profile-fields:read` / `:write` | 4 |
-| `GET` `PATCH` `DELETE` | `/admin/profile-fields/{id}` | `admin:profile-fields:read` / `:write` | 4 |
-
-`PUT` on a relationship (`.../roles`, `.../scopes`) **replaces the whole set** rather than adding to
-it. Set semantics make the endpoint idempotent and the dashboard's editing UI trivial.
-
-### Entity RS
-
-Every route derives the user from the token's `sub` and never accepts a user id from the caller.
-
-| Method | Path | Scope | Phase |
-|---|---|---|---|
-| `GET` `PATCH` | `/entity/profile` | `entity:profile:read` / `:write` | 4 |
-| `GET` | `/entity/profile/schema` | `entity:profile:read` | 4 |
-| `POST` | `/entity/credentials/password` | `entity:credentials:write` + fresh auth | 4 |
-| `POST` | `/entity/totp/enroll` · `/entity/totp/confirm` | `entity:totp:enroll` | 4 |
-| `GET` `DELETE` | `/entity/totp` | `entity:totp:read` / `:enroll` | 4 |
-| `GET` | `/entity/sessions` | `entity:sessions:read` | 4 |
-| `DELETE` | `/entity/sessions/{id}` | `entity:sessions:revoke` + fresh auth | 4 |
-| `GET` | `/entity/connections` | `entity:connections:read` | 4 |
-| `DELETE` | `/entity/connections/{clientId}` | `entity:connections:revoke` | 4 |
-| `GET` | `/entity/permissions` | `entity:permissions:read` | 4 |
-
-Sensitive routes are additionally gated by `require_fresh_auth(max_age=300)`: a valid access token is
-not enough to change a password or remove a second factor, because an attacker holding a stolen
-token would otherwise take over the account outright. They must pass a login they cannot complete.
-
-### Biometric — 404 unless `IDEN_BIOMETRIC_ENABLED=true`
-
-| Method | Path | Scope | Phase |
-|---|---|---|---|
-| `POST` | `/biometric/enroll/challenge` | `biometric:enroll` + ticket | 5 |
-| `POST` | `/biometric/enroll` | `biometric:enroll` + ticket | 5 |
-| `GET` | `/entity/face` | `entity:face:read` | 5 |
-| `POST` | `/entity/face/ticket` | `entity:face:write` + fresh auth | 5 |
-| `DELETE` | `/entity/face` | `entity:face:write` + fresh auth | 5 |
-| `DELETE` | `/admin/users/{id}/face` | `admin:users:write` | 5 |
-| `POST` | `/api/v1/auth/biometric/challenge` | session (after a password) | 5 |
-| `POST` | `/api/v1/auth/biometric` | session (after a password) | 5 |
+Every route, grouped by module, is in the [Endpoints reference](../doc/reference/endpoints.md). A
+running provider documents each one — its scope, its request and response, its errors — at
+`/docs` (development only).
 
 ---
 

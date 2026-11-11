@@ -26,11 +26,16 @@ The build plan is [PLAN.md](PLAN.md); the visual system is [../DESIGN.md](../DES
 The provider has to be up first — these apps have nothing to show without it. From `provider/`:
 
 ```bash
-docker compose -f ../deploy/docker-compose.yml up -d postgres redis
+docker compose -f ../deploy/docker-compose.yml up -d postgres redis seaweedfs
+uv sync
+cp .env.example .env                   # the defaults match the containers above
+uv run python -m scripts.gen_keys      # once: signing key, totp.key, engine.token
 uv run alembic upgrade head
 uv run python -m scripts.seed          # prints the bootstrap admin password, once
-uv run python -m uvicorn provider.core.app:app --port 8000
+uv run provider                        # http://localhost:8000
 ```
+
+The full walkthrough is [Run the frontends](../doc/guides/run-the-frontends.md).
 
 Then from `web/`:
 
