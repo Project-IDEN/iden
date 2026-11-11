@@ -190,6 +190,7 @@ Everything is done with `iden-kiosk`, on the Pi or over SSH. It asks for `sudo` 
 | See what is running | `iden-kiosk status` |
 | Follow a log | `iden-kiosk logs` (the server), `iden-kiosk logs browser`, `iden-kiosk logs camera` |
 | Update now, not tonight | `iden-kiosk update` |
+| Go back to the image before the last update | `iden-kiosk rollback` |
 | List the camera's settings | `iden-kiosk camera` |
 | Change the camera's settings | `iden-kiosk camera edit` |
 | Forget the pairing | `iden-kiosk unpair` |
@@ -205,7 +206,11 @@ In kiosk mode Chromium cannot be closed from the screen: if it exits for any rea
 seconds later. Leave kiosk mode from a terminal, usually over SSH: `iden-kiosk stop`.
 
 **Updates** are pulled every night between 03:30 and 04:00. A kiosk that cannot reach the registry
-keeps running the image it has.
+keeps running the image it has. One that pulls a new image waits up to 90 seconds for it to answer;
+if it does not, the kiosk goes back to the image it was running and the update is logged as failed
+(`systemctl status iden-kiosk-update`). Since every kiosk updates in the same half hour, publish a
+**version tag** rather than moving `:latest`, when you can — then a kiosk changes image only when you
+change its `KIOSK_IMAGE` in `/opt/iden-kiosk/.env`.
 
 ## In the dashboard
 
