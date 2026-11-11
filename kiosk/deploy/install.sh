@@ -44,6 +44,11 @@ done
 [[ -n "$issuer" && -n "$image" ]] || usage
 [[ "$issuer" =~ ^https?://[^/]+$ ]] \
   || fail "--issuer is IDEN's address with no path or trailing slash, like https://id.example.org"
+# The same rule the kiosk server applies at startup, checked here so a wrong
+# issuer fails now rather than as a screen stuck on "Starting up…".
+local_host='^http://(localhost|127\.[0-9.]+|10\.[0-9.]+|192\.168\.[0-9.]+|172\.(1[6-9]|2[0-9]|3[01])\.[0-9.]+)(:[0-9]+)?$'
+[[ "$issuer" == https://* || "$issuer" =~ $local_host ]] \
+  || fail "--issuer must be https://, unless IDEN is on this kiosk's own network (a private address)."
 [[ -n "$user" && "$user" != root ]] || fail "--user: the desktop user the screen runs as."
 home="$(getent passwd "$user" | cut -d: -f6)"
 [[ -n "$home" ]] || fail "there is no user called $user."
