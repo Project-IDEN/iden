@@ -10,22 +10,25 @@ export default async function globalTeardown() {
   const { kiosk, user } = loadState();
   const report: Record<string, unknown> = { kioskId: kiosk.id, kioskName: kiosk.name, userId: user.id, userEmail: user.email };
 
-  await setKioskSettings({ inService: true, notice: null });
-  const record = await kioskRecord();
-  report.kioskStatus = record.status;
-  report.kioskInService = record.settings.inService;
-  report.kioskPairedAt = record.pairedAt;
-  report.kioskLastSeenAt = record.lastSeenAt;
+  try {
+    await setKioskSettings({ inService: true, notice: null });
+    const record = await kioskRecord();
+    report.kioskStatus = record.status;
+    report.kioskInService = record.settings.inService;
+    report.kioskPairedAt = record.pairedAt;
+    report.kioskLastSeenAt = record.lastSeenAt;
 
-  const face = await faceStatus();
-  report.userFaceEnrolledBeforeDelete = face.enrolled;
-  if (face.enrolled) {
-    // Must never happen: the suite enrols nobody. Removed here so the account
-    // leaves no biometric data behind even if a test went wrong.
-    await api(await adminToken(), "DELETE", `/admin/users/${user.id}/face`);
+    const face = await faceStatus();
+    report.userFaceEnrolledBeforeDelete = face.enrolled;
+    if (face.enrolled) {
+      // Must never happen: the suite enrols nobody. Removed here so the account
+      // leaves no biometric data behind even if a test went wrong.
+      await api(await adminToken(), "DELETE", `/admin/users/${user.id}/face`);
+    }
+  } finally {
+    // The test user is always deleted, even when a check above failed.
+    await api(await adminToken(), "DELETE", `/admin/users/${user.id}`);
+    report.userDeleted = true;
+    writeFileSync(`${RESULTS}teardown.json`, JSON.stringify(report, null, 2));
   }
-  await api(await adminToken(), "DELETE", `/admin/users/${user.id}`);
-  report.userDeleted = true;
-
-  writeFileSync(`${RESULTS}teardown.json`, JSON.stringify(report, null, 2));
 }

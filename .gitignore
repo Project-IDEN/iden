@@ -7,6 +7,10 @@ web/**/node_modules/
 web/**/dist/
 
 *.log
+
+# Playwright results (web/e2e and kiosk/e2e)
+/test-results/
+/test-results-m07/
 *.sql
 *.sqlite
 
