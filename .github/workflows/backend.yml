@@ -1,0 +1,155 @@
+name: Backend
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - provider/**
+      - engine/**
+      - kiosk/**
+      - perf/**
+      - .github/workflows/backend.yml
+  pull_request:
+    paths:
+      - provider/**
+      - engine/**
+      - kiosk/**
+      - perf/**
+      - .github/workflows/backend.yml
+  # Advisories are published against code that has not changed, so the audit
+  # also runs on a schedule rather than only when a lockfile moves.
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  provider:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: provider
+    # The suite makes its own `iden_test` database and uses Redis database 15.
+    # Both services match the provider's defaults, so no settings are needed.
+    services:
+      postgres:
+        image: postgres:18-bookworm
+        env:
+          POSTGRES_USER: iden
+          POSTGRES_PASSWORD: iden
+          POSTGRES_DB: iden
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U iden -d iden"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:8-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run pyright
+      # The perf script is checked with the provider's tools, as the hook does.
+      - run: uv run ruff check --config ../perf/ruff.toml ../perf
+      - run: uv run python -m scripts.gen_keys
+      - run: uv run pytest -q
+
+  engine:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: engine
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        with:
+          enable-cache: true
+      - run: uv sync --locked --extra cpu
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run pyright
+      # Downloaded once per manifest and checked against its sha256, so the
+      # model-backed tests run instead of skipping.
+      - uses: actions/cache@v6
+        with:
+          path: engine/models
+          key: engine-models-${{ hashFiles('engine/models.toml') }}
+      - run: uv run python -m scripts.fetch_models
+      - run: uv run pytest -q
+
+  kiosk-server:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kiosk/server
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff format --check .
+      - run: uv run ruff check .
+      - run: uv run pyright
+      - run: uv run pytest -q
+
+  kiosk-client:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kiosk/client
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+        with:
+          package_json_file: kiosk/client/package.json
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: kiosk/client/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+        with:
+          package_json_file: web/package.json
+      - name: Python advisories
+        run: |
+          for project in provider engine kiosk/server; do
+            extra=""
+            [ "$project" = engine ] && extra="--extra cpu"
+            uv export --project "$project" --frozen --no-hashes --no-emit-project $extra \
+              > "$RUNNER_TEMP/requirements.txt"
+            echo "::group::$project"
+            uvx pip-audit --disable-pip --no-deps -r "$RUNNER_TEMP/requirements.txt"
+            echo "::endgroup::"
+          done
+      # Shipped dependencies only: lint and build tooling never reaches a
+      # browser, and its advisories are handled by Dependabot rather than by a
+      # failing build.
+      - name: JavaScript advisories
+        run: |
+          (cd web && pnpm audit --prod)
+          (cd kiosk/client && pnpm audit --prod)
