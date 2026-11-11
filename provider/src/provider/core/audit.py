@@ -60,6 +60,8 @@ SECRET_KEYS = frozenset(
         "codeverifier",
         # An enrolment ticket names a person to a kiosk until it is used.
         "ticket",
+        # A pending sign-in, which with the browser's cookie continues it.
+        "challengeid",
     }
 )
 

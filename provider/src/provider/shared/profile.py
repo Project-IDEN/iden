@@ -34,6 +34,12 @@ RESERVED_CLAIMS = frozenset(
         "scope",
         "client_id",
         "token_type",
+        # In tokens IDEN signs: a logout token's `events`, the hashes that bind an
+        # ID token to its code or access token, and proof-of-possession.
+        "events",
+        "at_hash",
+        "c_hash",
+        "cnf",
         # Standard OIDC claims IDEN emits itself under `profile` and `email`.
         # A field claiming one of these names would be silently overwritten at
         # mint time, so it is refused when the field is defined instead.
@@ -42,6 +48,7 @@ RESERVED_CLAIMS = frozenset(
         "picture",
         "email",
         "email_verified",
+        "updated_at",
     }
 )
 

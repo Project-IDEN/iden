@@ -3,9 +3,11 @@
 from datetime import UTC, datetime
 
 import pyotp
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from provider.authz.login.service import spend_totp_code
 from provider.core.config import settings
 from provider.core.security import decrypt_secret, encrypt_secret
 from provider.entity.totp.errors import AlreadyEnrolled, NotEnrolling, WrongCode
@@ -60,7 +62,9 @@ async def begin(session: AsyncSession, user: User) -> tuple[str, str]:
     return secret, uri
 
 
-async def confirm(session: AsyncSession, user: User, code: str) -> TotpCredential:
+async def confirm(
+    session: AsyncSession, redis: Redis, user: User, code: str
+) -> TotpCredential:
     credential = await _credential(session, user)
     if credential is None or credential.confirmed_at:
         raise NotEnrolling
@@ -68,6 +72,7 @@ async def confirm(session: AsyncSession, user: User, code: str) -> TotpCredentia
     secret = decrypt_secret(credential.secret_encrypted, context=str(user.id))
     if not pyotp.TOTP(secret).verify(code, valid_window=1):
         raise WrongCode
+    await spend_totp_code(redis, user.id, code)
 
     credential.confirmed_at = datetime.now(UTC)
     await session.commit()

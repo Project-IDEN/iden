@@ -74,9 +74,15 @@ async def verify_totp(
         raise InvalidTotpCode
     # Otherwise a code read over someone's shoulder, or relayed by a phishing
     # page, signs a second browser in alongside the first.
-    used = f"totp-used:{user.id}:{code}"
-    if not await redis.set(used, 1, nx=True, ex=USED_CODE_SECONDS):
+    if not await spend_totp_code(redis, user.id, code):
         raise InvalidTotpCode
+
+
+async def spend_totp_code(redis: Redis, user_id: UUID, code: str) -> bool:
+    """Mark a code used; False if it already was. Shared with enrolment, whose
+    confirming code would otherwise still sign someone in."""
+    used = f"totp-used:{user_id}:{code}"
+    return bool(await redis.set(used, 1, nx=True, ex=USED_CODE_SECONDS))
 
 
 async def enrolled_methods(session: AsyncSession, user_id: UUID) -> set[str]:

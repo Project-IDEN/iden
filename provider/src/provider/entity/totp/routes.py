@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Response
 
 from provider.core.auth import CurrentUserDep, require_fresh_auth, require_scope
 from provider.core.db import DBSessionDep
+from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse
 from provider.entity.totp import service
 from provider.entity.totp.schemas import TotpConfirm, TotpEnrollment, TotpStatus
@@ -85,9 +86,9 @@ async def enroll(user: CurrentUserDep, session: DBSessionDep) -> TotpEnrollment:
     dependencies=[ENROLL, FRESH],
 )
 async def confirm(
-    body: TotpConfirm, user: CurrentUserDep, session: DBSessionDep
+    body: TotpConfirm, user: CurrentUserDep, session: DBSessionDep, redis: RedisDep
 ) -> TotpStatus:
-    credential = await service.confirm(session, user, body.code)
+    credential = await service.confirm(session, redis, user, body.code)
     return TotpStatus(enrolled=True, confirmed_at=credential.confirmed_at)
 
 
