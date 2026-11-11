@@ -117,12 +117,7 @@ async function takeEach(guide: Guide, count: number, gap: number) {
 
 /** One action, start to finish; `perform` resolves once it was done and its
  * frames taken, or false when it never was. */
-async function movement(
-  index: number,
-  step: string,
-  guide: Guide,
-  perform: () => Promise<boolean>,
-) {
+async function action(index: number, step: string, guide: Guide, perform: () => Promise<boolean>) {
   for (let seconds = PREPARE_SECONDS; seconds > 0; seconds -= 1) {
     guide.phase({ name: "prepare", index, step, seconds });
     await wait(1000);
@@ -175,7 +170,7 @@ export async function guidedCapture(steps: string[], tracker: HeadTracker, guide
 
   for (const [index, { step, count }] of groups(steps).entries()) {
     if (isExpression(step)) {
-      await movement(index, step, guide, () => expressed(step, count, tracker, guide));
+      await action(index, step, guide, () => expressed(step, count, tracker, guide));
       continue;
     }
     if (MOVES[step]) {
@@ -189,7 +184,7 @@ export async function guidedCapture(steps: string[], tracker: HeadTracker, guide
         if (done) await takeEach(guide, count, HOLD_GAP_MS);
         return done;
       };
-      await movement(index, step, guide, moved);
+      await action(index, step, guide, moved);
       continue;
     }
 
@@ -220,12 +215,12 @@ export async function timedCapture(steps: string[], guide: Guide) {
     // frames are spread over the moment it should happen, and the engine
     // judges whether they caught it.
     if (MOVES[step] || isExpression(step)) {
-      const turned = async () => {
+      const timed = async () => {
         await wait(TIMED_TURN_MS);
         await takeEach(guide, count, TIMED_HOLD_GAP_MS);
         return true;
       };
-      await movement(index, step, guide, turned);
+      await action(index, step, guide, timed);
       continue;
     }
     guide.phase({ name: "look", index });

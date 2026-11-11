@@ -47,7 +47,7 @@ const HEIGHT = 480;
 // Built into the image beside the page by scripts/fetch-tracker.mjs.
 const TRACKER_FILES = `${import.meta.env.BASE_URL}tracker`;
 
-const MOVES: Record<string, { label: string; icon: ReactNode }> = {
+const ACTIONS: Record<string, { label: string; icon: ReactNode }> = {
   turn_left: { label: "Turn your head to your left", icon: <ArrowLeft /> },
   turn_right: { label: "Turn your head to your right", icon: <ArrowRight /> },
   look_up: { label: "Tilt your head up", icon: <ArrowUp /> },
@@ -69,7 +69,7 @@ const LOOK = { label: "Look straight at the camera", icon: <ScanFace /> };
 
 function describe(phase: Phase): { prompt: string; icon: ReactNode } {
   if (phase.name === "look") return { prompt: `${LOOK.label}.`, icon: LOOK.icon };
-  const move = MOVES[phase.step] ?? LOOK;
+  const move = ACTIONS[phase.step] ?? LOOK;
   if (phase.name === "prepare") return { prompt: `Next: ${move.label}.`, icon: move.icon };
   if (phase.name === "move") return { prompt: `${move.label}.`, icon: move.icon };
   return { prompt: "Got it. Face the screen again.", icon: <Check /> };
@@ -314,7 +314,7 @@ export function FaceCapture({
             aria-hidden="true"
             className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-3 rounded-full bg-surface-dark/80 px-5 py-2 font-display text-display-sm text-on-dark [&_svg]:h-8 [&_svg]:w-8"
           >
-            {MOVES[phase.step]?.icon}
+            {ACTIONS[phase.step]?.icon}
             {phase.seconds}
           </span>
         ) : null}
@@ -329,7 +329,7 @@ function StepTrack({ plan, current }: { plan: { step: string }[]; current: numbe
   return (
     <ol className="flex items-center gap-3 portrait:justify-center">
       {plan.map(({ step }, index) => {
-        const { label, icon } = MOVES[step] ?? LOOK;
+        const { label, icon } = ACTIONS[step] ?? LOOK;
         const state = index < current ? "done" : index === current ? "current" : "next";
         return (
           <li

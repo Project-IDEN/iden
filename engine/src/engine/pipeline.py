@@ -133,11 +133,10 @@ def _expressions(
     seen: list[tuple[Frame, Seen]],
     steps: list[str],
     neutral: Expression,
-    models: Models,
+    rules: Policy,
 ) -> dict[str, liveness.Verdict]:
     """A verdict for each blink and smile step asked for, on that step's frames
     in the order they were captured."""
-    rules = models.manifest.policy
     verdicts: dict[str, liveness.Verdict] = {}
     for step in EXPRESSIONS:
         if step not in steps:
@@ -215,16 +214,14 @@ def analyse(
         if f.step in liveness.EXPECTED:
             performed.setdefault(f.step, []).append(s.pose)
     expressed = (
-        _expressions(seen, steps, neutral, models) if neutral is not None else {}
+        _expressions(seen, steps, neutral, manifest.policy)
+        if neutral is not None
+        else {}
     )
-    moved = liveness.combined(
-        (
-            [liveness.actions(baseline, performed, manifest.liveness)]
-            if performed
-            else []
-        )
-        + list(expressed.values())
-    )
+    verdicts = list(expressed.values())
+    if performed:
+        verdicts.append(liveness.actions(baseline, performed, manifest.liveness))
+    moved = liveness.combined(verdicts)
 
     same = liveness.consistency(
         reference,
