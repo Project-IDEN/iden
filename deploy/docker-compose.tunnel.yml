@@ -41,6 +41,14 @@ services:
       AWS_ACCESS_KEY_ID: ${IDEN_S3_ACCESS_KEY:?set IDEN_S3_ACCESS_KEY in deploy/.env}
       AWS_SECRET_ACCESS_KEY: ${IDEN_S3_SECRET_KEY:?set IDEN_S3_SECRET_KEY in deploy/.env}
 
+  # Behind nginx every request arrives from the proxy, so with this empty the
+  # provider sees one caller: one rate-limit bucket for the whole deployment,
+  # thirty sign-ins per five minutes between everyone, and the same address in
+  # every audit row.
+  provider:
+    environment:
+      IDEN_FORWARDED_ALLOW_IPS: ${IDEN_FORWARDED_ALLOW_IPS:?set IDEN_FORWARDED_ALLOW_IPS in deploy/.env}
+
   nginx:
     image: nginx:1.31.8-alpine
     volumes:
