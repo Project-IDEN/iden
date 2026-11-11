@@ -1,11 +1,13 @@
 """What `/oauth2/token` issues for each grant type, once the client is known."""
 
+import contextlib
 from datetime import timedelta
 
 from redis.asyncio import Redis
+from redis.exceptions import LockError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from provider.authz.oauth.errors import InvalidClient, InvalidGrant
+from provider.authz.oauth.errors import InvalidClient, InvalidGrant, OAuthError
 from provider.authz.oauth.schemas import TokenResponse
 from provider.authz.oauth.service import CodeReuse, consume_code
 from provider.authz.services import token_service as tokens
@@ -107,8 +109,22 @@ async def refresh_token(
     token: str,
     requested_scope: str | None,
 ) -> TokenResponse:
-    async with tokens.rotation_lock(redis, token):
+    lock = tokens.rotation_lock(redis, token)
+    if not await lock.acquire():
+        # Another exchange of this token is still running after the lock's
+        # wait. Retrying is right; a 500 told the client nothing.
+        raise OAuthError(
+            "temporarily_unavailable",
+            "This refresh token is being exchanged already. Try again.",
+            status_code=503,
+        )
+    try:
         return await _rotate(session, redis, client, token, requested_scope)
+    finally:
+        # A lock that outlived its timeout is already gone; the exchange still
+        # happened, and its answer must reach the client.
+        with contextlib.suppress(LockError):
+            await lock.release()
 
 
 async def _rotate(

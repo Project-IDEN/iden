@@ -10,8 +10,10 @@ class LoginRequest(CamelCaseBaseModel):
         description="From the `challenge` query parameter on the login page."
     )
     # Stored addresses are lowercase; a mailbox is case-insensitive.
-    email: Annotated[str, StringConstraints(to_lower=True)]
-    password: str
+    email: Annotated[str, StringConstraints(to_lower=True, max_length=254)]
+    # Matches the longest password IDEN lets anyone set; argon2 would hash a
+    # megabyte as readily, which is the cost being refused.
+    password: str = Field(max_length=256)
 
 
 class FaceChallengeRequest(CamelCaseBaseModel):
