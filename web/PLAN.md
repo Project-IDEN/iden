@@ -314,12 +314,12 @@ address is registered_ and never confirms an account exists. The link lands on
 
 Written deliberately, because this app is where a stuck user has nowhere else to go:
 
-| Case                               | What the screen says                                                 |
-| ---------------------------------- | -------------------------------------------------------------------- |
-| 404 — challenge expired or unknown | The sign-in link expired; return to the application and start again. |
-| 403 `inactive_user`                | This account has been deactivated; who to contact.                   |
-| 429                                | How many seconds until they can try again, counting down.            |
-| 401 on TOTP                        | The session is gone; start the sign-in again.                        |
+| Case                               | What the screen says                                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 404 — challenge expired or unknown | The sign-in link expired; return to the application and start again.                                          |
+| 401 on password                    | Email and password don't match. A disabled account answers the same, so it cannot confirm a guessed password. |
+| 429                                | How many seconds until they can try again, counting down.                                                     |
+| 401 on TOTP                        | The session is gone; start the sign-in again.                                                                 |
 
 ### Done when
 

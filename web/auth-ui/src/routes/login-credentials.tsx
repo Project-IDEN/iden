@@ -100,9 +100,9 @@ export function CredentialsStep({
 }
 
 /**
- * The four ways signing in fails, each said plainly. A wrong password and a
- * deactivated account are different problems with different fixes, and a rate
- * limit is not the person's fault at all.
+ * The ways signing in fails, each said plainly. A rate limit is not the
+ * person's fault at all. A deactivated account is not told apart from a wrong
+ * password: saying so would confirm the password to whoever guessed it.
  */
 function SignInProblem({ problem }: { problem: IdenError | null }) {
   if (!problem) return null;
@@ -111,13 +111,6 @@ function SignInProblem({ problem }: { problem: IdenError | null }) {
     return (
       <Notice title="That email and password don't match">
         Check both, or reset your password below.
-      </Notice>
-    );
-  }
-  if (problem.code === "inactive_user") {
-    return (
-      <Notice tone="info" title="This account is deactivated">
-        Contact your administrator to restore it.
       </Notice>
     );
   }

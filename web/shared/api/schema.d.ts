@@ -839,7 +839,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a user
-         * @description Removes the account and everything hanging off it. Consider deactivating instead — deletion loses the audit trail of who did what.
+         * @description Removes the account and everything hanging off it, including its profile photo and any enrolment photos kept with a face. Consider deactivating instead — deletion loses the audit trail of who did what.
          *
          *     Every session it has ends, and its access tokens stop working at once. Your own account is refused with `409 own_account`.
          *
@@ -1101,7 +1101,7 @@ export interface paths {
         post?: never;
         /**
          * Delete an OAuth client
-         * @description Every token and consent grant belonging to the client goes with it, and so does its logo.
+         * @description Every token and consent grant belonging to the client goes with it, and so does its logo. A kiosk's client takes its kiosk with it, exactly as revoking the kiosk at `/admin/kiosks` does.
          *
          *     **Required scope:** every `admin:` scope, plus every `biometric:` scope when that module is enabled.
          *
@@ -4876,17 +4876,8 @@ export interface operations {
                     "application/json": components["schemas"]["AuthStepResponse"];
                 };
             };
-            /** @description Email or password incorrect */
+            /** @description Email or password incorrect, or the account is disabled */
             401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-            /** @description Account disabled */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7275,7 +7266,7 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
-            /** @description A bootstrap client, or one that belongs to a kiosk */
+            /** @description A bootstrap client */
             409: {
                 headers: {
                     [name: string]: unknown;
