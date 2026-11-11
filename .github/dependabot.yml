@@ -1,0 +1,38 @@
+version: 2
+
+updates:
+  - package-ecosystem: uv
+    directories: ["/provider", "/engine", "/kiosk/server"]
+    schedule:
+      interval: weekly
+    groups:
+      python:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directories: ["/web", "/kiosk/client", "/kiosk/e2e"]
+    schedule:
+      interval: weekly
+    groups:
+      javascript:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directories:
+      - "/provider"
+      - "/engine"
+      - "/kiosk"
+      - "/web/auth-ui"
+      - "/web/dashboard"
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: docker-compose
+    directories: ["/deploy", "/kiosk/deploy"]
+    schedule:
+      interval: weekly
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
