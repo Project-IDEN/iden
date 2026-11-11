@@ -195,10 +195,12 @@ async def update_user(
     if data.is_active is not None:
         user.is_active = data.is_active
         # Deactivation has to reach existing sessions and refresh tokens, or the
-        # account stays usable until they expire on their own.
+        # account stays usable until they expire on their own. The lockout check
+        # comes first: a refusal rolls the database back, but not ended sessions
+        # or the back-channel logouts already sent.
         if not data.is_active:
-            await revoke_everything(session, redis, user_id)
             await lockout.refuse_if_last(session)
+            await revoke_everything(session, redis, user_id)
 
     await session.commit()
     return user
@@ -330,9 +332,12 @@ async def delete_user(
     files = [row.image_key for row in await face.templates(session, user_id)]
     if user.picture_key:
         files.append(avatars.object_key(user.picture_key))
+    # Checked as though deactivated, since the guard counts active holders: the
+    # row has to outlive the sessions ending, whose audit records name it.
+    user.is_active = False
+    await lockout.refuse_if_last(session)
     await revoke_everything(session, redis, user_id)
     await session.delete(user)
-    await lockout.refuse_if_last(session)
     await session.commit()
     await _forget(files, storage)
 

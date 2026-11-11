@@ -249,3 +249,54 @@ class TestTheOtherDoors:
             f"/admin/roles/{role['id']}?force=true", headers=admin_headers
         )
         assert refused(response)
+
+
+class TestARefusalEndsNothing:
+    """Refused before any session ends: the database rolls back, a Redis delete
+    and a back-channel logout do not. Reached by a caller with no account of its
+    own — a client's token — since a person is stopped earlier."""
+
+    @pytest.fixture
+    async def as_a_client(self, db, dashboard, catalogue):
+        from provider.authz.services import token_service
+
+        token, _, _ = await token_service.mint_access_token(
+            db,
+            subject=dashboard.client_id,
+            client=dashboard,
+            scopes={v for v in catalogue["scopes"] if v.startswith("admin:")},
+            acr="urn:iden:acr:sfa",
+            amr=[],
+            authenticated_at=token_service.now(),
+        )
+        return {"Authorization": f"Bearer {token}"}
+
+    @pytest.fixture
+    async def signed_in(self, redis, only_admin):
+        from provider.authz.services import session_store
+
+        return await session_store.create(redis, only_admin.id, "pwd")
+
+    async def test_on_deactivation(
+        self, client, redis, as_a_client, only_admin, signed_in
+    ):
+        from provider.authz.services import session_store
+
+        response = await client.patch(
+            f"/admin/users/{only_admin.id}",
+            json={"isActive": False},
+            headers=as_a_client,
+        )
+
+        assert refused(response)
+        assert await session_store.get(redis, signed_in.id) is not None
+
+    async def test_on_deletion(self, client, redis, as_a_client, only_admin, signed_in):
+        from provider.authz.services import session_store
+
+        response = await client.delete(
+            f"/admin/users/{only_admin.id}", headers=as_a_client
+        )
+
+        assert refused(response)
+        assert await session_store.get(redis, signed_in.id) is not None
