@@ -6,3 +6,15 @@ packages:
 
 allowBuilds:
   esbuild: true
+
+# Patched versions of advisories in lint and build tooling, held back by their
+# parents' ranges. Each stays inside the major its parent asked for. minimatch
+# is not here: the fix is 11, and typescript-estree requires ^10. It only ever
+# matches glob patterns this repository writes.
+overrides:
+  brace-expansion@<1.1.21: ^1.1.21
+  brace-expansion@>=2.0.0 <2.1.7: ^2.1.7
+  brace-expansion@>=4.0.0 <5.0.12: ^5.0.12
+  js-yaml@>=4.0.0 <4.3.2: ^4.3.2
+  source-map-js@>=1.0.0 <1.2.2: ^1.2.2
+  zod@<4.6.6: ^4.6.7
