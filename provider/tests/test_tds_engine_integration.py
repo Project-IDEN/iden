@@ -1,26 +1,10 @@
 """TDS section C: the provider against the real biometric engine — no fake.
 
 Skipped unless the engine answers `GET /health/ready` at IDEN_ENGINE_BASE_URL.
+Start it with the engine overlay, then run `uv run pytest -m integration`:
 
-How it was run (2026-11-06, RTX 5070 Ti laptop):
-
-    # the stores and the engine on its GPU overlay
     IDEN_BIOMETRIC_ENABLED=true docker compose -f deploy/docker-compose.yml \
         -f deploy/docker-compose.engine-gpu.yml up -d postgres redis engine
-
-    # the suite in a Linux container on the compose network (the Windows GBK
-    # locale breaks Alembic natively); engine/tests/data mounted at
-    # /engine/tests/data so the paths below resolve as they do in the repo
-    docker run --rm --network iden-dev_default \
-        -v C:/Capstone/iden/provider:/src:ro \
-        -v C:/Capstone/iden/engine/tests/data:/engine/tests/data:ro \
-        -e IDEN_DATABASE_URL=postgresql+asyncpg://iden:iden@postgres:5432/iden \
-        -e IDEN_REDIS_URL=redis://:iden@redis:6379/0 \
-        -e IDEN_ENGINE_BASE_URL=http://engine:8000 \
-        -e IDEN_SIGNING_KEY_DIR=/app/keys \
-        ghcr.io/astral-sh/uv:python3.14-trixie-slim sh -c \
-        "cp -r /src /app && rm -rf /app/.venv && cd /app && uv sync --frozen -q \
-         && uv run pytest -m integration tests/test_tds_engine_integration.py"
 
 The engine is reached with the token in provider/keys/engine.token, which the
 engine overlay mounts as its ENGINE_TOKEN_FILE.
@@ -41,11 +25,13 @@ photographs, which settles what can be tested end to end:
 """
 
 import base64
+import io
 from pathlib import Path
 
 import httpx
 import jwt
 import pytest
+from PIL import Image
 from sqlalchemy import func, select
 
 from provider.biometric import consent, service
@@ -53,16 +39,9 @@ from provider.biometric.engine_client import HttpEngine
 from provider.core.config import settings
 from provider.core.security import decrypt_secret
 from provider.shared.models import FaceTemplate
-from tests import test_biometric as shared
+from tests.biometric import new_ticket
 from tests.conftest import REDIRECT_URI
 from tests.flows import pkce_pair, query_of, sign_in, start
-from tests.test_biometric import new_ticket
-
-# The kiosk and ticket fixtures from `test_biometric.py` — but not its fake
-# engine, which is the point of this file.
-face_headers = shared.face_headers
-kiosk_headers = shared.kiosk_headers
-mail = shared.mail
 
 pytestmark = [
     pytest.mark.integration,
@@ -91,10 +70,6 @@ def biometric_on(monkeypatch):
     monkeypatch.setattr(settings, "iden_biometric_enabled", True)
 
 
-def jpeg(path: Path) -> bytes:
-    return path.read_bytes()
-
-
 def files(frames: list[bytes], content_type: str = "image/jpeg"):
     return [
         ("frames", (f"{i}.jpg", data, content_type)) for i, data in enumerate(frames)
@@ -104,7 +79,7 @@ def files(frames: list[bytes], content_type: str = "image/jpeg"):
 @pytest.fixture
 async def seeded_face(db, admin_user):
     """The administrator's face, embedded by the real engine from `astronaut.jpg`."""
-    result = await HttpEngine().embed([jpeg(ENROLLED)])
+    result = await HttpEngine().embed([ENROLLED.read_bytes()])
     assert result.embeddings[0] is not None, "the engine found no face in astronaut.jpg"
     db.add(
         FaceTemplate(
@@ -119,7 +94,7 @@ async def seeded_face(db, admin_user):
 
 
 async def face_sign_in(client, frames: list[bytes], content_type: str = "image/jpeg"):
-    """Password, then a face step with `frames`. Returns (verifier, challenge id, response)."""
+    """Password, then a face step with `frames`. Returns (verifier, response)."""
     verifier, challenge = pkce_pair()
     challenge_id = query_of(await start(client, challenge, acr_values=MFA_FACE))[
         "challenge"
@@ -163,7 +138,7 @@ class TestC1Enrolment:
                 "faceChallengeId": challenge["faceChallengeId"],
                 "consent": consent.version(),
             },
-            files=files([jpeg(ENROLLED)] * len(challenge["steps"])),
+            files=files([ENROLLED.read_bytes()] * len(challenge["steps"])),
         )
 
         assert response.status_code == 422, response.text
@@ -196,7 +171,7 @@ class TestC1Enrolment:
         for step in challenge["steps"]:
             index = seen.get(step, 0)
             seen[step] = index + 1
-            frames.append(jpeg(CAPTURE / f"{step}_{index}.jpg"))
+            frames.append((CAPTURE / f"{step}_{index}.jpg").read_bytes())
 
         response = await client.post(
             "/biometric/enroll",
@@ -227,7 +202,7 @@ class TestC1Enrolment:
 class TestC2SameFace:
     async def test_the_enrolled_face_signs_in(self, client, seeded_face):
         """Three frames of the enrolled person pass the real engine, and the token's amr contains face at acr mfa-face."""
-        verifier, response = await face_sign_in(client, [jpeg(ENROLLED)] * 3)
+        verifier, response = await face_sign_in(client, [ENROLLED.read_bytes()] * 3)
 
         assert response.status_code == 200, response.text
         assert response.json()["status"] == "complete"
@@ -252,7 +227,7 @@ class TestC2SameFace:
 class TestC3DifferentFace:
     async def test_another_persons_face_is_rejected(self, client, seeded_face):
         """Three frames of a different person are rejected 401 face_rejected, with one attempt counted."""
-        _, response = await face_sign_in(client, [jpeg(STRANGER)] * 3)
+        _, response = await face_sign_in(client, [STRANGER.read_bytes()] * 3)
 
         assert response.status_code == 401, response.text
         assert response.json()["code"] == "face_rejected"
@@ -262,10 +237,6 @@ class TestC3DifferentFace:
 class TestC4NotAJpeg:
     async def test_a_non_jpeg_frame_is_a_4xx(self, client, seeded_face):
         """A PNG sent as image/jpeg is refused by the real engine and answered 422 invalid_frames, not a 5xx."""
-        import io
-
-        from PIL import Image
-
         out = io.BytesIO()
         Image.open(ENROLLED).resize((256, 256)).save(out, format="PNG")
         png = out.getvalue()

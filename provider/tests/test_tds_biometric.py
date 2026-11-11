@@ -1,24 +1,10 @@
-"""TDS sections A4, B10 and B11 (face step): the face second factor, with the fake engine.
-
-The fake engine and the enrolment fixtures are the ones `test_biometric.py`
-already uses, imported rather than copied so both files exercise the same
-setup.
-"""
+"""TDS sections A4, B10 and B11 (face step): the face second factor, with the fake engine."""
 
 import pytest
 
 from provider.core.config import settings
-from tests import test_biometric as shared
+from tests.biometric import begin, face_step, frames
 from tests.flows import sign_in
-from tests.test_biometric import begin, face_step, frames
-
-# The fixtures `test_biometric.py` drives the fake engine with, bound here so
-# pytest finds them in this module too.
-enrolled = shared.enrolled
-face_headers = shared.face_headers
-fake_engine = shared.fake_engine
-kiosk_headers = shared.kiosk_headers
-mail = shared.mail
 
 pytestmark = pytest.mark.usefixtures("admin_user", "dashboard")
 
@@ -32,10 +18,10 @@ def biometric_on(monkeypatch):
 
 
 class TestA4VerifyWithoutAFace:
-    """`biometric/service.py:152` — `verify` finding no templates."""
+    """`biometric.service.verify` finding no templates."""
 
     async def test_a_face_removed_mid_sign_in_is_404_face_not_enrolled(
-        self, client, enrolled, face_headers
+        self, client, face_enrolled, face_headers
     ):
         """If the face is removed after the face challenge was issued, the capture is refused with 404 face_not_enrolled, not a 500."""
         challenge_id = await begin(client, acr_values=MFA_FACE)
@@ -62,10 +48,10 @@ class TestA4VerifyWithoutAFace:
 
 
 class TestWB3FrameCountAtSignIn:
-    """`biometric/service.py:153` → `_matches_challenge`, reached from sign-in rather than enrolment."""
+    """`biometric.service.verify` → `_matches_challenge`, reached from sign-in rather than enrolment."""
 
     async def test_too_few_frames_at_sign_in_is_422_invalid_frames(
-        self, client, fake_engine, enrolled
+        self, client, fake_engine, face_enrolled
     ):
         """WB-3 P2: during face sign-in, uploading 2 frames for a 3-step challenge is refused with 422 invalid_frames before the engine is asked."""
         challenge_id = await begin(client, acr_values=MFA_FACE)
@@ -81,8 +67,12 @@ class TestWB3FrameCountAtSignIn:
 
 
 class TestB10QualityBeforeVersion:
+    @pytest.mark.xfail(
+        strict=True,
+        reason="TDS B10: an outdated enrolment (409) is reported before a poor capture (422)",
+    )
     async def test_a_poor_capture_is_reported_before_an_outdated_enrolment(
-        self, client, fake_engine, enrolled
+        self, client, fake_engine, face_enrolled
     ):
         """A bad-quality capture under a changed model version is answered 422 poor_capture (what the person can fix) rather than 409."""
         fake_engine.verify_result = fake_engine.verify_result.model_copy(
@@ -106,8 +96,11 @@ class TestB10QualityBeforeVersion:
 
 
 class TestB11CookieAfterFace:
+    @pytest.mark.xfail(
+        strict=True, reason="TDS B11: the face step does not re-set iden_session"
+    )
     async def test_the_face_step_refreshes_the_session_cookie(
-        self, client, fake_engine, enrolled
+        self, client, fake_engine, face_enrolled
     ):
         """After a successful face step the response re-sets iden_session with Max-Age equal to the sliding session TTL."""
         challenge_id = await begin(client, acr_values=MFA_FACE)

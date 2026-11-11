@@ -12,13 +12,13 @@ from provider.biometric.engine_client import EnrollResult
 from provider.core.config import settings
 from provider.shared.models import AuditEvent, Client, ClientScope, Kiosk
 from provider.shared.scopes import FULL_ADMIN_SCOPES
-from tests import test_biometric as faces
+from tests import biometric as faces
 
-# The face tests' fixtures, which pytest finds by name in this module.
-biometric_on = faces.biometric_on
-fake_engine = faces.fake_engine
-face_headers = faces.face_headers
-mail = faces.mail
+
+@pytest.fixture(autouse=True)
+def biometric_on(monkeypatch):
+    monkeypatch.setattr(settings, "iden_biometric_enabled", True)
+
 
 ISSUING = (
     "admin:kiosks:read",

@@ -1,6 +1,6 @@
 """TDS section A: basis paths of the core auth logic the original suite never ran.
 
-Each test names the line it exists to reach. The expected answer is always the
+Each test names the function it exists to reach. The expected answer is always the
 OAuth error RFC 6749 defines for the case, or the domain error the provider
 documents — never a 500.
 """
@@ -46,7 +46,7 @@ async def refresh(client, token: str, client_id: str = "dashboard"):
 
 
 class TestA1ConsumeCode:
-    """`authz/oauth/service.py:consume_code`, lines 147, 154 and 157."""
+    """`authz.oauth.service.consume_code`: unknown, expired and wrong-client codes."""
 
     async def test_an_unknown_code_is_invalid_grant(self, client):
         """A code IDEN never issued is refused with 400 invalid_grant "Unknown authorization code."."""
@@ -91,7 +91,7 @@ class TestA1ConsumeCode:
         }
 
     async def test_a_code_without_a_verifier_is_invalid_grant(self, client):
-        """WB-1 P6 (`service.py:162`, the `not code_verifier` short-circuit): a valid code redeemed with code_verifier omitted is refused with 400 invalid_grant "PKCE verification failed."."""
+        """WB-1 P6 (`consume_code`, the `not code_verifier` short-circuit): a valid code redeemed with code_verifier omitted is refused with 400 invalid_grant "PKCE verification failed."."""
         code, _ = await get_code(client)
 
         response = await client.post(
@@ -112,7 +112,7 @@ class TestA1ConsumeCode:
 
 
 class TestA2Refresh:
-    """`authz/oauth/grants.py:134` and `authz/services/token_service.py:281`."""
+    """The refresh grant in `authz.oauth.grants` and `authz.services.token_service`."""
 
     async def test_a_refresh_token_of_another_client_is_invalid_grant(
         self, client, third_party
@@ -146,7 +146,7 @@ class TestA2Refresh:
 
 
 class TestA3ClientCredentials:
-    """`authz/oauth/grants.py:217`."""
+    """The client_credentials grant in `authz.oauth.grants`."""
 
     async def test_a_public_client_cannot_use_client_credentials(self, client, db):
         """A public client configured with client_credentials is still refused that grant with an OAuth client error, not a token."""
@@ -171,7 +171,7 @@ class TestA3ClientCredentials:
 
 
 class TestA5BackchannelUri:
-    """`shared/client_uris.py:validate_backchannel_uri`, lines 107-137."""
+    """`shared.client_uris.validate_backchannel_uri`."""
 
     @pytest.mark.parametrize(
         "uri",
@@ -236,7 +236,7 @@ class TestA5BackchannelUri:
 
 
 class TestWB4Outstanding:
-    """`authz/services/auth_methods.py:131` — `reaching` empty, so `unused` is returned."""
+    """`authz.services.auth_methods.outstanding` — `reaching` empty, so `unused` is returned."""
 
     def test_when_no_single_method_reaches_the_level_every_unused_one_is_offered(self):
         """WB-4 P3: with nothing used yet and mfa-face required, no single added method reaches it, so outstanding returns every unused method, ["face", "otp", "pwd"]."""
