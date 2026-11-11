@@ -2,7 +2,7 @@
 #
 # The workspace root is the build context: `@iden/shared` is a workspace
 # dependency, so a context of `dashboard/` alone could not resolve it.
-FROM node:22-alpine AS build
+FROM node:22.23.4-alpine AS build
 RUN corepack enable
 WORKDIR /app
 
@@ -15,7 +15,7 @@ COPY shared/ shared/
 COPY dashboard/ dashboard/
 RUN pnpm --filter @iden/dashboard build
 
-FROM nginx:alpine
+FROM nginx:1.31.8-alpine
 COPY --from=build /app/dashboard/dist /usr/share/nginx/html/console
 COPY dashboard/nginx.conf /etc/nginx/conf.d/default.conf
 # The entrypoint rewrites this with the issuer filled in; shipping a copy
