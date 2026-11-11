@@ -104,14 +104,13 @@ state — only the layer underneath them.
 
 ## Design system
 
-The visual system is [DESIGN.md](../DESIGN.md), followed as written: cream canvas `#faf9f5`, coral
-`#cc785c` used scarcely, dark `#181715` surfaces, a serif display at weight 400 with negative
-tracking, humanist sans body, monospace for code. Fonts are self-hosted through `@fontsource` —
-EB Garamond, Inter, JetBrains Mono, the substitutes DESIGN.md's own _Known Gaps_ section names for
-the licensed Copernicus and StyreneB. A CDN link is not an option: the provider's CSP is
+The visual system is [DESIGN.md](../DESIGN.md): a warm canvas `#faf9f5`, one accent `#cc785c` used
+scarcely, dark `#181715` surfaces, a serif display at weight 400 with negative tracking, humanist
+sans body, monospace for identifiers. Fonts are self-hosted through `@fontsource` — EB Garamond,
+Inter, JetBrains Mono. A CDN link is not an option: the provider's CSP is
 `default-src 'none'`, and IDEN is meant to deploy without internet egress.
 
-DESIGN.md documents a marketing surface. It has no table, no sidebar, and no form-heavy screen, so
+DESIGN.md began with no table, no sidebar, and no form-heavy screen, so
 the product layer is **derived from its tokens** rather than invented beside them:
 
 | Added token           | Value                                            | Derived from                                                                   |
