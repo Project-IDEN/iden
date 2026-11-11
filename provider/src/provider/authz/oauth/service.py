@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from provider.authz.oauth.errors import InvalidClient, InvalidGrant
@@ -11,7 +11,7 @@ from provider.authz.services.token_service import now
 from provider.core.config import settings
 from provider.core.security import generate_token, hash_token, verify_secret_async
 from provider.shared.enums import ClientType
-from provider.shared.models import AuthorizationCode, Client, User
+from provider.shared.models import AuthorizationCode, Client, RefreshToken, User
 
 
 async def get_client(session: AsyncSession, client_id: str | None) -> Client | None:
@@ -126,6 +126,10 @@ async def issue_code(
     return code
 
 
+class CodeReuse(Exception):
+    """A spent authorization code was presented again — assume it was stolen."""
+
+
 async def consume_code(
     session: AsyncSession,
     *,
@@ -147,8 +151,21 @@ async def consume_code(
         raise InvalidGrant("Unknown authorization code.")
 
     if record.used_at is not None:
-        # RFC 6749 Section 4.1.2: a code presented twice is assumed compromised.
-        raise InvalidGrant("This authorization code has already been used.")
+        # RFC 6749 Section 4.1.2: a code presented twice is assumed compromised,
+        # and what it issued is revoked. No row links a code to its tokens, but
+        # both name the client, the person and the sign-in session, and a
+        # rotated refresh token keeps all three.
+        await session.execute(
+            update(RefreshToken)
+            .where(
+                RefreshToken.client_id == record.client_id,
+                RefreshToken.user_id == record.user_id,
+                RefreshToken.sid == record.sid,
+                RefreshToken.revoked_at.is_(None),
+            )
+            .values(revoked_at=now())
+        )
+        raise CodeReuse
 
     if record.expires_at <= now():
         raise InvalidGrant("This authorization code has expired.")

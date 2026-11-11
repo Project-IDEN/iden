@@ -26,6 +26,30 @@ async def refresh(client, token: str, **extra):
     )
 
 
+class TestAuthorizationCodeReuse:
+    """RFC 6749 Section 4.1.2: a code presented twice is assumed stolen, and
+    what it already issued SHOULD be revoked."""
+
+    async def test_the_second_redemption_revokes_the_first_refresh_token(self, client):
+        code, verifier = await get_code(client)
+        exchange = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "redirect_uri": REDIRECT_URI,
+            "code_verifier": verifier,
+            "client_id": "dashboard",
+        }
+        first = (await client.post("/oauth2/token", data=exchange)).json()
+
+        second = await client.post("/oauth2/token", data=exchange)
+        refreshed = await refresh(client, first["refresh_token"])
+
+        assert second.status_code == 400
+        assert second.json()["error"] == "invalid_grant"
+        assert refreshed.status_code == 400
+        assert refreshed.json()["error"] == "invalid_grant"
+
+
 class TestRefreshRotation:
     async def test_refresh_returns_a_different_token(self, client):
         tokens = await get_tokens(client)
