@@ -91,7 +91,7 @@ class TestFanOut:
     async def test_a_registered_client_is_told(self, client, listening, deliveries):
         await get_tokens(client)
 
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
 
         assert len(deliveries) == 1
         url, token = deliveries[0]
@@ -102,7 +102,7 @@ class TestFanOut:
         """The dashboard has no backchannel URI in this test — nothing to tell."""
         await get_tokens(client)
 
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
 
         assert deliveries == []
 
@@ -117,7 +117,7 @@ class TestFanOut:
         await db.commit()
 
         await get_tokens(client)  # dashboard only
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
 
         assert [url for url, _ in deliveries] == [
             "https://dashboard.example.org/logout"
@@ -143,7 +143,7 @@ class TestFanOut:
         )
         await get_tokens(client)
 
-        response = await client.get("/oauth2/logout", follow_redirects=False)
+        response = await client.post("/oauth2/logout", follow_redirects=False)
 
         assert response.status_code in (204, 303)
 
@@ -155,7 +155,7 @@ class TestLogoutToken:
         tokens = await get_tokens(client)
         sid = claims_of(tokens["id_token"])["sid"]
 
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
 
         _, token = deliveries[0]
         claims = verify_jwt(token, audience="dashboard")
@@ -166,7 +166,7 @@ class TestLogoutToken:
         """OIDC Back-Channel Logout Section 2.4 forbids it: with a nonce, a stolen
         logout token could be replayed as proof of a fresh authentication."""
         await get_tokens(client)
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
 
         assert "nonce" not in claims_of(deliveries[0][1])
 
@@ -179,7 +179,7 @@ class TestLogoutToken:
         the client, and only a resolved client's post-logout URI is honoured.
         """
         real = await get_tokens(client)
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
         _, logout_token = deliveries[0]
 
         accepted = await client.get(
@@ -209,7 +209,7 @@ class TestTokenRevocation:
         as it likes, which is not what anyone means by signing out."""
         tokens = await get_tokens(client)
 
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
 
         refreshed = await client.post(
             "/oauth2/token",
@@ -228,7 +228,7 @@ class TestTokenRevocation:
         client.cookies.clear()
         await get_tokens(client)  # a second browser session
 
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
 
         refreshed = await client.post(
             "/oauth2/token",
@@ -244,7 +244,7 @@ class TestTokenRevocation:
 class TestAudit:
     async def test_every_delivery_is_recorded(self, client, listening, deliveries, db):
         await get_tokens(client)
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
 
         rows = list(
             await db.scalars(
@@ -273,7 +273,7 @@ class TestAudit:
             ),
         )
         await get_tokens(client)
-        await client.get("/oauth2/logout", follow_redirects=False)
+        await client.post("/oauth2/logout", follow_redirects=False)
 
         row = await db.scalar(
             select(AuditEvent).where(AuditEvent.action == "POST backchannel_logout")
@@ -419,3 +419,66 @@ class TestEndingEverySession:
         )
         assert row is not None
         assert row.actor_user_id is None
+
+
+def _id_token_for(user_id) -> str:
+    """An ID token IDEN signed for somebody, as an application would hold it."""
+    import time
+
+    from provider.core.config import settings
+    from provider.core.crypto import sign_jwt
+
+    now = int(time.time())
+    return sign_jwt(
+        {
+            "iss": settings.iden_issuer,
+            "sub": str(user_id),
+            "aud": "dashboard",
+            "iat": now,
+            "exp": now + 600,
+        }
+    )
+
+
+class TestAskingFirst:
+    """Any page can make a browser load GET /oauth2/logout, and the session
+    cookie goes with it. Without a hint naming this session's person, nothing
+    ends until the person says so (OIDC RP-Initiated Logout Section 2)."""
+
+    async def test_a_bare_get_asks_and_ends_nothing(self, client, redis, admin_user):
+        await get_tokens(client)
+
+        response = await client.get(
+            "/oauth2/logout", params={"state": "s1"}, follow_redirects=False
+        )
+
+        assert response.status_code == 303
+        assert response.headers["location"].endswith("/auth/logout?state=s1")
+        assert len(await session_store.list_for_user(redis, admin_user.id)) == 1
+
+    async def test_someone_elses_hint_asks_too(self, client, redis, admin_user, member):
+        """A hint is a claim about who is signed in, not a credential."""
+        await get_tokens(client)
+
+        response = await client.get(
+            "/oauth2/logout",
+            params={"id_token_hint": _id_token_for(member.id)},
+            follow_redirects=False,
+        )
+
+        assert "/auth/logout" in response.headers["location"]
+        assert len(await session_store.list_for_user(redis, admin_user.id)) == 1
+
+    async def test_the_persons_own_hint_signs_out_at_once(
+        self, client, redis, admin_user
+    ):
+        tokens = await get_tokens(client)
+
+        response = await client.get(
+            "/oauth2/logout",
+            params={"id_token_hint": tokens["id_token"]},
+            follow_redirects=False,
+        )
+
+        assert response.status_code == 204
+        assert await session_store.list_for_user(redis, admin_user.id) == []

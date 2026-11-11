@@ -660,7 +660,7 @@ class TestLogout:
     async def test_clears_the_session(self, client):
         await get_tokens(client)
 
-        await client.get("/oauth2/logout")
+        await client.post("/oauth2/logout")
 
         # A fresh authorize now has to send the browser back to the login page.
         from tests.flows import pkce_pair, start
@@ -672,18 +672,18 @@ class TestLogout:
     async def test_redirects_only_to_a_registered_uri(self, client):
         await get_tokens(client)
 
-        allowed = await client.get(
+        allowed = await client.post(
             "/oauth2/logout",
-            params={
+            data={
                 "client_id": "dashboard",
                 "post_logout_redirect_uri": "http://localhost:5173/",
             },
         )
         assert allowed.status_code == 303
 
-        blocked = await client.get(
+        blocked = await client.post(
             "/oauth2/logout",
-            params={
+            data={
                 "client_id": "dashboard",
                 "post_logout_redirect_uri": "http://evil.test/",
             },
