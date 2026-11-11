@@ -33,8 +33,8 @@ services:
         "60",
         "1",
       ]
-    healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${IDEN_REDIS_PASSWORD}", "ping"]
+    environment:
+      REDISCLI_AUTH: ${IDEN_REDIS_PASSWORD}
 
   seaweedfs:
     environment:
@@ -62,8 +62,10 @@ services:
     #   curl -H 'Host: iden.example.org' http://127.0.0.1:8080/.well-known/openid-configuration
     ports:
       - "127.0.0.1:8080:80"
+    # Whether nginx is answering, not only whether its configuration parses.
+    # The image has nc, and no wget or curl.
     healthcheck:
-      test: ["CMD", "nginx", "-t"]
+      test: ["CMD", "nc", "-z", "127.0.0.1", "80"]
       interval: 60s
       timeout: 5s
       retries: 3

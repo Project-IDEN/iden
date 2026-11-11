@@ -62,6 +62,8 @@ server {
   # unexpected Host is still answered rather than falling through to nowhere.
   listen 80 default_server;
   server_name _;
+  # No nginx version in the Server header or on error pages.
+  server_tokens off;
 
   # Applies wherever a location does not override it. An application's logo
   # (at most 512 KB) fits under it. A profile photo does not: its own limit is

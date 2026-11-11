@@ -44,10 +44,10 @@ SAFE_PROD: dict[str, Any] = {
     "iden_env": "prod",
     "iden_issuer": "https://iden.example.org",
     "iden_auth_ui_base_url": "https://iden.example.org",
-    "iden_database_url": "postgresql+asyncpg://iden:s3cret-db@postgres:5432/iden",
-    "iden_redis_url": "redis://:s3cret-redis@redis:6379/0",
+    "iden_database_url": "postgresql+asyncpg://iden:4f1c9e0b7d2a6e38c5b1@postgres:5432/iden",
+    "iden_redis_url": "redis://:9a7e3c1f5b2d8e0a4c6f@redis:6379/0",
     "iden_s3_endpoint_url": "http://seaweedfs:8333",
-    "iden_s3_secret_key": "s3cret-blob",
+    "iden_s3_secret_key": "b3e8d1a6f0c47e92a5d3",
     "iden_forwarded_allow_ips": "172.31.250.0/24",
 }
 
@@ -70,6 +70,12 @@ class TestUnsafeDeployment:
             ("iden_redis_url", "redis://redis:6379/0"),
             ("iden_s3_secret_key", "idensecret"),
             ("iden_s3_secret_key", ""),
+            (
+                "iden_database_url",
+                "postgresql+asyncpg://iden:hunter2@postgres:5432/iden",
+            ),
+            ("iden_redis_url", "redis://:hunter2@redis:6379/0"),
+            ("iden_s3_secret_key", "hunter2"),
             ("iden_forwarded_allow_ips", "*"),
         ],
     )

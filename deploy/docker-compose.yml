@@ -52,8 +52,12 @@ services:
       - "127.0.0.1:6379:6379"
     volumes:
       - redis-data:/data
+    # From the environment rather than `-a`, which puts the password in the
+    # process list of everything on the host while the check runs.
+    environment:
+      REDISCLI_AUTH: ${IDEN_REDIS_PASSWORD:-iden}
     healthcheck:
-      test: ["CMD", "redis-cli", "-a", "${IDEN_REDIS_PASSWORD:-iden}", "ping"]
+      test: ["CMD", "redis-cli", "ping"]
       interval: 60s
       timeout: 5s
       retries: 10

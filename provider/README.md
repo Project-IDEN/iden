@@ -229,7 +229,7 @@ All settings are environment variables prefixed `IDEN_`, loaded by `core/config.
 `pydantic-settings` from the process environment or `.env`. [`.env.example`](.env.example) carries
 every one with a comment, and the [Configuration reference](../doc/reference/configuration.md) lists
 them with their defaults. In `IDEN_ENV=prod` the provider refuses to start on an `http://` URL, a
-published default password, or `IDEN_FORWARDED_ALLOW_IPS='*'`.
+published default or short (under 16 characters) store password, or `IDEN_FORWARDED_ALLOW_IPS='*'`.
 
 ---
 

@@ -11,6 +11,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 # the example file and forgetting a line is enough to end up here.
 PUBLISHED_CREDENTIALS = frozenset({"iden", "idensecret"})
 
+# A store password a person chose to type is the one an attacker guesses
+# first. The deployment docs generate 48 characters; 16 is the floor.
+MIN_SECRET_LENGTH = 16
+
+
+def _strong(secret: str | None) -> bool:
+    return (
+        bool(secret)
+        and secret not in PUBLISHED_CREDENTIALS
+        and len(secret) >= MIN_SECRET_LENGTH
+    )
+
 
 class Settings(BaseSettings):
     # Application
@@ -166,14 +178,17 @@ class Settings(BaseSettings):
             ("IDEN_REDIS_URL", self.iden_redis_url),
         ):
             password = urlsplit(url).password
-            if not password or password in PUBLISHED_CREDENTIALS:
-                problems.append(f"{name} needs a password of its own.")
+            if not _strong(password):
+                problems.append(
+                    f"{name} needs a password of its own, "
+                    f"at least {MIN_SECRET_LENGTH} characters."
+                )
 
-        if self.blob_storage_configured and (
-            not self.iden_s3_secret_key
-            or self.iden_s3_secret_key in PUBLISHED_CREDENTIALS
-        ):
-            problems.append("IDEN_S3_SECRET_KEY needs a value of its own.")
+        if self.blob_storage_configured and not _strong(self.iden_s3_secret_key):
+            problems.append(
+                "IDEN_S3_SECRET_KEY needs a value of its own, "
+                f"at least {MIN_SECRET_LENGTH} characters."
+            )
 
         if self.iden_biometric_keep_images and not self.blob_storage_configured:
             problems.append(
