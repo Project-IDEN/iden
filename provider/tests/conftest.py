@@ -20,13 +20,26 @@ from sqlalchemy import text
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
+# Imported before any test runs: `FULL_ADMIN_SCOPES` is built at import time from
+# `iden_biometric_enabled`, so a test that imported it first with the flag
+# monkeypatched on would leave the biometric scopes in it for the whole session.
+import provider.shared.scopes  # noqa: F401  # pyright: ignore[reportUnusedImport]
+from provider.biometric.engine_client import get_engine
+from provider.core import notifier
 from provider.core.config import settings
 from provider.core.db import Base, get_db_session
 from provider.core.redis import get_redis
 from provider.core.security import hash_secret
 from provider.core.storage import get_optional_storage, get_storage
 from provider.shared.enums import ClientType, GrantType
-from provider.shared.models import Client, ClientScope, ResourceApi, Scope, User
+from provider.shared.models import (
+    Client,
+    ClientScope,
+    Kiosk,
+    ResourceApi,
+    Scope,
+    User,
+)
 
 BASE_URL = make_url(settings.iden_database_url)
 TEST_URL = BASE_URL.set(database="iden_test")
@@ -412,3 +425,65 @@ async def stale_headers(db, member, dashboard, catalogue):
         authenticated_at=token_service.now() - timedelta(hours=1),
     )
     return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture
+def fake_engine(client):
+    from provider.core.app import app
+    from tests.biometric import FakeEngine
+
+    fake = FakeEngine()
+    app.dependency_overrides[get_engine] = lambda: fake
+    return fake
+
+
+@pytest.fixture
+def mail(monkeypatch):
+    sent: list[dict] = []
+
+    async def capture(**message):
+        sent.append(message)
+
+    monkeypatch.setattr(notifier, "send", capture)
+    return sent
+
+
+@pytest.fixture
+async def kiosk_headers(client, db, kiosk, scope_of):
+    """A token for a registered kiosk: the `kiosk` client with a kiosk row."""
+    kiosk_client, secret = kiosk
+    for scope in ("biometric:enroll", "biometric:device"):
+        db.add(
+            ClientScope(
+                client_id=kiosk_client.id,
+                scope_id=scope_of(scope).id,
+                grantable=False,
+                granted=True,
+            )
+        )
+    db.add(Kiosk(client_id=kiosk_client.id, settings={}))
+    await db.commit()
+    response = await client.post(
+        "/oauth2/token",
+        data={
+            "grant_type": "client_credentials",
+            "client_id": "kiosk",
+            "client_secret": secret,
+            "scope": "biometric:enroll biometric:device",
+        },
+    )
+    return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+@pytest.fixture
+async def face_headers(token_for):
+    return await token_for("entity:face:read", "entity:face:write")
+
+
+@pytest.fixture
+async def face_enrolled(client, fake_engine, kiosk_headers, face_headers, mail):
+    """The admin's face, enrolled at a kiosk through the fake engine."""
+    from tests.biometric import enrol_at_kiosk
+
+    response = await enrol_at_kiosk(client, kiosk_headers, face_headers)
+    assert response.status_code == 201, response.text
