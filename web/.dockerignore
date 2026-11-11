@@ -1,0 +1,10 @@
+# The build context is web/, and the Dockerfiles copy whole app directories.
+# Without these, a developer's node_modules — macOS binaries, links into a
+# store the image does not have — lands over the image's own install, and a
+# local .env is baked into the bundle by Vite.
+**/node_modules
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+e2e/
