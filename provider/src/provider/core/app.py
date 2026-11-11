@@ -276,6 +276,17 @@ async def handle_redirectable_error(
     return RedirectResponse(redirect_with(exc.redirect_uri, params), status_code=303)
 
 
+def _challenge_safe(text: str) -> str:
+    """Only what RFC 6750 Section 3 allows in `error_description`.
+
+    A description can carry what the caller sent — a token's `kid` or `typ` —
+    and a quote would end the parameter early, a newline split the header, and
+    anything outside Latin-1 fail to encode as one. The JSON body keeps it
+    whole.
+    """
+    return "".join(c for c in text if " " <= c <= "~" and c not in '"\\')
+
+
 @app.exception_handler(OAuthError)
 async def handle_oauth_error(request: Request, exc: OAuthError) -> JSONResponse:
     """RFC 6749 Section 5.2 fixes this shape; a client library will not understand
@@ -293,7 +304,8 @@ async def handle_oauth_error(request: Request, exc: OAuthError) -> JSONResponse:
         challenge = (
             'Basic realm="iden"'
             if exc.error == "invalid_client"
-            else f'Bearer error="{exc.error}", error_description="{exc.description}"'
+            else f'Bearer error="{exc.error}", '
+            f'error_description="{_challenge_safe(exc.description)}"'
         )
         headers = {"WWW-Authenticate": challenge}
 

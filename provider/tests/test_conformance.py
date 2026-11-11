@@ -264,6 +264,26 @@ class TestChallengeHeaders:
         assert response.headers["www-authenticate"].startswith("Basic")
 
 
+class TestAChallengeCarriesNothingTheCallerSent:
+    """`error_description` can quote a token's own header. In the
+    `WWW-Authenticate` challenge, a quote would end the parameter and a
+    character outside Latin-1 would fail to encode — a 500."""
+
+    async def test_a_hostile_kid_is_left_out(self, client):
+        token = jwt.encode(
+            {"sub": "x"}, "k", algorithm="HS256", headers={"kid": 'a", b="c\u2603'}
+        )
+
+        response = await client.get(
+            "/oauth2/userinfo", headers={"Authorization": f"Bearer {token}"}
+        )
+
+        assert response.status_code == 401
+        challenge = response.headers["www-authenticate"]
+        assert challenge.count('"') == 4
+        assert "\u2603" not in challenge
+
+
 class TestMetadataDeclarations:
     """C-7 · OIDC Discovery 1.0 Section 3 — the omissions defaulted to `true`."""
 
