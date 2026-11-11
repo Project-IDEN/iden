@@ -11,3 +11,6 @@ reports/
 # Deployment secrets, on a host that runs the engine alone.
 deploy/engine.token
 deploy/.env
+
+# Photos of a team member, from scripts/capture_actions.py: never committed.
+tests/data/actions/

@@ -6,16 +6,19 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-from engine import liveness, quality
+from engine import expression, liveness, quality
 from engine.align import align
 from engine.detect import Face, detect
 from engine.embed import embed, normalise
+from engine.expression import Expression
+from engine.landmarks import landmarks
 from engine.log import logger
+from engine.manifest import Policy
 from engine.pad import live_probability
 from engine.pose import Pose, estimate
 from engine.runtime import Models
 from engine.schemas import Checks, EmbedResult, EnrollResult, VerifyResult
-from engine.steps import CENTRE
+from engine.steps import CENTRE, EXPRESSIONS
 
 # Fewer than this many good frontal frames and nothing is decided.
 MIN_FRONTAL = 2
@@ -34,6 +37,8 @@ class Seen:
     pose: Pose
     aligned: np.ndarray
     embedding: np.ndarray = field(default_factory=lambda: np.zeros(0))
+    # From the 106 landmarks; measured at enrolment only.
+    expression: Expression | None = None
 
 
 @dataclass
@@ -54,6 +59,9 @@ class Analysis:
     reasons: list[quality.Reason]
     checks: Checks | None = None
     reference: np.ndarray | None = None
+    # The good frontal frames anti-spoofing judged, and templates are made from:
+    # at enrolment, only those with the eyes open.
+    judged: list[tuple[Frame, Seen]] = field(default_factory=list)
 
     @property
     def live(self) -> bool:
@@ -101,7 +109,64 @@ def _complete(frames: list[Frame]) -> bool:
     return len(_centre(frames)) >= MIN_FRONTAL and seen == movements
 
 
-def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analysis:
+def _measure(models: Models, seen: list[tuple[Frame, Seen]]) -> None:
+    """Each face's eyes and mouth, from the 106 landmarks, as one batch."""
+    points = landmarks(models.landmarker, [(f.image, s.face.box) for f, s in seen])
+    for (_, s), found in zip(seen, points, strict=True):
+        s.expression = expression.measure(found)
+
+
+def open_eyed(
+    centre: list[tuple[Frame, Seen]], neutral: Expression, rules: Policy
+) -> list[tuple[Frame, Seen]]:
+    """The frontal frames with the eyes open. A closed eye can read as a print
+    to the anti-spoofing model, and makes a poor template."""
+    return [
+        (f, s)
+        for f, s in centre
+        if s.expression is not None
+        and liveness.eyes_open(s.expression.eye_openness, neutral.eye_openness, rules)
+    ]
+
+
+def _expressions(
+    seen: list[tuple[Frame, Seen]],
+    steps: list[str],
+    neutral: Expression,
+    models: Models,
+) -> dict[str, liveness.Verdict]:
+    """A verdict for each blink and smile step asked for, on that step's frames
+    in the order they were captured."""
+    rules = models.manifest.policy
+    verdicts: dict[str, liveness.Verdict] = {}
+    for step in EXPRESSIONS:
+        if step not in steps:
+            continue
+        found = [s.expression for f, s in seen if f.step == step and s.expression]
+        verdicts[step] = (
+            liveness.blink(neutral.eye_openness, [e.eye_openness for e in found], rules)
+            if step == "blink"
+            else liveness.smile(neutral, found, rules)
+        )
+    return verdicts
+
+
+def analyse(
+    models: Models,
+    images: list[np.ndarray],
+    steps: list[str],
+    *,
+    expressions: bool = False,
+) -> Analysis:
+    """Every check on one capture.
+
+    With `expressions`, which enrolment asks for, the 106 landmarks are read
+    too: a blink or smile step is judged on them, and anti-spoofing and the
+    templates use only frontal frames with the eyes open. A capture with a
+    blink or smile step always reads them. Without, which is every sign-in, the
+    checks are the head-pose ones alone.
+    """
+    expressions = expressions or any(step in EXPRESSIONS for step in steps)
     frames = list(
         _inspectors.map(lambda step, image: inspect(models, step, image), steps, images)
     )
@@ -122,9 +187,22 @@ def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analy
     centre = _centre(frames)
     reference = normalise(np.mean([s.embedding for _, s in centre], axis=0))
 
-    probabilities = live_probability(
-        models.anti_spoofing, [(f.image, s.face.landmarks) for f, s in centre]
-    ).tolist()
+    judged = centre
+    neutral: Expression | None = None
+    if expressions:
+        _measure(models, seen)
+        neutral = expression.neutral(
+            [s.expression for _, s in centre if s.expression is not None]
+        )
+        judged = open_eyed(centre, neutral, manifest.policy)
+
+    probabilities = (
+        live_probability(
+            models.anti_spoofing, [(f.image, s.face.landmarks) for f, s in judged]
+        ).tolist()
+        if judged
+        else []
+    )
     spoofing = liveness.anti_spoofing(probabilities, manifest.policy)
 
     baseline = Pose(
@@ -134,9 +212,19 @@ def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analy
     )
     performed: dict[str, list[Pose]] = {}
     for f, s in seen:
-        if f.step != CENTRE:
+        if f.step in liveness.EXPECTED:
             performed.setdefault(f.step, []).append(s.pose)
-    moved = liveness.actions(baseline, performed, manifest.liveness)
+    expressed = (
+        _expressions(seen, steps, neutral, models) if neutral is not None else {}
+    )
+    moved = liveness.combined(
+        (
+            [liveness.actions(baseline, performed, manifest.liveness)]
+            if performed
+            else []
+        )
+        + list(expressed.values())
+    )
 
     same = liveness.consistency(
         reference,
@@ -169,12 +257,22 @@ def analyse(models: Models, images: list[np.ndarray], steps: list[str]) -> Analy
             ]
             for step, poses in performed.items()
         },
+        **(
+            {
+                "expression": {
+                    step: round(verdict.score, 3) for step, verdict in expressed.items()
+                },
+                "eyes_open_frontal": f"{len(judged)}/{len(centre)}",
+            }
+            if expressions
+            else {}
+        ),
     )
-    return Analysis(frames, _reasons(frames), checks, reference)
+    return Analysis(frames, _reasons(frames), checks, reference, judged)
 
 
 def enroll(models: Models, images: list[np.ndarray], steps: list[str]) -> EnrollResult:
-    analysis = analyse(models, images, steps)
+    analysis = analyse(models, images, steps, expressions=True)
     result = EnrollResult(
         usable=analysis.checks is not None,
         reasons=analysis.reasons,
@@ -189,7 +287,7 @@ def enroll(models: Models, images: list[np.ndarray], steps: list[str]) -> Enroll
     best = sorted(
         (
             (quality.score(s.aligned, s.pose), s.embedding, index[id(f)])
-            for f, s in _centre(analysis.frames)
+            for f, s in analysis.judged
         ),
         key=lambda entry: entry[0],
         reverse=True,

@@ -29,6 +29,9 @@ class Recognizer(ModelFile):
 class Policy:
     live_threshold: float
     live_fraction: float
+    blink_closed_ratio: float
+    blink_open_ratio: float
+    smile_gain: float
 
 
 @dataclass(frozen=True)
@@ -63,13 +66,14 @@ class Manifest:
     detector: Detector
     recognizer: Recognizer
     anti_spoofing: ModelFile
+    landmarks: ModelFile
     policy: Policy
     quality: Quality
     liveness: Liveness
     sources: list[Source]
 
     def model_files(self) -> list[ModelFile]:
-        return [self.detector, self.recognizer, self.anti_spoofing]
+        return [self.detector, self.recognizer, self.anti_spoofing, self.landmarks]
 
 
 def load(path: Path) -> Manifest:
@@ -79,6 +83,7 @@ def load(path: Path) -> Manifest:
         detector=Detector(**data["detector"]),
         recognizer=Recognizer(**data["recognizer"]),
         anti_spoofing=ModelFile(**data["anti_spoofing"]),
+        landmarks=ModelFile(**data["landmarks"]),
         policy=Policy(**data["policy"]),
         quality=Quality(**data["quality"]),
         liveness=Liveness(**data["liveness"]),

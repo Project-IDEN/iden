@@ -10,6 +10,8 @@
 # doc/concepts/biometrics.md.
 
 version = "buffalo_l-liveness-1"
+# Not bumped for [landmarks]: it judges a blink or a smile at enrolment and
+# never touches a template, which the recognizer alone makes.
 
 [detector]
 file = "det_10g.onnx"
@@ -37,12 +39,32 @@ calibrated = false
 file = "liveness.onnx"
 sha256 = "87a9ac1dbb16a61eec212957e5095e62a8769c1e188af9b0198f253302c4afdb"
 
+[landmarks]
+# InsightFace's 106-point landmarks, from the same buffalo_l pack: the eyes' and
+# lips' outlines, which an enrolment's `blink` and `smile` are judged on.
+file = "2d106det.onnx"
+sha256 = "f001b856447c413801ef5c42091ed0cd516fcd21f2d6b79635b1e733a7109dbf"
+
 [policy]
 # Live probability for a frame to count as live. InsightFace's default; an
 # integration default, not a calibrated one.
 live_threshold = 0.8
 # Share of frontal frames that must count as live.
 live_fraction = 0.8
+# Blink and smile, judged against the person's own face in the frames looking
+# straight ahead, never an absolute value: eyes and mouths differ in size.
+# Eye openness is the height of an eye's outline over its width.
+# NOT CALIBRATED - tune on team captures. Below this share of the person's
+# open-eye openness, the eyes count as closed.
+blink_closed_ratio = 0.6
+# NOT CALIBRATED - tune on team captures. At or above this share, the eyes
+# count as open: before and after the blink, and for a straight-ahead frame to
+# be judged by anti-spoofing or kept as a template.
+blink_open_ratio = 0.85
+# NOT CALIBRATED - tune on team captures. How far a smile must move the mouth
+# beyond the person's neutral one, in inter-ocular distances: the mouth's
+# widening plus its corners' lift.
+smile_gain = 0.1
 
 [quality]
 # Pixels between the eyes. Below this, too little face to recognise.
@@ -76,7 +98,7 @@ consistency_turned = 0.25
 [[source]]
 url = "https://github.com/deepinsight/insightface/releases/download/v0.7/buffalo_l.zip"
 sha256 = "80ffe37d8a5940d59a7384c201a2a38d4741f2f3c51eef46ebb28218a7b0ca2f"
-extract = ["det_10g.onnx", "w600k_r50.onnx"]
+extract = ["det_10g.onnx", "w600k_r50.onnx", "2d106det.onnx"]
 
 [[source]]
 url = "https://github.com/deepinsight/insightface-model-addons/releases/download/addons/liveness.onnx"
