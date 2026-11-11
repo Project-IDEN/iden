@@ -46,6 +46,7 @@ from provider.authz.services.scope_resolver import (
     resolve_for_user,
 )
 from provider.core import ratelimit
+from provider.core.auth import person_of
 from provider.core.config import settings
 from provider.core.crypto import ACCESS_TOKEN_TYP, verify_jwt
 from provider.core.db import DBSessionDep
@@ -712,6 +713,14 @@ async def introspect(
             return IntrospectionResponse(active=False)
 
         if await tokens.is_denylisted(redis, claims["jti"]):
+            return IntrospectionResponse(active=False)
+
+        # As at every resource server here: a token outlives a deactivation by
+        # its lifetime, so the account is asked, not the token.
+        user_id = person_of(claims)
+        if user_id is not None and not await session.scalar(
+            select(User.is_active).where(User.id == user_id)
+        ):
             return IntrospectionResponse(active=False)
 
         return IntrospectionResponse(
