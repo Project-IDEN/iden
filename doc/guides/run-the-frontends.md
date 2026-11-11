@@ -67,8 +67,9 @@ uv run provider                      # http://localhost:8000
 ```
 
 Copy the administrator's email and password from the seed's output. Both are hashed before they're
-stored and are only printed this once. If you lose them, `uv run python -m scripts.reset` drops
-everything and seeds again with a new password.
+stored and are only printed this once. If you lose the password, set a new one with
+`EMAIL=admin@localhost PASSWORD='…' uv run python -m scripts.change_pass`, or start over with
+`uv run python -m scripts.reset`, which drops everything and seeds again.
 
 `provider/.env` already allows the dashboard's dev origin (`http://localhost:5173`) in
 `IDEN_ALLOWED_ADMIN_ORIGINS`. The seeded `dashboard` client already accepts
