@@ -111,13 +111,17 @@ cd deploy
 sudo ./install.sh --issuer https://iden.example.org --image ghcr.io/<you>/iden-kiosk:latest
 ```
 
-`--issuer` is IDEN's public address, exactly as in `IDEN_ISSUER`. The script:
+`--issuer` is IDEN's public address, exactly as in `IDEN_ISSUER`. It must be `https://`, unless
+IDEN is on the kiosk's own network at a loopback or private address (`http://192.168.1.20:8000`, say,
+for a demonstration from a laptop): the kiosk sends its secret and people's faces there. The script:
 
 - installs Docker, Chromium and the camera tools, if they are missing;
 - starts the kiosk server, and has it restart on its own after a reboot;
 - installs the **`iden-kiosk`** command;
 - holds the camera at the settings in `/opt/iden-kiosk/camera.conf` whenever it is plugged in;
 - allows the camera for the kiosk app alone, with no prompt;
+- locks Chromium to the kiosk app: no other address, no developer tools, no private windows, no
+  downloads or printing — so a keyboard plugged into the Pi does not open a way out;
 - turns off screen blanking and sets the backlight to full brightness;
 - pulls a newer image every night.
 

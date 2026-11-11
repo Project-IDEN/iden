@@ -111,7 +111,7 @@ change any of them. The image sets the rest. See [Kiosks](../operations/kiosks.m
 
 | Variable | Default | Notes |
 |---|---|---|
-| `KIOSK_ISSUER` | `http://localhost:8000` | IDEN's public address — where the device pairs and sends captures. |
+| `KIOSK_ISSUER` | `http://localhost:8000` | IDEN's public address — where the device pairs and sends captures. With `KIOSK_ENV=prod` (as in the image) it must be `https://`, or a loopback or private-network address. |
 | `KIOSK_DATA_DIR` | `data` | Holds `credentials.json`, the kiosk's client secret. A volume in Docker, so it survives an update. |
 | `KIOSK_UI_DIR` | *empty* | The built kiosk app. Empty in development, where Vite serves it. |
 | `KIOSK_TIMEOUT` | `30` (seconds) | How long to wait for IDEN. Above `IDEN_ENGINE_TIMEOUT`, so the provider's answer arrives first. |
