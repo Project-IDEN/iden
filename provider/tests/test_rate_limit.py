@@ -3,7 +3,6 @@
 import pytest
 
 from provider.core import ratelimit
-from tests.conftest import ADMIN_EMAIL
 from tests.flows import pkce_pair, query_of, sign_in, start
 
 pytestmark = pytest.mark.usefixtures("admin_user", "dashboard")
@@ -63,32 +62,6 @@ class TestLoginLimits:
         blocked = await sign_in(client, cid, password="wrong")
 
         assert blocked.status_code == 429
-
-
-class TestResetLimits:
-    async def test_an_address_cannot_be_buried_in_mail(self, client, monkeypatch):
-        sent = []
-
-        async def capture(**kwargs):
-            sent.append(kwargs)
-
-        from provider.authz.recovery import service
-
-        monkeypatch.setattr(service.notifier, "send", capture)
-        limit = ratelimit.RESET_PER_ADDRESS["limit"]
-
-        for _ in range(limit):
-            response = await client.post(
-                "/api/v1/auth/password-reset", json={"email": ADMIN_EMAIL}
-            )
-            assert response.status_code == 202
-
-        blocked = await client.post(
-            "/api/v1/auth/password-reset", json={"email": ADMIN_EMAIL}
-        )
-
-        assert blocked.status_code == 429
-        assert len(sent) == limit
 
 
 class TestConfiguration:

@@ -405,52 +405,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v1/auth/password-reset": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Ask for a password reset link
-         * @description Always returns `202`, whether or not the address belongs to anyone. A different answer for an unknown address would turn this endpoint into a way to discover who has an account here.
-         *
-         *     The link is single use and lives fifteen minutes.
-         *
-         *     **Required scope:** none — the person asking cannot sign in.
-         */
-        post: operations["request_reset_api_v1_auth_password_reset_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v1/auth/password-reset/confirm": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Set a new password with a reset link
-         * @description Spends the token and sets the password. Every refresh token is revoked and every session ends — whoever prompted the reset may be the reason it was needed.
-         *
-         *     **Required scope:** none.
-         */
-        post: operations["confirm_reset_api_v1_auth_password_reset_confirm_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/admin/apis": {
         parameters: {
             query?: never;
@@ -621,7 +575,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a role
-         * @description Refused with `409` while the role is still assigned to users or groups. Pass `force=true` to revoke it from all of them.
+         * @description Refused with `409` while the role is still assigned to users or groups. Pass `force=true` to revoke it from all of them. Refused when the role carries an `admin:` or `biometric:` scope the caller does not hold.
          *
          *     **Required scope:** `admin:roles:write`
          */
@@ -703,7 +657,7 @@ export interface paths {
         post?: never;
         /**
          * Delete a group
-         * @description Removes the group, its role bindings, and its memberships. **Users are not deleted** — they simply lose whatever the group granted them.
+         * @description Removes the group, its role bindings, and its memberships. **Users are not deleted** — they simply lose whatever the group granted them, which is why the caller must hold every `admin:` or `biometric:` scope it carries.
          *
          *     **Required scope:** `admin:groups:write`
          */
@@ -779,7 +733,7 @@ export interface paths {
         post?: never;
         /**
          * Remove a member
-         * @description Removes the membership only — the user is untouched.
+         * @description Removes the membership only — the user is untouched. Refused when the group's roles carry an `admin:` or `biometric:` scope the caller does not hold.
          *
          *     **Required scope:** `admin:groups:write`
          */
@@ -3631,21 +3585,6 @@ export interface components {
              */
             password?: string | null;
         };
-        /** PasswordResetConfirm */
-        PasswordResetConfirm: {
-            /**
-             * Token
-             * @description From the emailed link. Single use, 15 minutes.
-             */
-            token: string;
-            /** Newpassword */
-            newPassword: string;
-        };
-        /** PasswordResetRequest */
-        PasswordResetRequest: {
-            /** Email */
-            email: string;
-        };
         /** PasswordResetResult */
         PasswordResetResult: {
             /**
@@ -5190,79 +5129,6 @@ export interface operations {
             };
         };
     };
-    request_reset_api_v1_auth_password_reset_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasswordResetRequest"];
-            };
-        };
-        responses: {
-            /** @description Accepted, whether or not anything was sent */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-            /** @description Too many requests */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
-    confirm_reset_api_v1_auth_password_reset_confirm_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PasswordResetConfirm"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Expired or already used */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorResponse"];
-                };
-            };
-        };
-    };
     list_apis_admin_apis_get: {
         parameters: {
             query?: {
@@ -5878,6 +5744,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Would take away a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description No such role */
             404: {
                 headers: {
@@ -5984,7 +5859,7 @@ export interface operations {
                     "application/json": components["schemas"]["RoleResponse"];
                 };
             };
-            /** @description Would confer a scope the caller does not hold */
+            /** @description Would confer or take away a scope the caller does not hold */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6156,6 +6031,15 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description Would take away a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
             /** @description No such group */
             404: {
                 headers: {
@@ -6262,7 +6146,7 @@ export interface operations {
                     "application/json": components["schemas"]["GroupResponse"];
                 };
             };
-            /** @description Would confer a scope the caller does not hold */
+            /** @description Would confer or take away a scope the caller does not hold */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -6414,6 +6298,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Would take away a scope the caller does not hold */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
             /** @description No such group */
             404: {

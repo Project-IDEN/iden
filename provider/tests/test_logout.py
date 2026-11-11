@@ -12,11 +12,10 @@ import pytest
 from sqlalchemy import select
 
 from provider.authz.logout import service as logout_service
-from provider.authz.recovery import service as recovery_service
 from provider.authz.services import session_store
 from provider.core.crypto import verify_jwt
 from provider.shared.models import AuditEvent, Client
-from tests.conftest import ADMIN_EMAIL, ADMIN_PASSWORD
+from tests.conftest import ADMIN_PASSWORD
 from tests.flows import get_tokens, pkce_pair, query_of, sign_in, start
 
 POST_LOGOUT_URI = "http://localhost:5173/"
@@ -389,27 +388,6 @@ class TestEndingEverySession:
         assert response.json()["sessionsEnded"] == 1
         assert [claims_of(token)["sid"] for _, token in deliveries] == [other]
         assert len(await session_store.list_for_user(redis, admin_user.id)) == 1
-
-    async def test_a_password_reset_tells_every_session(
-        self, client, redis, admin_user, listening, deliveries, monkeypatch
-    ):
-        links: list[str] = []
-
-        async def capture(*, to: str, subject: str, body: str) -> None:
-            links.append(body.split("token=")[1].strip())
-
-        monkeypatch.setattr(recovery_service.notifier, "send", capture)
-        sid = claims_of((await get_tokens(client))["id_token"])["sid"]
-        client.cookies.clear()
-
-        await client.post("/api/v1/auth/password-reset", json={"email": ADMIN_EMAIL})
-        await client.post(
-            "/api/v1/auth/password-reset/confirm",
-            json={"token": links[0], "newPassword": "a-new-passphrase"},
-        )
-
-        assert [claims_of(token)["sid"] for _, token in deliveries] == [sid]
-        assert await session_store.list_for_user(redis, admin_user.id) == []
 
     async def test_deactivation_tells_every_session(
         self, client, member, admin_headers, listening, deliveries

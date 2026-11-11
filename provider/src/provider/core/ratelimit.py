@@ -122,7 +122,6 @@ KIOSK_PER_IP = limit_by_ip("kiosk-ip", limit=60, window=300)
 # A pairing code is eight characters from thirty: guessing one at this rate takes
 # longer than the heat death of every code ever issued.
 PAIR_PER_IP = limit_by_ip("pair-ip", limit=10, window=300)
-RESET_PER_IP = limit_by_ip("reset-ip", limit=10, window=3600)
 
 # The three endpoints that verify a client secret, which is argon2: 64 MiB and
 # real CPU per attempt, spent before the caller has proved anything. Separate
@@ -145,6 +144,3 @@ TOTP_FAILURES = {"bucket": "totp-fail", "limit": 8, "window": 900}
 # often as a person in bad light, and bad light is a 422 that does not count.
 # Three is what the sign-in page tells people they have.
 FACE_FAILURES = {"bucket": "face-fail", "limit": 3, "window": 900}
-
-# So the endpoint cannot be used to bury someone in mail they did not ask for.
-RESET_PER_ADDRESS = {"bucket": "reset-addr", "limit": 3, "window": 3600}

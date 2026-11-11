@@ -10,7 +10,6 @@ crashing the test.
 
 import base64
 import hashlib
-import re
 from datetime import UTC, datetime
 
 import jwt
@@ -207,15 +206,6 @@ class TestB5EmailCase:
         assert response.status_code == 200, response.text
         assert response.json()["status"] in ("complete", "method_required")
 
-    async def test_a_reset_is_sent_whatever_its_capitalisation(self, raw, mail):
-        """Asking for a reset as Admin@Test.Local mails the account admin@test.local."""
-        response = await raw.post(
-            "/api/v1/auth/password-reset", json={"email": "Admin@Test.Local"}
-        )
-
-        assert response.status_code == 202
-        assert [message["to"] for message in mail] == ["admin@test.local"]
-
 
 class TestB6DisabledAccount:
     async def test_a_disabled_account_answers_the_same_for_any_password(
@@ -318,22 +308,14 @@ async def member_with_totp(db, member) -> str:
 
 class TestB9ResetKeepsTotp:
     async def test_after_a_password_reset_the_authenticator_is_still_demanded(
-        self, raw, member_with_totp, mail
+        self, raw, member, member_with_totp, admin_headers
     ):
-        """A password reset leaves the confirmed authenticator in place: the next sign-in with the new password still answers method_required ["otp"]."""
-        requested = await raw.post(
-            "/api/v1/auth/password-reset", json={"email": MEMBER_EMAIL}
+        """An administrator's password reset leaves the confirmed authenticator in place: the next sign-in with the new password still answers method_required ["otp"]."""
+        reset = await raw.post(
+            f"/admin/users/{member.id}/reset-password", json={}, headers=admin_headers
         )
-        assert requested.status_code == 202
-        link = re.search(r"token=([\w-]+)", mail[0]["body"])
-        assert link is not None, f"no reset link in {mail[0]['body']!r}"
-        token = link.group(1)
-        new_password = "a-brand-new-password-0001"
-        confirmed = await raw.post(
-            "/api/v1/auth/password-reset/confirm",
-            json={"token": token, "newPassword": new_password},
-        )
-        assert confirmed.status_code == 204, confirmed.text
+        assert reset.status_code == 200, reset.text
+        new_password = reset.json()["password"]
 
         challenge_id = query_of(await start(raw, challenge_of("r" * 64)))["challenge"]
         login = await sign_in(

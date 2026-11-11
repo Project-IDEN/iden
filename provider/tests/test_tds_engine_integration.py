@@ -128,7 +128,7 @@ async def face_sign_in(client, frames: list[bytes], content_type: str = "image/j
 
 class TestC1Enrolment:
     async def test_a_still_photograph_cannot_enrol(
-        self, client, db, admin_user, kiosk_headers, face_headers, mail
+        self, client, db, admin_user, kiosk_headers, face_headers
     ):
         """Enrolling from nine copies of one still photo is refused 422 not_live by the real engine and stores no template."""
         ticket = await new_ticket(client, face_headers)
@@ -170,7 +170,7 @@ class TestC1Enrolment:
         reason=f"no capture of every action in {CAPTURE}",
     )
     async def test_a_real_capture_enrols_encrypted_templates(
-        self, client, db, admin_user, kiosk_headers, face_headers, mail
+        self, client, db, admin_user, kiosk_headers, face_headers
     ):
         """A real capture following the challenge enrols through /biometric and stores only AES-GCM-encrypted 512-d embeddings."""
         ticket = await new_ticket(client, face_headers)

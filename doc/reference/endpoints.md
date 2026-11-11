@@ -139,7 +139,7 @@ only the applications they registered.
 | `PUT` | `/developer/clients/{application_id}/logo` | Set your application's logo |
 | `DELETE` | `/developer/clients/{application_id}/logo` | Remove your application's logo |
 
-### Sign-in and recovery
+### Sign-in
 
 | Method | Path | Purpose |
 |---|---|---|
@@ -148,8 +148,6 @@ only the applications they registered.
 | `GET` | `/api/v1/auth/challenge/{challenge_id}` | Read a pending login or consent challenge |
 | `POST` | `/api/v1/auth/consent` | Approve or deny a consent request |
 | `POST` | `/api/v1/auth/login` | Sign in with a password |
-| `POST` | `/api/v1/auth/password-reset` | Ask for a password reset link |
-| `POST` | `/api/v1/auth/password-reset/confirm` | Set a new password with a reset link |
 | `POST` | `/api/v1/auth/totp` | Verify a time-based one-time code |
 
 ### Entity — connections

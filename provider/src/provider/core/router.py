@@ -31,7 +31,6 @@ from provider.authz.consent.routes import router as consent_router  # noqa: E402
 from provider.authz.discovery.routes import router as discovery_router  # noqa: E402
 from provider.authz.login.routes import router as login_router  # noqa: E402
 from provider.authz.oauth.routes import router as oauth_router  # noqa: E402
-from provider.authz.recovery.routes import router as recovery_router  # noqa: E402
 from provider.biometric.routes import router as biometric_router  # noqa: E402
 from provider.developer.clients.routes import (  # noqa: E402
     router as developer_clients_router,
@@ -57,7 +56,6 @@ router.include_router(discovery_router)
 router.include_router(oauth_router)
 router.include_router(login_router)
 router.include_router(consent_router)
-router.include_router(recovery_router)
 
 router.include_router(admin_apis_router)
 router.include_router(admin_scopes_router)

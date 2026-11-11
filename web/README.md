@@ -64,7 +64,7 @@ web/
 │   │   └── page.ts            # usePage<T> over the Page envelope
 │   ├── scopes.ts              # mirrors provider/shared/scopes.py
 │   └── ui/                    # shadcn primitives + ScopeChip, ProvenanceTrace, DataTable…
-├── auth-ui/src/routes/        # login, consent, forgot, reset
+├── auth-ui/src/routes/        # login, consent
 └── dashboard/src/
     ├── app/                   # shell, router, OIDC, the axios binding
     └── features/              # one folder per resource, mirroring provider/admin/*

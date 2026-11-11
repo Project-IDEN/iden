@@ -20,7 +20,7 @@ provider, with no privileged path of their own.
 
 | App | Dev port | Container port | Path | What it does |
 |---|---|---|---|---|
-| **auth-ui** | 4000 | 4000 | `/auth/` | The hosted sign-in page. `/oauth2/authorize` redirects here for the password step, TOTP, consent, and password recovery. The only place a password is typed. |
+| **auth-ui** | 4000 | 4000 | `/auth/` | The hosted sign-in page. `/oauth2/authorize` redirects here for the password step, TOTP and consent. The only place a password is typed. |
 | **dashboard** | 5173 | 3000 | `/console/` | Administration and self-service in one app. What you see is decided by the scopes in your token. |
 
 Both are served from a **sub-path**, in development as well as in a container, because in a real

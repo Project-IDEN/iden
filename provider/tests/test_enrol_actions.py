@@ -121,7 +121,7 @@ class TestTheKioskApi:
         )
 
     async def test_the_engine_is_sent_the_new_step_names(
-        self, client, fake_engine, kiosk_headers, face_headers, mail, blink_and_smile
+        self, client, fake_engine, kiosk_headers, face_headers, blink_and_smile
     ):
         ticket = await new_ticket(client, face_headers)
         challenge = (await kiosk_capture(client, kiosk_headers, ticket)).json()

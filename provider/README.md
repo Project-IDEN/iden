@@ -213,7 +213,11 @@ missing.
 The seed is still idempotent and still safe to re-run; it just no longer creates anything structural.
 
 The seed prints the bootstrap administrator's password **once**. It is argon2-hashed on the way into
-the database and cannot be recovered afterwards — losing it means re-seeding into a fresh database.
+the database and cannot be recovered afterwards. If it is lost, set a new one:
+
+```bash
+EMAIL=admin@localhost PASSWORD='a-new-passphrase' uv run python -m scripts.change_pass
+```
 
 ---
 
@@ -299,7 +303,6 @@ provider/
     │   ├── redis.py            # redis client, RedisDep
     │   ├── audit.py            # AuditMiddleware, set_actor(), record()
     │   ├── ratelimit.py        # per-address and per-account limits
-    │   ├── notifier.py         # outbound messages; logs in dev
     │   ├── security.py         # argon2 hashing, secure random tokens
     │   ├── crypto.py           # signing keys, JWKS, JWT sign/verify
     │   ├── auth.py             # require_scope(), require_fresh_auth()
@@ -311,7 +314,7 @@ provider/
     │   ├── profile.py          # profile value validation and casting
     │   └── scopes.py           # seeded system API/scope/role catalogue
     ├── authz/
-    │   ├── discovery/ oauth/ login/ consent/ logout/ recovery/
+    │   ├── discovery/ oauth/ login/ consent/ logout/
     │   └── services/           # scope_resolver · token_service · session_store
     │                           # challenge_store · auth_methods · pkce
     ├── admin/
@@ -831,8 +834,6 @@ token with the named scope; **session** = browser session cookie. `Phase` refers
 | `POST` | `/api/v1/auth/totp` | session | TOTP verification / step-up; appends `otp` | 1 |
 | `POST` | `/api/v1/auth/biometric` | session | Face login; appends `face`. `501` unless biometric is enabled | 1 stub / 4 |
 | `POST` | `/api/v1/auth/consent` | session | Persist or deny a consent grant, then resume `/authorize` | 1 |
-| `POST` | `/api/v1/auth/password-reset` | public | Begin recovery. Always `202` with an empty body, even for an unknown address — a different answer would enumerate accounts | 4 |
-| `POST` | `/api/v1/auth/password-reset/confirm` | public | Single-use token, 15-minute TTL; revokes every session and refresh token on success | 4 |
 
 Login returns `complete` with a `resumeUrl`, or `method_required` with the `methods` still owed —
 when the person has an authenticator set up, or the client asked for a level a password alone does

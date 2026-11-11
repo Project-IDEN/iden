@@ -170,8 +170,8 @@ export function Enrolment({ state }: { state: KioskState }) {
           />
           <Title>You're enrolled, {phase.name}</Title>
           <Lede>
-            You can now use your face as a second step when you sign in. We've emailed you to
-            confirm.
+            You can now use your face as a second step when you sign in. To remove it, go to
+            Security in your account.
           </Lede>
           <BigButton onClick={reset}>Finish</BigButton>
         </Screen>

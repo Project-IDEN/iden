@@ -25,7 +25,6 @@ from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async
 # monkeypatched on would leave the biometric scopes in it for the whole session.
 import provider.shared.scopes  # noqa: F401  # pyright: ignore[reportUnusedImport]
 from provider.biometric.engine_client import get_engine
-from provider.core import notifier
 from provider.core.config import settings
 from provider.core.db import Base, get_db_session
 from provider.core.redis import get_redis
@@ -438,17 +437,6 @@ def fake_engine(client):
 
 
 @pytest.fixture
-def mail(monkeypatch):
-    sent: list[dict] = []
-
-    async def capture(**message):
-        sent.append(message)
-
-    monkeypatch.setattr(notifier, "send", capture)
-    return sent
-
-
-@pytest.fixture
 async def kiosk_headers(client, db, kiosk, scope_of):
     """A token for a registered kiosk: the `kiosk` client with a kiosk row."""
     kiosk_client, secret = kiosk
@@ -481,7 +469,7 @@ async def face_headers(token_for):
 
 
 @pytest.fixture
-async def face_enrolled(client, fake_engine, kiosk_headers, face_headers, mail):
+async def face_enrolled(client, fake_engine, kiosk_headers, face_headers):
     """The admin's face, enrolled at a kiosk through the fake engine."""
     from tests.biometric import enrol_at_kiosk
 

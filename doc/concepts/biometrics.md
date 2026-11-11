@@ -34,7 +34,7 @@ sequenceDiagram
     K->>I: POST /biometric/enroll/challenge (kiosk token + ticket)
     I-->>K: "Enrolling Jane D." + what to capture
     K->>I: POST /biometric/enroll (frames + consent version)
-    I-->>P: email: a face was enrolled at Library Kiosk 2
+    I-->>K: enrolled
 ```
 
 The kiosk signs in as itself, with `client_credentials` and the `biometric:enroll` scope. That
@@ -74,13 +74,14 @@ its own secret. So:
   while its last access token has minutes to run;
 - **a kiosk can be taken out of service** from the dashboard, and IDEN refuses its enrolments until
   it is put back;
-- **every enrolment names the kiosk** — in the person's email, on their security page, and in the
+- **every enrolment names the kiosk** — on the person's security page and in the
   kiosk's own history in the dashboard, with why each failed attempt failed.
 
 Setting one up is in [Kiosks](../operations/kiosks.md).
 
-Enrolling again replaces the face on file. The person is emailed whenever a face is enrolled, with
-where to remove it if it was not them, and the audit log records the kiosk and whose face it was.
+Enrolling again replaces the face on file. The kiosk's last screen tells the person where to remove
+it, and the audit log records the kiosk and whose face it was. IDEN sends no email, so nobody is told
+about an enrolment anywhere else — see [Open issues](../roadmap.md#open-issues).
 
 ## Signing in
 
