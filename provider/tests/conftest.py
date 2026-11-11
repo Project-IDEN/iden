@@ -8,6 +8,9 @@ that is the path a deployment takes.
 """
 
 import asyncio
+import contextlib
+import io
+import tempfile
 from collections.abc import AsyncGenerator
 from pathlib import Path
 
@@ -39,6 +42,24 @@ from provider.shared.models import (
     Scope,
     User,
 )
+
+
+def _keys_for_a_fresh_checkout() -> None:
+    """Throwaway keys when the developer has none, so a clean clone (or CI)
+    runs the suite without `scripts.gen_keys` first. Real keys are used when
+    they exist: the engine integration tests present the real engine token."""
+    if any(settings.iden_signing_key_dir.glob("*.pem")):
+        return
+    from scripts import gen_keys
+
+    settings.iden_signing_key_dir = Path(tempfile.mkdtemp(prefix="iden-test-keys-"))
+    settings.iden_totp_key_file = None
+    settings.iden_engine_token_file = None
+    with contextlib.redirect_stdout(io.StringIO()):
+        gen_keys.main()
+
+
+_keys_for_a_fresh_checkout()
 
 BASE_URL = make_url(settings.iden_database_url)
 TEST_URL = BASE_URL.set(database="iden_test")
