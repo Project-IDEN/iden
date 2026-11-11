@@ -26,6 +26,7 @@ from provider.core.config import settings
 from provider.core.db import DBSessionDep
 from provider.core.redis import RedisDep
 from provider.core.schemas import ErrorResponse, Page, PageMeta, PaginationDep
+from provider.core.storage import OptionalStorageDep, Storage
 from provider.entity.profile import service as profile_service
 from provider.shared.models import User
 
@@ -412,7 +413,8 @@ async def clear_totp(
     status_code=204,
     summary="Delete a user",
     description=(
-        "Removes the account and everything hanging off it. Consider "
+        "Removes the account and everything hanging off it, including its "
+        "profile photo and any enrolment photos kept with a face. Consider "
         "deactivating instead — deletion loses the audit trail of who did what.\n\n"
         "Every session it has ends, and its access tokens stop working at once. "
         "Your own account is refused with `409 own_account`.\n\n"
@@ -432,10 +434,19 @@ async def clear_totp(
     },
 )
 async def delete_user(
-    user_id: UUID, session: DBSessionDep, redis: RedisDep, token: WriteToken
+    user_id: UUID,
+    session: DBSessionDep,
+    redis: RedisDep,
+    token: WriteToken,
+    storage: Storage | None = OptionalStorageDep,
 ) -> Response:
     await service.delete_user(
-        session, redis, user_id, caller_scopes=token.scopes, caller_id=token.subject
+        session,
+        redis,
+        storage,
+        user_id,
+        caller_scopes=token.scopes,
+        caller_id=token.subject,
     )
     return Response(status_code=204)
 

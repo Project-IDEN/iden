@@ -67,10 +67,6 @@ class TestWB3FrameCountAtSignIn:
 
 
 class TestB10QualityBeforeVersion:
-    @pytest.mark.xfail(
-        strict=True,
-        reason="TDS B10: an outdated enrolment (409) is reported before a poor capture (422)",
-    )
     async def test_a_poor_capture_is_reported_before_an_outdated_enrolment(
         self, client, fake_engine, face_enrolled
     ):
@@ -96,9 +92,6 @@ class TestB10QualityBeforeVersion:
 
 
 class TestB11CookieAfterFace:
-    @pytest.mark.xfail(
-        strict=True, reason="TDS B11: the face step does not re-set iden_session"
-    )
     async def test_the_face_step_refreshes_the_session_cookie(
         self, client, fake_engine, face_enrolled
     ):

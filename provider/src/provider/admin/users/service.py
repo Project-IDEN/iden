@@ -20,8 +20,10 @@ from provider.authz.logout import service as logout_service
 from provider.authz.services.token_service import now
 from provider.biometric import service as face
 from provider.core.config import settings
+from provider.core.logging import logger
 from provider.core.security import hash_secret_async
 from provider.core.storage import Storage
+from provider.shared import avatars
 from provider.shared.models import (
     Group,
     RefreshToken,
@@ -133,7 +135,7 @@ async def create_user(
     """
     # Lowercased because a mailbox is case-insensitive: `Alice@` and `alice@`
     # are one address, and the second must be refused.
-    email = f"{data.email_local_part.lower()}@{settings.iden_mail_domain}"
+    email = f"{data.email_local_part}@{settings.iden_mail_domain}".lower()
 
     if await session.scalar(select(User).where(User.username == data.username)):
         raise UsernameTaken
@@ -317,6 +319,7 @@ def _refuse_own_account(user_id: UUID, caller_id: str) -> None:
 async def delete_user(
     session: AsyncSession,
     redis: Redis,
+    storage: Storage | None,
     user_id: UUID,
     *,
     caller_scopes: set[str],
@@ -324,7 +327,26 @@ async def delete_user(
 ) -> None:
     user = await get_user_to_modify(session, user_id, caller_scopes)
     _refuse_own_account(user_id, caller_id)
+    files = [row.image_key for row in await face.templates(session, user_id)]
+    if user.picture_key:
+        files.append(avatars.object_key(user.picture_key))
     await revoke_everything(session, redis, user_id)
     await session.delete(user)
     await lockout.refuse_if_last(session)
     await session.commit()
+    await _forget(files, storage)
+
+
+async def _forget(keys: list[str | None], storage: Storage | None) -> None:
+    """The photos of an account that has just been deleted.
+
+    After the commit and best effort, as with a client's logo: the row is gone,
+    and a store that is down must not turn a completed deletion into an error.
+    """
+    if storage is None:
+        return
+    for key in filter(None, keys):
+        try:
+            await storage.delete(key)
+        except Exception as exc:
+            logger.warning("Could not delete a deleted account's photo", error=str(exc))

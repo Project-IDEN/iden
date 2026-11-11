@@ -184,7 +184,11 @@ class TestLogin:
         _, challenge = pkce_pair()
         challenge_id = query_of(await start(client, challenge))["challenge"]
 
-        assert (await sign_in(client, challenge_id)).status_code == 403
+        response = await sign_in(client, challenge_id)
+
+        # The same answer as a wrong password, which TDS B6 checks directly.
+        assert response.status_code == 401
+        assert response.json()["code"] == "invalid_credentials"
 
 
 class TestStepUp:

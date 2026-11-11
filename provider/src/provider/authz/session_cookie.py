@@ -8,6 +8,8 @@ NAME = "iden_session"
 
 
 def set_session(response: Response, session_id: str) -> None:
+    """Set on every sign-in step, not only the first: the session's expiry slides
+    in Redis, and a cookie set once would expire under a session still in use."""
     response.set_cookie(
         NAME,
         session_id,
