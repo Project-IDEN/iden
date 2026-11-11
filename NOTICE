@@ -1,0 +1,29 @@
+Project IDEN
+Copyright 2026 The Project IDEN Authors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+It includes or downloads the following third-party material, under their own
+licences:
+
+Bundled into the web and kiosk applications:
+
+  Inter                     SIL Open Font License 1.1   via @fontsource-variable/inter
+  JetBrains Mono            SIL Open Font License 1.1   via @fontsource-variable/jetbrains-mono
+  EB Garamond               SIL Open Font License 1.1   via @fontsource/eb-garamond
+
+Bundled into the kiosk image:
+
+  MediaPipe Tasks Vision    Apache License 2.0          @mediapipe/tasks-vision, and its
+                                                        face_landmarker.task model, fetched
+                                                        at build time and checked by sha256
+
+Downloaded at run time by the biometric engine, not distributed with IDEN:
+
+  InsightFace buffalo_l (det_10g, w600k_r50, 2d106det) and its liveness
+  model. Licensed for NON-COMMERCIAL RESEARCH ONLY. Any other use needs weights
+  licensed for it. See engine/models.toml and doc/concepts/biometrics.md.
+
+Every other dependency is installed from its package registry under its own
+licence (MIT, BSD, Apache-2.0, ISC, PSF, or MPL-2.0 for certifi); none is
+GPL, LGPL or AGPL.
