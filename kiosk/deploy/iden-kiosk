@@ -22,7 +22,9 @@ Looking after it
   logs [what]   Follow a log: server (default), browser or camera
   camera        List each camera's controls and their current values
   camera edit   Edit camera.conf; a change applies within a second
-  update        Pull the newest kiosk image and restart on it now
+  update        Pull the newest kiosk image and restart on it now; go back
+                if it does not come up
+  rollback      Go back to the image that ran before the last update
   unpair        Forget this kiosk's credentials, so it can be paired again
 EOF
 }
@@ -149,13 +151,60 @@ camera() {
   esac
 }
 
+# Tagged, so `docker image prune` keeps it: the image to go back to.
+previous=iden-kiosk:previous
+
+running_image() {
+  local container
+  container="$(compose ps --quiet kiosk)"
+  [[ -n "$container" ]] && docker inspect --format '{{.Image}}' "$container"
+}
+
+answers() {
+  local _
+  for _ in $(seq 45); do
+    curl -fsS --max-time 2 http://localhost:8080/api/state >/dev/null 2>&1 && return 0
+    sleep 2
+  done
+  return 1
+}
+
+run_previous() {
+  docker tag "$previous" "$KIOSK_IMAGE"
+  compose up --detach --pull never
+}
+
 update() {
+  local before after
+  before="$(running_image || true)"
+  [[ -n "$before" ]] && docker tag "$before" "$previous"
+
   # A failed pull — no network, or an image built on this device — keeps the
   # image already here rather than stopping the kiosk.
   compose pull --quiet --ignore-pull-failures
   compose up --detach --remove-orphans
+  after="$(running_image || true)"
+
+  if [[ "$after" == "$before" ]]; then
+    echo "Already on the newest image."
+    return
+  fi
+  # Every kiosk updates in the same half hour, so an image that does not start
+  # would otherwise take them all out of service until somebody notices.
+  if ! answers && [[ -n "$before" ]]; then
+    echo "The new image did not answer within 90 seconds. Going back." >&2
+    run_previous
+    exit 1
+  fi
   docker image prune --force >/dev/null
   echo "Running $(compose ps --format '{{.Image}}' kiosk)."
+}
+
+rollback() {
+  docker image inspect "$previous" >/dev/null 2>&1 \
+    || { echo "There is no earlier image on this kiosk to go back to." >&2; exit 1; }
+  run_previous
+  echo "Back on the image that ran before the last update. Tonight's update will try the newest again."
 }
 
 unpair() {
@@ -176,6 +225,7 @@ case "${1:-}" in
   logs) logs "${2:-}" ;;
   camera) camera "${2:-}" ;;
   update) update ;;
+  rollback) rollback ;;
   unpair) unpair ;;
   *) echo "iden-kiosk: unknown command '$1'" >&2; usage >&2; exit 2 ;;
 esac
