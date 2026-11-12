@@ -13,10 +13,25 @@ optional — several of its defaults break an identity provider in ways that loo
 
 ## The shape of it
 
-```
-browser --HTTPS--> Cloudflare edge --tunnel--> cloudflared --HTTP--> nginx --> provider
-                                                                           --> auth-ui
-                                                                           --> dashboard
+```mermaid
+flowchart LR
+    Browser(["Browser"])
+    subgraph CF["Cloudflare"]
+        Edge["Cloudflare edge<br/>terminates TLS"]
+    end
+    subgraph Host["Your server: no inbound port open"]
+        Tunnel["cloudflared"]
+        Nginx["nginx"]
+        Provider["provider<br/>/oauth2 · /.well-known · /admin · …"]
+        AuthUI["auth-ui<br/>/auth"]
+        Dashboard["dashboard<br/>/console"]
+    end
+    Browser -->|HTTPS| Edge
+    Edge <-->|"tunnel, dialled out<br/>by cloudflared"| Tunnel
+    Tunnel -->|HTTP| Nginx
+    Nginx --> Provider
+    Nginx --> AuthUI
+    Nginx --> Dashboard
 ```
 
 Four things follow from that picture, and they are the reasons this page exists.
@@ -468,17 +483,15 @@ profile photos. If you can lose them, remove its volume
 IDEN attributes a request to an address in two places that matter: the per-address rate limits, and
 the `ip` column of every audit row. Behind a proxy both see the proxy unless three settings agree.
 
-```
-Cloudflare sets     CF-Connecting-IP: 203.0.113.9      one address, always, overwritten at the edge
-        │
-nginx   real_ip_header CF-Connecting-IP                $remote_addr becomes 203.0.113.9
-        set_real_ip_from 172.31.250.0/24               ...but only from this network
-        │
-        proxy_set_header X-Forwarded-For $remote_addr  one value, not a chain
-        │
-provider IDEN_FORWARDED_ALLOW_IPS=172.31.250.0/24      believe it, from this network
-        │
-        scope["client"] = ("203.0.113.9", 0)           what the limiter and the audit log read
+```mermaid
+flowchart TB
+    CF["<b>Cloudflare</b><br/>sets CF-Connecting-IP<br/>one address, always overwritten at the edge"]
+    Nginx["<b>nginx</b><br/>real_ip_header CF-Connecting-IP<br/>set_real_ip_from 172.31.250.0/24<br/><i>only believed from this network</i>"]
+    Provider["<b>provider</b><br/>IDEN_FORWARDED_ALLOW_IPS=172.31.250.0/24<br/><i>only believed from this network</i>"]
+    Readers["<b>rate limiter</b> and <b>audit log</b><br/>scope[&quot;client&quot;] = (&quot;203.0.113.9&quot;, 0)"]
+    CF -->|"CF-Connecting-IP: 203.0.113.9"| Nginx
+    Nginx -->|"X-Forwarded-For: 203.0.113.9<br/>one value, not a chain"| Provider
+    Provider --> Readers
 ```
 
 **All three ranges must name the same network.** They are already consistent in the shipped files;

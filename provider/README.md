@@ -440,10 +440,19 @@ erDiagram
 
 ### The model in one line
 
-```text
-User ──┬── direct scope grants (exceptions)
-       ├── direct roles ─────────┐
-       └── groups ── group roles ┴──> Role ──> Scopes ──> owned by an API (audience)
+```mermaid
+flowchart LR
+    User(["User"])
+    Group["Group"]
+    Role["Role"]
+    Scopes["Scopes"]
+    API["API<br/>(the audience)"]
+    User -->|"member of"| Group
+    Group -->|"group roles"| Role
+    User -->|"direct roles"| Role
+    User -.->|"direct grants<br/>(exceptions)"| Scopes
+    Role --> Scopes
+    API -->|owns| Scopes
 ```
 
 `effective_user_scopes` is the union of all three sources, computed by
@@ -776,23 +785,32 @@ the biometric module add `face` without the AuthZ core knowing anything about fa
 
 Where a request goes, and which file owns each step:
 
-```text
-nginx
-  → core/bodylimit.py      refuse an oversized body before anything reads it
-  → core/headers.py        security headers, on every response
-  → CORS
-  → core/audit.py          record every state-changing request, after the response
-  → core/app.py            request id, bound into every log line
-  → routes.py              validate the request body via schemas.py
-      · rate limited?      core/ratelimit.py dependency, Redis fixed window → 429
-      · resource server?   core/auth.require_scope(...)
-                           verify signature + iss + aud + exp + typ
-                           reject denylisted jti  → 401
-                           check required scope   → 403
-                           account still active?  → 401 (one column, every request)
-      · authz endpoint?    session_store / challenge_store
-  → service.py             DB work via DBSessionDep; raises domain errors
-  → core/app.py            domain error → status + the documented JSON error shape
+```mermaid
+flowchart TB
+    Nginx(["nginx"])
+    subgraph MW["middleware"]
+        direction TB
+        Body["<b>core/bodylimit.py</b><br/>refuse an oversized body before anything reads it"]
+        Headers["<b>core/headers.py</b><br/>security headers, on every response"]
+        CORS["<b>CORS</b>"]
+        Audit["<b>core/audit.py</b><br/>record every state-changing request, after the response"]
+        ReqId["<b>core/app.py</b><br/>request id, bound into every log line"]
+        Body --> Headers --> CORS --> Audit --> ReqId
+    end
+    subgraph Route["routes.py · body validated by schemas.py"]
+        direction TB
+        Rate["<b>rate limited?</b><br/>core/ratelimit.py, Redis fixed window"]
+        Scope["<b>resource server?</b> core/auth.require_scope(...)<br/>verify signature, iss, aud, exp, typ<br/>reject a denylisted jti<br/>check the required scope<br/>account still active? (one column, every request)"]
+        Authz["<b>authz endpoint?</b><br/>session_store / challenge_store"]
+    end
+    Service["<b>service.py</b><br/>database work via DBSessionDep; raises domain errors"]
+    Errors["<b>core/app.py</b><br/>domain error → status + the documented JSON error shape"]
+    Nginx --> Body
+    ReqId --> Route
+    Route --> Service --> Errors
+    Rate -.->|over the limit| R429(["429"])
+    Scope -.->|"bad token, denylisted, inactive"| R401(["401"])
+    Scope -.->|missing scope| R403(["403"])
 ```
 
 `401` versus `403` is a deliberate distinction: `401` means *authenticate again*, `403` means
