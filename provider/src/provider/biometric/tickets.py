@@ -26,7 +26,9 @@ def _key(ticket: str) -> str:
 
 def _attempts_key(key: str) -> str:
     # Its own key, so counting an attempt is one INCR: read-modify-write on the
-    # ticket let concurrent captures each see the same count.
+    # ticket let concurrent captures each see the same count. Never deleted, only
+    # left to expire: a capture already past the ticket check would INCR a deleted
+    # count back to 1, and get another try with no expiry on it.
     return f"{key}:attempts"
 
 
@@ -38,7 +40,7 @@ async def issue(redis: Redis, user_id: UUID) -> tuple[str, datetime]:
     """A new ticket, retiring any this person asked for before."""
     ttl = settings.iden_face_ticket_ttl
     if previous := await redis.get(_user_key(user_id)):
-        await redis.delete(previous, _attempts_key(str(previous)))
+        await redis.delete(previous)
 
     ticket = generate_token()
     key = _key(ticket)
@@ -62,7 +64,7 @@ async def holder(
     if attempt:
         attempts = await redis.incr(_attempts_key(key))
         if attempts > MAX_ATTEMPTS:
-            await redis.delete(key, _attempts_key(key))
+            await redis.delete(key)
             return None
     else:
         attempts = int(await redis.get(_attempts_key(key)) or 0)
@@ -70,4 +72,4 @@ async def holder(
 
 
 async def spend(redis: Redis, ticket: str, user_id: UUID) -> None:
-    await redis.delete(_key(ticket), _attempts_key(_key(ticket)), _user_key(user_id))
+    await redis.delete(_key(ticket), _user_key(user_id))

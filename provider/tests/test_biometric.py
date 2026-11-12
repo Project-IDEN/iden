@@ -627,16 +627,18 @@ class TestReembed:
 
 async def test_attempts_at_once_cannot_exceed_the_limit(redis):
     """Each capture counts one attempt. Read-modify-write let concurrent
-    captures each see the same count, so a ticket could outlast its limit."""
+    captures each see the same count, so a ticket could outlast its limit.
+    Repeated because the interleaving that breaks it does not happen every time."""
     import asyncio
     import uuid
 
     from provider.biometric import tickets
 
-    ticket, _ = await tickets.issue(redis, uuid.uuid7())
+    for _ in range(25):
+        ticket, _ = await tickets.issue(redis, uuid.uuid7())
 
-    results = await asyncio.gather(
-        *(tickets.holder(redis, ticket, attempt=True) for _ in range(10))
-    )
+        results = await asyncio.gather(
+            *(tickets.holder(redis, ticket, attempt=True) for _ in range(10))
+        )
 
-    assert sum(result is not None for result in results) == tickets.MAX_ATTEMPTS
+        assert sum(r is not None for r in results) == tickets.MAX_ATTEMPTS
