@@ -26,6 +26,20 @@ Notable changes to IDEN. The format follows [Keep a Changelog](https://keepachan
   the kiosk app.
 - Dependencies with published advisories were upgraded: pyjwt 2.15, Pillow 13, and others.
 - Every base and service image is pinned to an exact version.
+- A logout link that does not carry the signed-in person's `id_token_hint` asks before signing
+  out, so a cross-site page can no longer end someone's session with a `GET`. Applications that send
+  the hint, the dashboard included, sign out as before.
+- Reusing an authorization code revokes the refresh tokens it already issued.
+- Token introspection reports a deactivated person's token as inactive.
+- A face ticket's five attempts hold even when captures arrive at once.
+- Uploads are decoded only as JPEG, PNG, WebP or GIF.
+- What a caller sends (an unknown key ID, say) no longer reaches the `WWW-Authenticate` header.
+- The login form caps email and password length, the code that confirms an authenticator cannot
+  also sign in, and a challenge ID is redacted from the audit log.
+- Profile fields may not claim `events`, `at_hash`, `c_hash`, `cnf` or `updated_at`.
+- In prod the provider refuses a store password or S3 secret key shorter than 16 characters; Redis's
+  healthcheck keeps its password out of the process list; nginx no longer sends its version.
+- The tunnel overlay refuses to start without `IDEN_FORWARDED_ALLOW_IPS`.
 
 ### Fixed
 
@@ -34,6 +48,17 @@ Notable changes to IDEN. The format follows [Keep a Changelog](https://keepachan
 - A kiosk update that does not come up goes back to the previous image (`iden-kiosk rollback` does
   it by hand), its credentials survive a power cut, and its maintenance screens close themselves.
 - Web image builds no longer pick up a developer's `node_modules` or `.env`.
+- Deactivating or deleting the last administrator is refused before any session is ended or any
+  application notified, not after.
+- A refresh token that is already being exchanged answers `503 temporarily_unavailable`, not a 500.
+- The engine answers a face template of the wrong length with a 400, not a 500.
+- The lowercase-email migration names the accounts that differ only by capitalisation, instead of
+  stopping halfway on an unnamed integrity error.
+- A newline in an operator's setting no longer breaks the frontends' `config.js`.
+- An unplugged kiosk camera says so and is reported to IDEN; the heartbeat interval has a 5-second
+  floor; the installer warns when it cannot turn off screen blanking.
+- The dashboard starts one sign-in redirect, not two, under React's StrictMode.
+- The provider's test suite makes throwaway signing keys on a fresh clone.
 
 ### Added
 
