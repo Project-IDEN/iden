@@ -132,8 +132,9 @@ than compiled in — one image serves any deployment. The entrypoint writes thes
 | `IDEN_MAIL_DOMAIN` | `localhost` | Dashboard only. Shown beside the email field when adding a user. The provider decides the address, so give both the same value. |
 
 Under `pnpm dev` there is no container, so the same settings are read from Vite environment variables
-with a `VITE_` prefix: `VITE_IDEN_ISSUER`, `VITE_IDEN_ORG_NAME`, `VITE_IDEN_ORG_LOGO`, and the
-dashboard's `VITE_IDEN_MAIL_DOMAIN`. Each app has an `.env.example` to copy.
+with a `VITE_` prefix: `VITE_IDEN_ISSUER`, `VITE_IDEN_ORG_NAME`, `VITE_IDEN_ORG_LOGO` (no `_URL`,
+unlike `IDEN_ORG_LOGO_URL` above), and the dashboard's `VITE_IDEN_MAIL_DOMAIN`. Each app has an
+`.env.example` to copy.
 
 ## The ones that matter in production
 

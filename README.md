@@ -174,7 +174,7 @@ into an identity *and access control* provider.
 | **Scope** | A single permission, owned by exactly one API. A string like `attendance:records:read` plus a human description. | Admin |
 | **Role** | A named bundle of scopes — a job function such as `attendance-officer`. Roles are **global**: one role may bundle scopes from several APIs. | Admin |
 | **Group** | A set of users — a department, team, or cohort. Groups hold roles. Membership is flat; groups do not nest. | Admin |
-| **User** | A person. Holds roles directly, inherits roles from every group they belong to, and may hold individual scope grants for one-off exceptions. | Admin (or kiosk enrollment) |
+| **User** | A person. Holds roles directly, inherits roles from every group they belong to, and may hold individual scope grants for one-off exceptions. | Admin (or kiosk enrolment) |
 
 ```mermaid
 flowchart LR

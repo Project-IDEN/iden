@@ -4,7 +4,7 @@ The provider targets the S3 API rather than any one implementation, so the
 store behind `IDEN_S3_ENDPOINT_URL` can be SeaweedFS (what the dev compose
 runs), MinIO, Garage, or AWS S3 itself without a line of this changing.
 
-Profile photos are the first user; the biometric module's enrollment images are
+Profile photos are the first user; the biometric module's enrolment images are
 the reason the abstraction is worth having at all.
 """
 

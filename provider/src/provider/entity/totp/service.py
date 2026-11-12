@@ -40,7 +40,7 @@ async def status(session: AsyncSession, user: User) -> TotpCredential | None:
 async def begin(session: AsyncSession, user: User) -> tuple[str, str]:
     """Create an unconfirmed credential and return (secret, otpauth URI).
 
-    Enrollment is two-step on purpose: the credential does not count until a
+    Enrolment is two-step on purpose: the credential does not count until a
     generated code comes back, so a mis-scanned QR code cannot lock someone out
     of their own account.
     """
@@ -52,7 +52,7 @@ async def begin(session: AsyncSession, user: User) -> tuple[str, str]:
     if credential is None:
         credential = TotpCredential(user_id=user.id)
         session.add(credential)
-    # An abandoned enrollment is simply overwritten: it never counted.
+    # An abandoned enrolment is simply overwritten: it never counted.
     credential.secret_encrypted = encrypt_secret(secret, context=str(user.id))
     await session.commit()
 

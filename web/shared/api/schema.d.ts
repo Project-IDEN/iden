@@ -231,6 +231,8 @@ export interface paths {
          *
          *     Available as both `GET` and `POST`, as RP-Initiated Logout 1.0 Section 2 requires. Prefer `POST`: it keeps `id_token_hint` out of browser history and out of the `Referer` header of whatever comes next.
          *
+         *     A `GET` whose `idTokenHint` does not name the signed-in person is sent to the sign-in UI, which asks before anything ends: any page can make a browser load this URL. The page's answer is a `POST`.
+         *
          *     Access tokens already issued stay valid until they expire — they are self-contained by design, and their ten-minute lifetime is the trade that buys offline validation. Refresh tokens do not, so nothing can be renewed after this.
          *
          *     `idTokenHint` identifies the client for redirect validation. A request without a session cookie ends nothing: the hint says who was signed in, it is not a credential for ending someone else's session.
@@ -244,6 +246,8 @@ export interface paths {
          * @description Single sign-out. Clears the browser session and its cookie, revokes the refresh tokens the session produced, and delivers a **logout token** to every client that registered a `backchannelLogoutUri` and was signed into during this session (OIDC Back-Channel Logout 1.0).
          *
          *     Available as both `GET` and `POST`, as RP-Initiated Logout 1.0 Section 2 requires. Prefer `POST`: it keeps `id_token_hint` out of browser history and out of the `Referer` header of whatever comes next.
+         *
+         *     A `GET` whose `idTokenHint` does not name the signed-in person is sent to the sign-in UI, which asks before anything ends: any page can make a browser load this URL. The page's answer is a `POST`.
          *
          *     Access tokens already issued stay valid until they expire — they are self-contained by design, and their ten-minute lifetime is the trade that buys offline validation. Refresh tokens do not, so nothing can be renewed after this.
          *
@@ -1396,7 +1400,7 @@ export interface paths {
         };
         /**
          * Is an authenticator set up?
-         * @description `enrolled` is true only once a generated code has been confirmed — a half-finished enrollment is not an authenticator.
+         * @description `enrolled` is true only once a generated code has been confirmed — a half-finished enrolment is not an authenticator.
          *
          *     **Required scope:** `entity:totp:read`
          */
@@ -4695,7 +4699,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Redirect to post_logout_redirect_uri */
+            /** @description Redirect to post_logout_redirect_uri, or — for a GET without a matching hint — to the sign-in UI to confirm */
             303: {
                 headers: {
                     [name: string]: unknown;
@@ -4735,7 +4739,7 @@ export interface operations {
                     "application/json": unknown;
                 };
             };
-            /** @description Redirect to post_logout_redirect_uri */
+            /** @description Redirect to post_logout_redirect_uri, or — for a GET without a matching hint — to the sign-in UI to confirm */
             303: {
                 headers: {
                     [name: string]: unknown;

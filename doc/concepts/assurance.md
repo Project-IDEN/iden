@@ -44,7 +44,7 @@ create the rule: someone at a laptop without a camera must still be able to sign
 
 Three details follow from it:
 
-- An **unconfirmed** enrollment does not count. A credential exists from the moment someone opens the
+- An **unconfirmed** enrolment does not count. A credential exists from the moment someone opens the
   QR code, and treating that as a factor would lock out anyone who walked away from the screen.
 - A code **signs in once**. It stays valid for up to 90 seconds, and without this a code someone
   watched being typed, or a phishing page relayed, would sign a second browser in beside the first.
