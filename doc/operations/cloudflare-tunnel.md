@@ -211,6 +211,10 @@ Wrote engine token: /keys/engine.token
 `mkdir` and `--user` are required on Linux. The image runs as uid 1000, and without them Docker
 creates the directory as `root` and the generator fails with `Permission denied`.
 
+The keys are now readable by you alone, and the provider and engine run as uid 1000 unless told
+otherwise. If `id -u` is not 1000, add `IDEN_UID` and `IDEN_GID` to `deploy/.env`, set to the numbers
+`id -u` and `id -g` print.
+
 !!! danger "Back up `provider/keys/` now, separately from the database"
     Anyone who can read the `.pem` can mint a token for anyone. Losing it signs everyone out.
     Losing `totp.key` locks everyone with an authenticator out of their second factor, with no

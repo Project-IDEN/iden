@@ -61,6 +61,11 @@ Wrote engine token: /keys/engine.token
     and the keys stay owned by you. Docker Desktop on macOS hides the problem, so the shorter command
     works on a Mac and then fails on a Linux server.
 
+    The keys are readable by you alone, so the provider and engine containers run as your uid too.
+    If `id -u` is not 1000, put `IDEN_UID` and `IDEN_GID` (from `id -u` and `id -g`) in
+    `deploy/.env`. Without them the provider cannot read its signing key and the engine cannot read
+    its token.
+
 ## 3. Start everything
 
 ```bash

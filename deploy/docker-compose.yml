@@ -97,6 +97,9 @@ services:
     build:
       context: ../provider
     command: ["alembic", "upgrade", "head"]
+    # Runs as the owner of provider/keys, which gen_keys makes readable by its
+    # owner alone. IDEN_UID in deploy/.env when that is not uid 1000.
+    user: "${IDEN_UID:-1000}:${IDEN_GID:-1000}"
     # Two kinds of value below, and only the first is yours.
     #
     #   ${...}  Deployment settings, from deploy/.env. Edit that, not this file,
@@ -181,6 +184,7 @@ services:
       context: ../provider
     environment: *provider-env
     volumes: *provider-volumes
+    user: "${IDEN_UID:-1000}:${IDEN_GID:-1000}"
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:

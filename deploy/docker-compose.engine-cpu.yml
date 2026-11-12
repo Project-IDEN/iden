@@ -22,6 +22,8 @@ services:
       ENGINE_TOKEN_FILE: /secrets/engine.token
       ENGINE_MODEL_DIR: /app/models
       ENGINE_WORKERS: ${IDEN_ENGINE_WORKERS:-1}
+    # The owner of engine.token, as for the provider in docker-compose.yml.
+    user: "${IDEN_UID:-1000}:${IDEN_GID:-1000}"
     volumes:
       - ../provider/keys/engine.token:/secrets/engine.token:ro
       - ../engine/models:/app/models:ro

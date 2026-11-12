@@ -37,6 +37,8 @@ services:
       # Refuse to start without a GPU rather than fall back to the CPU and
       # serve twenty times slower without anyone noticing.
       ENGINE_DEVICE: cuda
+    # The owner of engine.token, which is readable by its owner alone.
+    user: "${ENGINE_UID:-1000}:${ENGINE_GID:-1000}"
     volumes:
       - ./engine.token:/secrets/engine.token:ro
       - ../models:/app/models:ro
