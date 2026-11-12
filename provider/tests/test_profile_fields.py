@@ -56,7 +56,12 @@ class TestDefiningFields:
         )
         assert response.status_code == 422
 
-    async def test_a_claim_cannot_shadow_a_reserved_one(self, client, admin_headers):
+    @pytest.mark.parametrize(
+        "claim", ["sub", "events", "at_hash", "c_hash", "cnf", "updated_at"]
+    )
+    async def test_a_claim_cannot_shadow_a_reserved_one(
+        self, client, admin_headers, claim
+    ):
         """A custom field named `sub` would let an administrator forge the
         meaning of a token."""
         response = await client.post(
@@ -64,7 +69,7 @@ class TestDefiningFields:
             json={
                 "key": "impostor",
                 "label": "Impostor",
-                "claimName": "sub",
+                "claimName": claim,
                 "claimScope": "entity:profile:read",
             },
             headers=admin_headers,

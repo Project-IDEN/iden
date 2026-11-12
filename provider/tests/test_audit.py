@@ -99,6 +99,7 @@ class TestSecrets:
         assert event.actor_user_id is None
         assert event.detail["password"] == "[redacted]"
         assert event.detail["email"] == "admin@test.local"
+        assert event.detail["challengeId"] == "[redacted]"
 
     async def test_a_successful_login_names_the_person(self, client, db, admin_user):
         await get_tokens(client)
