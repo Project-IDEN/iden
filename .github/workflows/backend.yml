@@ -76,7 +76,7 @@ jobs:
       - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
         with:
           enable-cache: true
-      - run: uv sync --locked --extra cpu
+      - run: uv sync --locked
       - run: uv run ruff format --check .
       - run: uv run ruff check .
       - run: uv run pyright
@@ -139,7 +139,7 @@ jobs:
         run: |
           for project in provider engine kiosk/server; do
             extra=""
-            [ "$project" = engine ] && extra="--extra cpu"
+            [ "$project" = engine ] && extra="--group cpu"
             uv export --project "$project" --frozen --no-hashes --no-emit-project $extra \
               > "$RUNNER_TEMP/requirements.txt"
             echo "::group::$project"

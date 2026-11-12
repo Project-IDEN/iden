@@ -2,8 +2,8 @@ version = 1
 revision = 5
 requires-python = ">=3.14"
 conflicts = [[
-    { package = "engine", extra = "cpu" },
-    { package = "engine", extra = "gpu" },
+    { package = "engine", group = "cpu" },
+    { package = "engine", group = "gpu" },
 ]]
 
 [[package]]
@@ -279,6 +279,7 @@ wheels = [
 name = "engine"
 version = "1.0.0"
 source = { editable = "." }
+default-groups = ["cpu", "dev"]
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
     { name = "numpy" },
@@ -288,42 +289,39 @@ dependencies = [
     { name = "structlog" },
 ]
 
-[package.optional-dependencies]
+[package.dev-dependencies]
 cpu = [
     { name = "onnxruntime" },
 ]
-gpu = [
-    { name = "onnxruntime-gpu" },
-]
-
-[package.dev-dependencies]
 dev = [
     { name = "pyright" },
     { name = "pytest" },
     { name = "pytest-cov" },
     { name = "ruff" },
 ]
+gpu = [
+    { name = "onnxruntime-gpu" },
+]
 
 [package.metadata]
 requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1" },
     { name = "numpy", specifier = ">=2.5.4" },
-    { name = "onnxruntime", marker = "extra == 'cpu'", specifier = ">=1.31.0" },
-    { name = "onnxruntime-gpu", marker = "extra == 'gpu'", specifier = ">=1.26.0,<1.27" },
     { name = "opencv-python-headless", specifier = ">=5.0.0.93" },
     { name = "pydantic", specifier = ">=2.13.4" },
     { name = "pydantic-settings", specifier = ">=2.15.0" },
     { name = "structlog", specifier = ">=26.1.0" },
 ]
-provides-extras = ["cpu", "gpu"]
 
 [package.metadata.requires-dev]
+cpu = [{ name = "onnxruntime", specifier = ">=1.31.0" }]
 dev = [
     { name = "pyright", specifier = ">=1.1.411" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
     { name = "ruff", specifier = ">=0.16.4" },
 ]
+gpu = [{ name = "onnxruntime-gpu", specifier = ">=1.26.0,<1.27" }]
 
 [[package]]
 name = "fastapi"

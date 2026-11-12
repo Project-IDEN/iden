@@ -30,7 +30,7 @@ def execution_providers(device: str, available: list[str]) -> list[str]:
     if device == "cuda":
         raise ModelError(
             "ENGINE_DEVICE=cuda but onnxruntime cannot see a GPU. Install the "
-            "`gpu` extra and check the NVIDIA driver and container runtime."
+            "`gpu` dependency group and check the NVIDIA driver and container runtime."
         )
     return [CPU]
 

@@ -14,7 +14,7 @@ Self-contained: `engine/` needs nothing else in the repository, so it can be dep
 | `deploy/compose.cpu.yml`, `deploy/compose.gpu.yml` | The engine on a machine of its own, on the CPU or an NVIDIA GPU. On the provider's host, `deploy/docker-compose.engine-*.yml` at the root run it instead. |
 
 ```bash
-uv sync --extra cpu                     # or --extra gpu on an NVIDIA host
+uv sync                                 # CPU onnxruntime; on an NVIDIA host: uv sync --no-group cpu --group gpu
 uv run python -m scripts.fetch_models   # ~290 MB, checked against models.toml
 ENGINE_TOKEN_FILE=../provider/keys/engine.token uv run uvicorn engine.app:app --port 8002
 ```
