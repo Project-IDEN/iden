@@ -1,6 +1,6 @@
 [project]
 name = "engine"
-version = "0.0.1"
+version = "1.0.0"
 description = "IDEN biometric engine — face detection, quality, anti-spoofing and 1:1 matching"
 readme = "README.md"
 authors = [

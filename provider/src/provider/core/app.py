@@ -70,7 +70,7 @@ _DOCS_ENABLED = settings.iden_env != "prod"
 
 app = FastAPI(
     title="IDEN Core Server",
-    version="0.0.1",
+    version="1.0.0",
     description=(
         "Identity and access control provider. "
         "See `/.well-known/openid-configuration` for OIDC metadata."

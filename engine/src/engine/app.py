@@ -115,7 +115,7 @@ INFERENCE = [*AUTH, Depends(inference_slot)]
 
 app = FastAPI(
     title="IDEN Biometric Engine",
-    version="0.0.1",
+    version="1.0.0",
     description="Internal. Face detection, quality, anti-spoofing and 1:1 matching.",
     lifespan=lifespan,
     docs_url="/docs" if settings.engine_env != "prod" else None,

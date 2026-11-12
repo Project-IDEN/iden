@@ -1,6 +1,6 @@
 [project]
 name = "kiosk-server"
-version = "0.1.0"
+version = "1.0.0"
 description = "The IDEN enrolment kiosk: holds the device credentials, serves its UI, and talks to IDEN."
 authors = [
     { name = "yephonekyaw", email = "yephonekyaw231202@gmail.com" }
