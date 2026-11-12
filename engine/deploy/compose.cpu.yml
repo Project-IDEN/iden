@@ -29,6 +29,8 @@ services:
       ENGINE_TOKEN_FILE: /secrets/engine.token
       ENGINE_MODEL_DIR: /app/models
       ENGINE_WORKERS: ${ENGINE_WORKERS:-1}
+    # The owner of engine.token, which is readable by its owner alone.
+    user: "${ENGINE_UID:-1000}:${ENGINE_GID:-1000}"
     volumes:
       - ./engine.token:/secrets/engine.token:ro
       - ../models:/app/models:ro

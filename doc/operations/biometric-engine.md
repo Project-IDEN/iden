@@ -146,6 +146,9 @@ engine's folder holds everything it needs — its code, its `Dockerfile` and its
     scp provider/keys/engine.token <engine-host>:engine/deploy/engine.token
     ```
 
+    The copy is readable by its owner alone, and the engine runs as uid 1000. If `id -u` on the
+    engine's machine is not 1000, set `ENGINE_UID` and `ENGINE_GID` in step 4's `.env`.
+
 4. **Choose where it listens.** `cp .env.example .env`, and set `ENGINE_PUBLISH` to the engine
    machine's private address and a port: `10.0.0.5:8000`. Left unset it listens on `127.0.0.1`
    alone, which the provider on another machine cannot reach. Never set a port alone: that listens
@@ -347,7 +350,7 @@ To enrol a face in development, run the kiosk app against it on your laptop — 
 | Symptom | Cause |
 |---|---|
 | Sign-in shows *Face checks are unavailable right now* (`503 engine_unavailable`) | The provider cannot reach the engine, or the engine refused its token. Run the reachability check above; check `IDEN_ENGINE_BASE_URL`, and that both sides read the same `engine.token`. |
-| The engine exits with `PermissionError` on `/secrets/engine.token` | The engine runs as uid 1000 and cannot read the token file, which is private to its owner. `sudo chown 1000 provider/keys/engine.token` (or `engine/deploy/engine.token`). The provider reads its keys as uid 1000 too. |
+| Every face check fails, and the engine logs `PermissionError` on `/secrets/engine.token` | The engine runs as a uid that cannot read the token, which is readable by its owner alone. Set `IDEN_UID` and `IDEN_GID` in `deploy/.env` (or `ENGINE_UID` and `ENGINE_GID` in `engine/deploy/.env`) to the owner's `id -u` and `id -g`, and start it again. The provider reads `provider/keys` as the same uid. |
 | The engine exits with `IsADirectoryError` on `/secrets/engine.token` | The token did not exist the first time the engine started, so Docker created an empty directory in its place. Remove that directory (`sudo rmdir provider/keys/engine.token`), generate the token, and start again. |
 | The engine exits with `ENGINE_TOKEN_FILE must name a non-empty file in prod` | The token is missing on that machine: step 2 on the provider's host, or step 3 on another machine. |
 | The engine exits saying a model file `is missing` | The models were not fetched into `engine/models` on the machine the engine runs on. |

@@ -29,6 +29,8 @@ services:
       # Refuse to start without a GPU rather than fall back to the CPU and
       # serve twenty times slower without anyone noticing.
       ENGINE_DEVICE: cuda
+    # The owner of engine.token, as for the provider in docker-compose.yml.
+    user: "${IDEN_UID:-1000}:${IDEN_GID:-1000}"
     volumes:
       - ../provider/keys/engine.token:/secrets/engine.token:ro
       - ../engine/models:/app/models:ro
