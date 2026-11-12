@@ -45,6 +45,9 @@ The release shown on demonstration day.
 
 ### Fixed
 
+- A plain `uv sync` in `engine/` installs onnxruntime. It was an optional extra, so the sync
+  removed it; it is now a default dependency group (`cpu`), and an NVIDIA host syncs with
+  `--no-group cpu --group gpu`.
 - The dashboard sends a person to sign in when the provider stops accepting its token, instead of
   an error that could never be retried.
 - A kiosk update that does not come up goes back to the previous image (`iden-kiosk rollback` does

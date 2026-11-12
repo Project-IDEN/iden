@@ -14,10 +14,10 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-install-project --no-dev --extra cpu
+    uv sync --locked --no-install-project --no-default-groups --group cpu
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --extra cpu
+    uv sync --locked --no-default-groups --group cpu
 
 
 FROM python:3.14.10-slim-trixie AS cpu
@@ -45,10 +45,10 @@ RUN userdel --remove ubuntu && useradd --create-home --uid 1000 iden
 WORKDIR /app
 COPY pyproject.toml uv.lock .python-version ./
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-install-project --no-dev --extra gpu
+    uv sync --locked --no-install-project --no-default-groups --group gpu
 COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev --extra gpu \
+    uv sync --locked --no-default-groups --group gpu \
     && chown -R iden:iden /app /opt/python
 ENV PATH="/app/.venv/bin:$PATH" ENGINE_DEVICE=cuda
 USER iden

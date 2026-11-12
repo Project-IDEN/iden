@@ -333,7 +333,7 @@ For development, without Docker. The provider uses port 8000 and the docs site 8
 
 ```bash
 cd engine
-uv sync --extra cpu
+uv sync
 uv run python -m scripts.fetch_models
 ENGINE_TOKEN_FILE=../provider/keys/engine.token uv run uvicorn engine.app:app --port 8002
 ```
