@@ -1,6 +1,6 @@
 import { ADMIN_SCOPES, BIOMETRIC_SCOPES, Brand, Spinner } from "@iden/shared";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ErrorResponse } from "oidc-client-ts";
 import { useAuth, type ErrorContext } from "react-oidc-context";
 import { createBrowserRouter, Navigate, RouterProvider, type RouteObject } from "react-router";
@@ -147,19 +147,28 @@ function Router() {
  */
 function RequireSignIn({ children }: { children: ReactNode }) {
   const auth = useAuth();
+  const busy = Boolean(auth.activeNavigator) || auth.isLoading;
+  const signedOut = wasSignedOut(auth.error);
+  const mustSignIn = !busy && (signedOut || (!auth.error && !auth.isAuthenticated));
 
-  if (auth.activeNavigator || auth.isLoading) {
+  // Once per mount: StrictMode renders and runs effects twice, and two redirects
+  // race, each leaving its own sign-in state in storage.
+  const redirected = useRef(false);
+  useEffect(() => {
+    if (!mustSignIn || redirected.current) return;
+    redirected.current = true;
+    void auth.signinRedirect({ state: hereState() });
+  }, [mustSignIn, auth]);
+
+  if (busy) {
     return <Centered>{<Spinner label="Signing you in" />}</Centered>;
   }
-
-  const signedOut = wasSignedOut(auth.error);
 
   if (auth.error && !signedOut) {
     return <SignInFailed detail={auth.error.message} onRetry={() => void auth.signinRedirect()} />;
   }
 
-  if (signedOut || !auth.isAuthenticated) {
-    void auth.signinRedirect({ state: hereState() });
+  if (mustSignIn) {
     return <Centered>{<Spinner label="Redirecting to sign in" />}</Centered>;
   }
 
