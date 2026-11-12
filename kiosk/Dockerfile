@@ -9,7 +9,7 @@
 # The client is JavaScript and CSS, the same on every platform, so it is built
 # once on the build machine's own architecture. Run under emulation instead —
 # arm64 on an x86 laptop — Node is slow and its native tools can crash.
-FROM --platform=$BUILDPLATFORM node:22.23.4-alpine AS client
+FROM --platform=$BUILDPLATFORM node:26.13.0-alpine AS client
 RUN corepack enable
 WORKDIR /app
 COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./
