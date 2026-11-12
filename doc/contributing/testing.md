@@ -63,3 +63,41 @@ fails — not that a particular column changed.
 **Prefer determinism to timing.** Rather than sleeping past a window, mint a token with an old
 `auth_time`. Rather than racing two requests and hoping, hold one transaction open and assert the
 other blocks.
+
+## Tests that need a real face
+
+A still photograph cannot blink, smile or turn its head, so two groups of tests need a short webcam
+recording of a real person. They **skip** without one, and every other test runs as usual. Nobody's
+face is kept in the repository: the folder is git-ignored and must stay that way.
+
+| Test | What it proves |
+|---|---|
+| `engine/tests/test_actions_real.py` | The engine sees each action (blink, smile, four head movements) in real frames, any two of them enrol, and a blink out of order or open eyes alone do not pass. |
+| `provider/tests/test_tds_engine_integration.py::TestC1Enrolment::test_a_real_capture_enrols_encrypted_templates` | A full enrolment, provider to real engine, stores encrypted templates. Also needs a running engine; see the module's docstring. |
+
+**Who:** one team member who agrees to it. The frames are photos of their face.
+
+**Where:** a machine with a webcam and the engine's models (`uv run python -m scripts.fetch_models`).
+The script needs no window; it guides you in the terminal.
+
+```bash
+cd engine
+uv run python -m scripts.capture_actions          # --camera 1 for another webcam
+uv run pytest tests/test_actions_real.py -v       # the tests that skipped now run
+```
+
+It asks for consent, then walks through looking straight ahead, a blink, a smile and the four head
+movements, a few seconds each, about a minute in all. For each step it keeps three frames, as a
+kiosk would, writes them to `engine/tests/data/actions/` as `<step>_<n>.jpg`, and says straight
+away whether the engine accepts them, so a bad take can be done again. Use the light you will demo
+in; a dim room makes blinks harder to see.
+
+To run the tests somewhere else, such as a server with more memory, copy the folder there rather than
+the person. **Delete it everywhere when you are done:**
+
+```bash
+rm -rf engine/tests/data/actions
+```
+
+The same script, with `--out tests/data/actions-<name>`, collects captures for tuning the liveness
+thresholds; see [the biometric engine](../operations/biometric-engine.md).
