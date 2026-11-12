@@ -1,45 +1,37 @@
+# Each project (provider, engine, kiosk/*, web) ignores its own build output,
+# virtualenvs and caches. This file covers the repository as a whole.
+
+# Editors, OS and local tooling
 .vscode/
+*.idea
+*.iml
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+*.swp
+*~
 claude/
 .claude/
-old-provider/
+
+# Once held face images and their records; never to be committed again.
 verification/
-web/**/node_modules/
-web/**/dist/
-
-*.log
-
-# Playwright results (web/e2e and kiosk/e2e)
-/test-results/
-/test-results-m07/
-*.sql
-*.sqlite
 
 # Copied from the .example beside them and edited per deployment. deploy/.env
 # holds the tunnel token, which is a credential.
 .env
 deploy/nginx/iden.conf
 
-.DS_Store?
-ehthumbs.db
-Icon?
-Thumbs.db
-*.DS_Store
+# Database dumps and local databases
+*.sql
+*.sqlite
 
-*.idea
-*.iml
-
-/web-app/WEB-INF
-build/
-*.[oa]
+*.log
 *.pyc
 
-.hg
-.svn
-CVS
-
-*~.nib
-*.swp
-*~
+# Playwright results (web/e2e and kiosk/e2e)
+/test-results/
+/test-results-m07/
 
 # Zensical build output
 site/
