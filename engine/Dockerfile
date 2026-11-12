@@ -20,7 +20,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --extra cpu
 
 
-FROM python:3.14.10-slim-trixie AS cpu
+FROM python:3.15.0-slim-trixie AS cpu
 
 RUN useradd --create-home --uid 1000 iden
 WORKDIR /app
