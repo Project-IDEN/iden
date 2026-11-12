@@ -18,7 +18,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
 
-FROM python:3.14.10-slim-trixie
+FROM python:3.15.0-slim-trixie
 
 # Not root. A container that is compromised should not also be privileged.
 RUN useradd --create-home --uid 1000 iden
