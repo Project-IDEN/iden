@@ -138,6 +138,18 @@ class TestLogin:
             await client.get("/api/v1/auth/challenge/not-a-challenge")
         ).status_code == 404
 
+    @pytest.mark.parametrize(
+        "field", [{"email": "a" * 245 + "@test.local"}, {"password": "p" * 257}]
+    )
+    async def test_an_oversized_field_is_refused_before_hashing(self, client, field):
+        """A megabyte password would still be argon2-hashed, at the caller's whim."""
+        _, challenge = pkce_pair()
+        challenge_id = query_of(await start(client, challenge))["challenge"]
+
+        response = await sign_in(client, challenge_id, **field)
+
+        assert response.status_code == 422
+
     async def test_password_login_records_pwd(self, client):
         _, challenge = pkce_pair()
         challenge_id = query_of(await start(client, challenge))["challenge"]
@@ -531,6 +543,29 @@ class TestEnrolledTotpIsMandatory:
         challenge_id = query_of(await start(client, challenge))["challenge"]
         await sign_in(client, challenge_id)
         response = await enter_code(client, challenge_id, enrolled)
+
+        assert response.status_code == 400
+        assert response.json()["code"] == "invalid_totp_code"
+
+    async def test_the_code_that_confirmed_enrolment_cannot_sign_in(
+        self, client, self_headers
+    ):
+        """It was typed seconds ago on a page anyone nearby could see."""
+        started = (
+            await client.post("/entity/totp/enroll", headers=self_headers)
+        ).json()
+        code = pyotp.TOTP(started["secret"]).now()
+        confirmed = await client.post(
+            "/entity/totp/confirm", json={"code": code}, headers=self_headers
+        )
+        assert confirmed.status_code == 200
+
+        _, challenge = pkce_pair()
+        challenge_id = query_of(await start(client, challenge))["challenge"]
+        await sign_in(client, challenge_id)
+        response = await client.post(
+            "/api/v1/auth/totp", json={"challengeId": challenge_id, "code": code}
+        )
 
         assert response.status_code == 400
         assert response.json()["code"] == "invalid_totp_code"

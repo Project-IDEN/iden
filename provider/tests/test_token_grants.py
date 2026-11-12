@@ -3,6 +3,7 @@ import asyncio
 import jwt
 import pytest
 
+from provider.authz.services import token_service
 from provider.core.security import hash_secret
 from tests.conftest import ADMIN_EMAIL, REDIRECT_URI
 from tests.flows import get_code, get_tokens
@@ -159,6 +160,41 @@ class TestRefreshRotation:
 
         response = await refresh(client, tokens["refresh_token"])
         assert response.status_code == 400
+
+    async def test_a_token_already_being_exchanged_asks_for_a_retry(
+        self, client, redis, monkeypatch
+    ):
+        """The lock's wait ran out: a retry will succeed, which a 500 never said."""
+        tokens = await get_tokens(client)
+        held = token_service.rotation_lock(redis, tokens["refresh_token"])
+        await held.acquire()
+        monkeypatch.setattr(
+            token_service,
+            "rotation_lock",
+            lambda r, t: r.lock(held.name, timeout=10, blocking_timeout=0.1),
+        )
+
+        response = await refresh(client, tokens["refresh_token"])
+
+        assert response.status_code == 503
+        assert response.json()["error"] == "temporarily_unavailable"
+
+    async def test_an_exchange_that_outlives_its_lock_still_answers(
+        self, client, monkeypatch
+    ):
+        """The token was rotated; losing the answer to the release would strand
+        the client with a revoked token and no new one."""
+        tokens = await get_tokens(client)
+        original = token_service.rotation_lock
+        monkeypatch.setattr(
+            token_service,
+            "rotation_lock",
+            lambda r, t: r.lock(original(r, t).name, timeout=0.001),
+        )
+
+        response = await refresh(client, tokens["refresh_token"])
+
+        assert response.status_code == 200
 
 
 class TestAuthorizationCode:
