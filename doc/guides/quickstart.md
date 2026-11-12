@@ -111,7 +111,8 @@ The provider you just started is its step 1.
 uv run python -m scripts.reset
 ```
 
-Drops the schema, flushes Redis, re-migrates, and re-seeds — so you get a fresh bootstrap password.
+It names the database and Redis it is about to empty and waits for you to type `reset`. Then it
+drops the schema, flushes Redis, re-migrates, and re-seeds — so you get a fresh bootstrap password.
 It refuses to run when `IDEN_ENV=prod`.
 
 ## Common problems
