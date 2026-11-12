@@ -67,7 +67,7 @@ services:
   # else, so MinIO, Garage or AWS S3 are drop-in replacements. SeaweedFS is the
   # default because it is Apache-2.0 and runs as a single process.
   seaweedfs:
-    image: chrislusf/seaweedfs:3.97
+    image: chrislusf/seaweedfs:4.53
     command: ["server", "-dir=/data", "-s3"]
     # From the environment rather than a mounted `s3.config`, so the credential
     # is one value in deploy/.env instead of a secret committed here and a copy
