@@ -5,6 +5,7 @@ engine's own judgement is tested in engine/, and what matters here is what the
 provider does with one.
 """
 
+import httpx
 import jwt
 import pytest
 from sqlalchemy import select
@@ -551,10 +552,14 @@ class TestSignIn:
     async def test_an_unreachable_engine_is_a_503(
         self, client, face_enrolled, monkeypatch
     ):
+        """The client is built once, at import, from the configured URL; changing
+        the setting here would leave it pointing at a real engine, if one runs."""
+        from provider.biometric import engine_client
         from provider.core.app import app
 
         app.dependency_overrides.pop(get_engine)
-        monkeypatch.setattr(settings, "iden_engine_base_url", "http://127.0.0.1:9")
+        unreachable = httpx.AsyncClient(base_url="http://127.0.0.1:9")
+        monkeypatch.setattr(engine_client, "client", unreachable)
         challenge_id = await begin(client, acr_values="urn:iden:acr:mfa-face")
         await sign_in(client, challenge_id)
 
