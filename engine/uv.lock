@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 5
 requires-python = ">=3.14"
 conflicts = [[
     { package = "engine", extra = "cpu" },
@@ -39,7 +39,7 @@ version = "4.15.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "idna" },
-    { name = "typing-extensions", marker = "python_full_version < '3.15' or (extra == 'extra-6-engine-cpu' and extra == 'extra-6-engine-gpu')" },
+    { name = "typing-extensions", marker = "python_full_version < '3.15'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/a9/d2/f4d173e22df740bc37b1db102b386ba719b66e95b0f0d751f556b387e6d2/anyio-4.15.1.tar.gz", hash = "sha256:9f28306018cbd6d329e64a36d58256edff76dd996fe423bc957326e578b82a94", size = 276966, upload-time = "2026-09-05T10:42:39.44Z" }
 wheels = [
@@ -282,7 +282,6 @@ source = { editable = "." }
 dependencies = [
     { name = "fastapi", extra = ["standard"] },
     { name = "numpy" },
-    { name = "onnxruntime-gpu" },
     { name = "opencv-python-headless" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
@@ -310,7 +309,6 @@ requires-dist = [
     { name = "fastapi", extras = ["standard"], specifier = ">=0.141.1" },
     { name = "numpy", specifier = ">=2.5.4" },
     { name = "onnxruntime", marker = "extra == 'cpu'", specifier = ">=1.31.0" },
-    { name = "onnxruntime-gpu", specifier = ">=1.26.0" },
     { name = "onnxruntime-gpu", marker = "extra == 'gpu'", specifier = ">=1.26.0,<1.27" },
     { name = "opencv-python-headless", specifier = ">=5.0.0.93" },
     { name = "pydantic", specifier = ">=2.13.4" },
@@ -1124,7 +1122,7 @@ name = "pytest"
 version = "9.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-6-engine-cpu' and extra == 'extra-6-engine-gpu')" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "iniconfig" },
     { name = "packaging" },
     { name = "pluggy" },
@@ -1381,7 +1379,7 @@ version = "0.27.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
-    { name = "colorama", marker = "sys_platform == 'win32' or (extra == 'extra-6-engine-cpu' and extra == 'extra-6-engine-gpu')" },
+    { name = "colorama", marker = "sys_platform == 'win32'" },
     { name = "rich" },
     { name = "shellingham" },
 ]
@@ -1438,7 +1436,7 @@ standard = [
     { name = "httptools" },
     { name = "python-dotenv" },
     { name = "pyyaml" },
-    { name = "uvloop", marker = "(platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32') or (platform_python_implementation == 'PyPy' and extra == 'extra-6-engine-cpu' and extra == 'extra-6-engine-gpu') or (sys_platform == 'cygwin' and extra == 'extra-6-engine-cpu' and extra == 'extra-6-engine-gpu') or (sys_platform == 'win32' and extra == 'extra-6-engine-cpu' and extra == 'extra-6-engine-gpu')" },
+    { name = "uvloop", marker = "platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'" },
     { name = "watchfiles" },
     { name = "websockets" },
 ]
