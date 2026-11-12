@@ -158,7 +158,7 @@ def system_apis() -> tuple[ApiSpec, ...]:
             ApiSpec(
                 name="biometric",
                 audience=settings.biometric_audience,
-                description="Facial enrollment and verification.",
+                description="Facial enrolment and verification.",
                 scopes=BIOMETRIC_SCOPES,
             ),
         )

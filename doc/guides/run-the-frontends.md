@@ -115,7 +115,8 @@ entrypoint.
 | `VITE_IDEN_MAIL_DOMAIN` | Dashboard only. Shown beside the email field when adding a user; match the provider's `IDEN_MAIL_DOMAIN`. |
 
 Each app has an `.env.example` next to its `package.json` — copy it to `.env` and edit. The container
-equivalents drop the `VITE_` prefix: `IDEN_ISSUER`, `IDEN_ORG_NAME`, `IDEN_ORG_LOGO_URL`, `IDEN_MAIL_DOMAIN`.
+equivalents drop the `VITE_` prefix: `IDEN_ISSUER`, `IDEN_ORG_NAME`, `IDEN_MAIL_DOMAIN`. The logo is the
+exception: `VITE_IDEN_ORG_LOGO` becomes `IDEN_ORG_LOGO_URL`, the name the provider's settings use.
 
 ## Types come from the server
 

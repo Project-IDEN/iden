@@ -8,7 +8,7 @@ class AlreadyEnrolled(ConflictError):
 
 class NotEnrolling(NotFoundError):
     code = "totp_not_enrolling"
-    message = "There is no pending enrollment to confirm."
+    message = "There is no pending enrolment to confirm."
 
 
 class WrongCode(ValidationError):

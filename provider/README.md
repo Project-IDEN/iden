@@ -14,7 +14,7 @@ One process hosts four logical modules:
 | **AuthZ Server** | `/.well-known/*`, `/oauth2/*`, `/api/v1/auth/*` | Issues tokens. Owns login, consent, sessions, and the OIDC protocol surface. |
 | **Admin RS** | `/admin/*` | Manages users, groups, roles, APIs, scopes, and clients. |
 | **Entity RS** | `/entity/*` | Self-service for the signed-in person. |
-| **Biometric RS** | `/biometric/*` | Face enrollment and verification. Mounted only when enabled. |
+| **Biometric RS** | `/biometric/*` | Face enrolment and verification. Mounted only when enabled. |
 
 They are **logical** modules, not services: one port, one image, one deployable. Because they share a
 process, the resource-server modules verify access tokens in-process against the same keys the AuthZ
@@ -324,7 +324,7 @@ erDiagram
   USER ||--o{ USER_PROFILE_VALUE : "has"
   PROFILE_FIELD ||--o{ USER_PROFILE_VALUE : "defines"
   GROUP ||--o{ PROFILE_FIELD : "scopes (optional)"
-  USER ||--o| TOTP_CREDENTIAL : "enrolls"
+  USER ||--o| TOTP_CREDENTIAL : "enrols"
   USER ||--o{ CONSENT_GRANT : "grants"
   CLIENT ||--o{ CONSENT_GRANT : ""
   CLIENT ||--o{ AUTHORIZATION_CODE : "issued"

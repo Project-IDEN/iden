@@ -140,7 +140,7 @@ class TotpCredential(Base, TimestampMixin):
     # what it holds, so a schema or a dump shows it is not cleartext. See
     # `core.security.encrypt_secret`, which binds each value to its `user_id`.
     secret_encrypted: Mapped[str] = mapped_column(String(255))
-    # Enrollment is two-step: the credential only counts once a generated code
+    # Enrolment is two-step: the credential only counts once a generated code
     # has been confirmed, so a mis-scanned QR code cannot lock a user out.
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

@@ -32,7 +32,7 @@ FRESHNESS = (
     summary="Is an authenticator set up?",
     description=(
         "`enrolled` is true only once a generated code has been confirmed — a "
-        "half-finished enrollment is not an authenticator.\n\n"
+        "half-finished enrolment is not an authenticator.\n\n"
         "**Required scope:** `entity:totp:read`"
     ),
     dependencies=[READ],
