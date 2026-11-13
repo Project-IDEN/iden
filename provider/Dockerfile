@@ -18,7 +18,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
 
-FROM python:3.15.0-slim-trixie
+# Same minor Python as the builder stage: the venv is copied across, and its
+# packages sit in lib/python3.14, where no other version looks for them.
+FROM python:3.14.10-slim-trixie
 
 # Not root. A container that is compromised should not also be privileged.
 RUN useradd --create-home --uid 1000 iden

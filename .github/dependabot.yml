@@ -26,6 +26,11 @@ updates:
       - "/web/dashboard"
     schedule:
       interval: weekly
+    # A new Python minor has to move with the uv builder image, .python-version
+    # and requires-python together, so it is done by hand; patches still come.
+    ignore:
+      - dependency-name: python
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   - package-ecosystem: docker-compose
     directories: ["/deploy", "/kiosk/deploy"]

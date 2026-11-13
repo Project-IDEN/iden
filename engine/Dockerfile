@@ -20,7 +20,9 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-default-groups --group cpu
 
 
-FROM python:3.15.0-slim-trixie AS cpu
+# Same minor Python as the builder stage: the venv is copied across, and its
+# packages sit in lib/python3.14, where no other version looks for them.
+FROM python:3.14.10-slim-trixie AS cpu
 
 RUN useradd --create-home --uid 1000 iden
 WORKDIR /app
