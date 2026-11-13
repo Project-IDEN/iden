@@ -41,14 +41,15 @@ The kiosks are separate devices again, with their own [install](kiosks.md).
 
 ## Order of operations
 
-Three steps, always in this order. With Compose, the first and third happen on their own — the
-`migrate` service runs before the provider starts — and you run only the seed:
+Three steps: (1) create or update the schema, (2) seed it, (3) run the provider. Run from source,
+you do them in that order. With Compose, `up -d` does (1) and (3) for you — the `migrate` service
+finishes before the provider starts — and you then run the seed against the running provider:
 
 === "Compose"
 
     ```bash
-    docker compose -f deploy/docker-compose.yml up -d                            # 1 and 3
-    docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed   # 2
+    docker compose -f deploy/docker-compose.yml up -d                                  # schema, then provider
+    docker compose -f deploy/docker-compose.yml exec provider python -m scripts.seed   # seed
     ```
 
 === "Running it directly"
@@ -236,7 +237,15 @@ docker compose -f deploy/docker-compose.yml exec provider python -m scripts.clea
 
 From source, `uv run python -m scripts.cleanup` in `provider/`.
 
-Cron, a Kubernetes `CronJob`, or a systemd timer — daily is plenty. It is not an in-process
+Cron, a Kubernetes `CronJob`, or a systemd timer — daily is plenty. With cron, run `crontab -e` and
+add a line like this one, which runs it at 04:15 every night; replace `/srv/iden` with the
+directory you cloned the repository into:
+
+```text
+15 4 * * * cd /srv/iden && docker compose -f deploy/docker-compose.yml exec -T provider python -m scripts.cleanup
+```
+
+It is not an in-process
 background task on purpose: every replica would race on the same rows, and a job you cannot run by
 hand is a job you cannot debug.
 

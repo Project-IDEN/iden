@@ -57,7 +57,9 @@ Where it stands matters as much as what it is:
 **On your laptop**, or any machine with Docker — Linux, macOS or Windows, x86 or ARM. One image
 serves every kiosk; it is built once and pulled by each.
 
-Log in to the registry the image will live in, then run `kiosk/build.sh` from your clone:
+Log in to the registry the image will live in, then run `kiosk/build.sh` from the repository root.
+Replace `<you>` with your GitHub user or organization name, in lower case. `docker login` asks for
+that name and, as the password, a GitHub personal access token with the `write:packages` scope:
 
 ```bash
 docker login ghcr.io
@@ -98,7 +100,8 @@ sudo docker login ghcr.io
 ## 2. Install on the Pi
 
 **On the Pi.** Start from a fresh Raspberry Pi OS with desktop, signed in as the user the screen
-will run as (`pi` here). Copy `kiosk/deploy/` from your clone onto it, for example from your laptop:
+will run as (`pi` here). Copy `kiosk/deploy/` from your clone onto it, for example from your
+laptop, where `kiosk.local` is the Pi's hostname or IP address:
 
 ```bash
 scp -r kiosk/deploy pi@kiosk.local:
@@ -255,11 +258,17 @@ two minutes, it closes itself — the pairing screen too — and the kiosk goes 
 
 ## Develop without a Pi
 
-On your laptop, with the provider running from source:
+On your laptop, with the provider running from source. Start the two halves in two terminals,
+each from the repository root:
 
 ```bash
-cd kiosk/server && uv sync && KIOSK_ISSUER=http://localhost:8000 uv run kiosk-server   # :8080
-cd kiosk/client && pnpm install && pnpm dev                                           # :5180
+# Terminal 1: the kiosk server, on :8080
+cd kiosk/server && uv sync && KIOSK_ISSUER=http://localhost:8000 uv run kiosk-server
+```
+
+```bash
+# Terminal 2: the kiosk app, on :5180
+cd kiosk/client && pnpm install && pnpm dev
 ```
 
 Open `http://localhost:5180`; Vite passes `/api` to the kiosk server. The laptop's webcam stands in

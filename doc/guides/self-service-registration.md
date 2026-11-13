@@ -39,9 +39,14 @@ their token is not even issued for the `admin` audience.
 
 ## Granting it
 
-The `developer` role is seeded with the catalogue. For a handful of people, assign it directly:
+The `developer` role is seeded with the catalogue. For a handful of people, assign it directly.
+First look up the person's id and the role's id —
+[how](index.md#where-the-ids-in-the-examples-come-from) — and save them:
 
 ```bash
+export USER_ID=<the person's id>
+export DEVELOPER_ROLE_ID=<the developer role's id>
+
 curl -X PUT http://localhost:8000/admin/users/$USER_ID/roles \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -H "Content-Type: application/json" \

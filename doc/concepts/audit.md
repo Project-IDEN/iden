@@ -13,8 +13,8 @@ Any non-`GET` request to `/admin/*`, `/entity/*`, `/developer/*`, `/biometric/*`
 or `/oauth2/revoke` — plus `GET /oauth2/logout`, which is a `GET` by specification and still destroys
 a session.
 
-Reads are not recorded. An audit log nobody can read through is one nobody reads, and `GET` volume
-would bury the writes.
+Reads are not recorded. There are far more of them than writes, and a log that recorded every `GET`
+would bury the changes it exists to show.
 
 Two writes are deliberately excluded because they are routine. `POST /oauth2/token`: a refresh
 happens every few minutes for every active session, and the sign-in that authorised it is already in
@@ -29,7 +29,7 @@ dashboard.
 | `target` | The object acted on, taken from the path. |
 | `statusCode` | Refused attempts are recorded too. A wall of `403`s from one actor is the signal you want. |
 | `actorUserId`, `actorLabel`, `actorClient` | Who, by id, by email *at the time*, and through which application. |
-| `ip` | The socket address. `X-Forwarded-For` is recorded in the detail but not trusted — a header the caller sets is a claim, not an observation. |
+| `ip` | The caller's address. That is the address of the connection, unless it comes from a proxy named in `IDEN_FORWARDED_ALLOW_IPS` — then it is the address that proxy reports. Any `X-Forwarded-For` header is also copied into `detail` as received, but only as a record: a header anyone can set is a claim, not an observation. |
 | `detail` | The request body with secrets removed, plus path parameters. |
 
 ## Two design points

@@ -9,7 +9,7 @@ Seven, all run from `provider/` as `uv run python -m scripts.<name>`.
 
 | Script | Does |
 |---|---|
-| `gen_keys` | Writes a date-stamped RSA signing key and, beside it, `totp.key` — which encrypts TOTP secrets at rest — and `engine.token`, which the provider presents to the biometric engine. Refuses to overwrite any of them. |
+| `gen_keys` | Writes a date-stamped RSA signing key and, beside it, `totp.key` — which encrypts TOTP secrets at rest — and `engine.token`, which the provider presents to the biometric engine. Never overwrites a file: it writes only what is missing, so running it on a later day adds a new signing key — which is how [rotation](../reference/configuration.md#rotating-a-signing-key) starts. |
 | `seed` | Upserts the system catalogue, the dashboard's client, and the bootstrap administrator. Idempotent, and refuses to run against an unmigrated database. |
 | `reset` | Drops the schema, flushes Redis, migrates, and seeds. Asks first; `--yes` skips the prompt. Refuses when `IDEN_ENV=prod`. |
 | `cleanup` | Deletes expired authorization codes and refresh tokens. `--dry-run` counts instead. Meant for a schedule — see [Deployment](../operations/deployment.md#housekeeping). |

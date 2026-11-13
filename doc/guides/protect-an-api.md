@@ -17,9 +17,14 @@ Any language with a JWT library can do this; the steps are the same everywhere.
 curl -X POST http://localhost:8000/admin/apis \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
   -d '{"name": "attendance", "audience": "https://api.example.org/attendance"}'
+```
 
-# One permission under it
-curl -X POST http://localhost:8000/admin/apis/{id}/scopes \
+The response includes the new API's `"id"`. Save it, then define a permission under it:
+
+```bash
+export API_ID=<the "id" from the response>
+
+curl -X POST http://localhost:8000/admin/apis/$API_ID/scopes \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
   -d '{"value": "attendance:records:read", "description": "View attendance records."}'
 ```
@@ -38,6 +43,9 @@ Cache them. Refetch when you see a `kid` you do not recognise — that is how ke
 without a redeploy.
 
 ## 3. Validate every request
+
+In Python, with [PyJWT](https://pyjwt.readthedocs.io/) (`pip install "pyjwt[crypto]"`). Replace
+the two `localhost` addresses with your issuer outside a laptop install:
 
 ```python
 import jwt

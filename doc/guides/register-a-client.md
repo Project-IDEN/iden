@@ -54,8 +54,20 @@ curl -X POST http://localhost:8000/admin/clients \
     "postLogoutRedirectUris": ["https://library.example.org/"],
     "backchannelLogoutUri": "https://library.example.org/backchannel-logout",
     "skipConsent": false,
-    "grantableScopeIds": ["<scope uuid>"]
+    "grantableScopeIds": ["<scope id>"]
   }'
+```
+
+Replace `<scope id>` with the `id` of each of your own API's scopes the application may request, or
+send an empty list `[]` if it needs only sign-in (`openid`, `profile`, `email`, `offline_access`
+need no id). [Where ids come from](index.md#where-the-ids-in-the-examples-come-from) shows how to
+list them.
+
+The response includes `"id"`, the client's UUID. Save it, because the calls below need it in their
+path:
+
+```bash
+export CLIENT_ID_UUID=<the "id" from the response>
 ```
 
 ### The fields that matter
@@ -87,7 +99,7 @@ The consent screen shows the application's logo beside its name. It is uploaded 
 client exists — the dashboard does both in one step:
 
 ```bash
-curl -X PUT http://localhost:8000/admin/clients/$ID/logo \
+curl -X PUT http://localhost:8000/admin/clients/$CLIENT_ID_UUID/logo \
   -H "Authorization: Bearer $ADMIN_TOKEN" \
   -F "file=@logo.png"
 ```
@@ -153,7 +165,7 @@ Returned **once**, on creation, and hashed immediately. IDEN cannot show it to y
 
 ```bash
 # Rotate — the new secret is returned once, the old stops working immediately
-curl -X POST http://localhost:8000/admin/clients/{id}/rotate-secret \
+curl -X POST http://localhost:8000/admin/clients/$CLIENT_ID_UUID/rotate-secret \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 

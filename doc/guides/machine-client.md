@@ -21,9 +21,12 @@ curl -X POST http://localhost:8000/admin/clients \
     "name": "Attendance sync job",
     "clientType": "confidential",
     "allowedGrants": ["client_credentials"],
-    "grantedScopeIds": ["<scope uuid>"]
+    "grantedScopeIds": ["<scope id>"]
   }'
 ```
+
+Replace `<scope id>` with the `id` of each scope the job needs, here `attendance:records:write` —
+[how to find it](index.md#where-the-ids-in-the-examples-come-from).
 
 Two things differ from a [web application](web-application.md):
 
@@ -33,7 +36,12 @@ Two things differ from a [web application](web-application.md):
   right**, not ones it may request on someone's behalf. The distinction is the whole difference
   between the two flows.
 
-The response contains `clientSecret`, shown **once**.
+The response contains `clientSecret`, shown **once**, and `id`, the client's UUID. Keep both:
+
+```bash
+export CLIENT_SECRET='<the clientSecret from the response>'
+export CLIENT_ID_UUID=<the "id" from the response>
+```
 
 ## Get a token
 
@@ -62,7 +70,7 @@ entries attributed to `attendance-sync` are correct, not a bug.
 ## Rotating the secret
 
 ```bash
-curl -X POST http://localhost:8000/admin/clients/{id}/rotate-secret \
+curl -X POST http://localhost:8000/admin/clients/$CLIENT_ID_UUID/rotate-secret \
   -H "Authorization: Bearer $ADMIN_TOKEN"
 ```
 

@@ -69,13 +69,15 @@ The only difference that matters is `userWritable`. It decides which endpoint ca
 
 ## A field only some people have
 
-Bind it to a group and it applies only to members. The same `POST /admin/profile-fields` as above,
-with this body:
+Bind it to a group and it applies only to members. `$GROUP_ID` is the group's `id`, shown on its
+page in the dashboard or listed by `GET /admin/groups`:
 
 ```bash
--d '{"key": "enrollment_year", "label": "Year of enrolment",
-     "dataType": "integer", "groupId": "<Students group id>",
-     "validators": {"min": 1900, "max": 2100}}'
+curl -X POST http://localhost:8000/admin/profile-fields \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"key": "enrollment_year", "label": "Year of enrolment",
+       "dataType": "integer", "groupId": "'$GROUP_ID'",
+       "validators": {"min": 1900, "max": 2100}}'
 ```
 
 Staff never see it. Students see it in `GET /entity/profile/schema`, and a dashboard renders the form
@@ -87,8 +89,10 @@ By default, no application ever sees a custom field. To release one, create it w
 the permission that releases it:
 
 ```bash
--d '{"key": "department", "label": "Department",
-     "claimName": "department", "claimScope": "profile"}'
+curl -X POST http://localhost:8000/admin/profile-fields \
+  -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
+  -d '{"key": "department", "label": "Department",
+       "claimName": "department", "claimScope": "profile"}'
 ```
 
 Now `department` appears in ID tokens and `/oauth2/userinfo` — but only for applications granted the
@@ -102,7 +106,9 @@ shadow a claim a token's meaning depends on.
 
 === "As the person"
 
-    With the person's own access token, as their application would send it.
+    With the person's own access token, as their application would send it. To try it by hand,
+    sign in to the dashboard as that person and copy their token the same way as
+    [`$ADMIN_TOKEN`](index.md#calling-the-admin-api-yourself), into `$USER_TOKEN`.
 
     ```bash
     curl -X PATCH http://localhost:8000/entity/profile \
@@ -112,8 +118,11 @@ shadow a claim a token's meaning depends on.
 
 === "As an administrator"
 
+    `$USER_ID` is the person's `id` —
+    [how to look it up](index.md#where-the-ids-in-the-examples-come-from).
+
     ```bash
-    curl -X PATCH http://localhost:8000/admin/users/{id}/profile \
+    curl -X PATCH http://localhost:8000/admin/users/$USER_ID/profile \
       -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
       -d '{"fields": {"student_id": "12345678"}}'
     ```

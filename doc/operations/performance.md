@@ -71,13 +71,17 @@ uv installs the script's one dependency on the first run. `--url` defaults to
 | `token` | `POST /oauth2/token`, `client_credentials` | Client authentication, which is argon2 and costs 64 MiB and real CPU every time. | `--client-id`, `--client-secret` |
 | `engine-verify` | `POST /verify` on the engine | One face sign-in: three frames, detection, anti-spoofing and a match. | `--url` of the engine; `--token` with its token if it has one |
 
-**A token for `sessions` and `permissions`.** On the provider's host:
+**A token for `sessions` and `permissions`.** On the provider's host, from the repository root, with
+`EMAIL` set to the address of an existing account (`admin@localhost` on a laptop install):
 
 ```bash
-docker compose exec -e EMAIL=admin@example.com provider python -m scripts.mint_token
-# from source, in provider/:
-EMAIL=admin@example.com uv run python -m scripts.mint_token
+docker compose -f deploy/docker-compose.yml exec -e EMAIL=admin@localhost provider \
+  python -m scripts.mint_token
+# or, running the provider from source, in provider/:
+EMAIL=admin@localhost uv run python -m scripts.mint_token
 ```
+
+Pass what it prints to the load test as `--token`.
 
 It prints an access token for that person, valid for an hour (`TTL=` in seconds changes that).
 Signing in through the browser for every virtual user would measure the sign-in, not the route.
@@ -86,16 +90,23 @@ The token is a real credential for that person until it expires, so treat it lik
 **A client for `token`.** Register a machine client in the dashboard and pass its id and secret
 (`IDEN_CLIENT_SECRET` in the environment keeps the secret out of your shell history). The token
 endpoint allows 120 requests a minute from one address, so a load test against it measures the rate
-limiter unless you set `IDEN_RATE_LIMIT_ENABLED=false` in `deploy/.env` and restart the provider,
-for the duration of the test only. A run that hits the limit says so.
+limiter unless you turn the limiter off for the duration of the test: add
+`IDEN_RATE_LIMIT_ENABLED=false` to `deploy/.env` and run `docker compose -f deploy/docker-compose.yml
+up -d` (not `restart`, which keeps the old setting). Remove the line and run `up -d` again
+afterwards. A run that hits the limit says so.
 
 **Reaching the engine.** On the provider's host the engine publishes no port. Measure it where it
 runs on a machine of its own (`engine/deploy/`, which publishes `ENGINE_PUBLISH`, 8000 by default),
-or start it from source on the machine you are sizing:
+or start it from source on the machine you are sizing. In one terminal, from the repository root:
 
 ```bash
-cd engine && uv run uvicorn engine.app:app --port 8001
-uv run perf/loadtest.py engine-verify --url http://localhost:8001
+cd engine && uv run uvicorn engine.app:app --port 8002
+```
+
+and in a second terminal, also from the repository root:
+
+```bash
+uv run perf/loadtest.py engine-verify --url http://localhost:8002
 ```
 
 The scenario first asks the engine to embed the photo, then compares every capture against that

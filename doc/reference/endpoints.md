@@ -6,6 +6,14 @@ current. Production withholds it.
 
 Every `/admin/*`, `/entity/*`, `/developer/*` and `/biometric/*` route is gated by a permission named in its description there. The face routes exist only with `IDEN_BIOMETRIC_ENABLED`.
 
+!!! note "Which value goes in `{client_id}`"
+    Under `/admin/*` and `/developer/*`, an id in a path is the UUID IDEN returned as `id` when the
+    thing was created. That includes `/admin/clients/{client_id}` and
+    `/developer/clients/{application_id}`: they take the client's UUID `id`, not its `clientId`
+    string such as `library`. The one route that takes the `clientId` string is
+    `DELETE /entity/connections/{client_id}`. See
+    [where the ids come from](../guides/index.md#where-the-ids-in-the-examples-come-from).
+
 ### Admin — apis
 
 | Method | Path | Purpose |

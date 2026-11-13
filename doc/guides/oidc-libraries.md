@@ -33,7 +33,7 @@ Set these explicitly if your library asks:
 
 ## Browser single-page app
 
-Public client, PKCE, tokens in memory.
+Public client, PKCE, tokens in `sessionStorage` rather than `localStorage`.
 
 === "oidc-client-ts"
 
@@ -52,8 +52,9 @@ Public client, PKCE, tokens in memory.
       automaticSilentRenew: true,
       silent_redirect_uri: "https://library.example.org/silent-renew",
 
-      // Session state, not tokens. Tokens stay in memory — anything in
-      // localStorage is readable by any script on the page.
+      // The signed-in user, tokens included, is kept in sessionStorage: one tab
+      // only, gone when the tab closes. Avoid localStorage, which outlives the
+      // tab and is shared by every tab on the origin.
       userStore: new WebStorageStateStore({ store: window.sessionStorage }),
     });
     ```

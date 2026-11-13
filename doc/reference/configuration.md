@@ -80,6 +80,24 @@ for as long as the container lives, where `docker inspect` reads it.
 | `IDEN_FACE_TICKET_TTL` | `900` (15 min) | How long the QR code that lets a kiosk enrol someone's face stays usable. |
 | `IDEN_KIOSK_PAIRING_TTL` | `900` (15 min) | How long the code that pairs a new kiosk device stays usable. |
 
+## Docker Compose only
+
+Read by Docker Compose from `deploy/.env`, not by the provider. They configure the containers
+around it.
+
+| Variable | Default | Notes |
+|---|---|---|
+| `IDEN_UID`, `IDEN_GID` | `1000` | The user and group the provider and the engine run as. `provider/keys` is readable only by the user that generated it, so set these to that user's `id -u` and `id -g`. The install pages write them for you — see [step 3 of the laptop install](../guides/local-docker.md#3-tell-compose-who-owns-the-keys). |
+| `IDEN_POSTGRES_PASSWORD` | `iden` | PostgreSQL's password, also written into the provider's database URL. Set it before the first `up`: the volume keeps the one it was created with. |
+| `IDEN_REDIS_PASSWORD` | `iden` | Redis's password, also written into the provider's Redis URL. |
+| `IDEN_S3_ACCESS_KEY`, `IDEN_S3_SECRET_KEY` | `iden`, `idensecret` | SeaweedFS's credentials, passed to the provider as its S3 credentials. |
+| `IDEN_ENGINE_WORKERS` | `1` | Passed to the engine as `ENGINE_WORKERS`. |
+| `CLOUDFLARE_TUNNEL_TOKEN` | *none* | The tunnel overlay only. See [Behind a Cloudflare Tunnel](../operations/cloudflare-tunnel.md#2-create-the-tunnel). |
+
+The engine's own Compose files in `engine/deploy/` read `engine/deploy/.env` the same way:
+`ENGINE_UID` and `ENGINE_GID` (as above, for `engine.token`), `ENGINE_PUBLISH` (the address and port
+it listens on, `127.0.0.1:8000` by default), `ENGINE_ENV` and `ENGINE_WORKERS`.
+
 ## The biometric engine
 
 Read by the `engine` service, not the provider. Every engine compose file sets the token, the model
@@ -176,5 +194,15 @@ keys/
   iden-20260801.pem     ← now signing
 ```
 
+To make the new key, run `scripts.gen_keys` again, the same command as at install (for Docker, the
+`docker run` in [step 2 of the laptop install](../guides/local-docker.md#2-generate-the-keys)). It
+names the key after today's date and leaves every existing file alone, so it writes a new key only
+on a day that has none yet. Then restart the provider, which reads the keys only at start-up:
+
+```bash
+docker compose -f deploy/docker-compose.yml restart provider
+```
+
 Keep the old key in place until every token signed with it has expired — it is still published in
-JWKS, so tokens already issued keep validating. Then delete it.
+JWKS, so tokens already issued keep validating. Then delete it. The
+[warning in Deployment](../operations/deployment.md#signing-keys) explains the five minutes to wait.

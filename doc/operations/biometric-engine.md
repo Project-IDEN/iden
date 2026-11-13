@@ -70,9 +70,10 @@ of this one-off container, and not of the engine, which Compose starts with the 
 Read the [model licences](../concepts/biometrics.md#the-models) before you go further: the default
 models are for non-commercial research only.
 
-**4. Turn the module on** in `deploy/.env`:
+**4. Turn the module on.** Open `deploy/.env` in a text editor and set this line (it is already in
+the file if you copied `deploy/.env.example`, set to `false`; otherwise add it):
 
-```bash
+```text
 IDEN_BIOMETRIC_ENABLED=true
 ```
 
@@ -139,21 +140,34 @@ engine's folder holds everything it needs — its code, its `Dockerfile` and its
       --entrypoint python iden-engine-engine:latest -m scripts.fetch_models
     ```
 
-3. **Copy the engine token** from the provider's host, so both sides hold the same one. From the
-   provider's host:
+3. **Copy the engine token** from the provider's host, so both sides hold the same one. Run this
+   **on the provider's host**, from its repository root. Replace `<engine-host>` with the engine
+   machine's address or SSH name, and `<path>` with where the `engine` folder is on it
+   (`~/iden/engine` for a clone in the home directory):
 
     ```bash
-    scp provider/keys/engine.token <engine-host>:engine/deploy/engine.token
+    scp provider/keys/engine.token <engine-host>:<path>/deploy/engine.token
     ```
 
-    The copy is readable by its owner alone, and the engine runs as uid 1000. If `id -u` on the
-    engine's machine is not 1000, set `ENGINE_UID` and `ENGINE_GID` in step 4's `.env`.
+4. **Write the engine's settings**, back on the engine's machine, in `engine/deploy/`:
 
-4. **Choose where it listens.** `cp .env.example .env`, and set `ENGINE_PUBLISH` to the engine
-   machine's private address and a port: `10.0.0.5:8000`. Left unset it listens on `127.0.0.1`
-   alone, which the provider on another machine cannot reach. Never set a port alone: that listens
-   on every interface, and Docker's published ports bypass host firewalls such as `ufw`, so the
-   address is what keeps it private.
+    ```bash
+    cp .env.example .env
+    printf 'ENGINE_UID=%s\nENGINE_GID=%s\n' "$(id -u)" "$(id -g)" >> .env
+    ```
+
+    The second line lets the engine read the token, which is readable only by the user that copied
+    it. Then open `.env` in a text editor and change `ENGINE_PUBLISH` to this machine's private
+    address and a port, for example:
+
+    ```text
+    ENGINE_PUBLISH=10.0.0.5:8000
+    ```
+
+    Left at `127.0.0.1:8000`, it listens on this machine alone, and the provider on the other
+    machine cannot reach it. Never set a port alone (`8000`): that listens on every interface, and
+    Docker's published ports bypass host firewalls such as `ufw`, so the address is what keeps it
+    private.
 
 5. **Start it:**
 
@@ -162,9 +176,10 @@ engine's folder holds everything it needs — its code, its `Dockerfile` and its
     docker compose -f compose.cpu.yml logs | grep "Engine ready"
     ```
 
-**On the provider's host,** point the provider at it in `deploy/.env`, and turn the module on:
+**On the provider's host,** open `deploy/.env` in a text editor, turn the module on, and point the
+provider at the engine, using the address you gave `ENGINE_PUBLISH`:
 
-```bash
+```text
 IDEN_BIOMETRIC_ENABLED=true
 IDEN_ENGINE_BASE_URL=http://10.0.0.5:8000
 ```

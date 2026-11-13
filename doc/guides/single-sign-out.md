@@ -14,10 +14,13 @@ That "something" is a **logout token**, delivered server-to-server when the sess
 ## 1. Register a back-channel URL
 
 ```bash
-curl -X PATCH http://localhost:8000/admin/clients/{id} \
+curl -X PATCH http://localhost:8000/admin/clients/$CLIENT_ID_UUID \
   -H "Authorization: Bearer $ADMIN_TOKEN" -H "Content-Type: application/json" \
   -d '{"backchannelLogoutUri": "https://library.example.org/backchannel-logout"}'
 ```
+
+`$CLIENT_ID_UUID` is your client's `id` from its registration response, not its `clientId` —
+[how to look it up](index.md#where-the-ids-in-the-examples-come-from).
 
 Leave it null and your application is never told. That is the behaviour of a client that has not
 implemented this yet — not an error, just a gap.

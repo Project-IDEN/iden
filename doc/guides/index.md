@@ -67,3 +67,39 @@ can do whatever you can.
 
 For a script that runs unattended, register a [machine client](machine-client.md) holding only the
 permissions that script needs, rather than borrowing a person's token.
+
+### Where the ids in the examples come from
+
+Paths such as `/admin/clients/{id}` and fields such as `grantableScopeIds` take an **`id`**: a UUID
+that IDEN generated when the thing was created, like `0b9e4c2a-…`. It is returned as `"id"` in the
+response to the call that created it, and shown in the dashboard. It is never a name you chose:
+for a client, `{id}` is **not** its `clientId` (`library`).
+
+To look one up, list the things of that kind and pick out the `id`. These use
+[`jq`](https://jqlang.org/); without it, read the `"id"` from the JSON by eye:
+
+```bash
+# A client's id, from its clientId
+curl -s http://localhost:8000/admin/clients -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.items[] | select(.clientId == "library") | .id'
+
+# An API's id, from its name
+curl -s http://localhost:8000/admin/apis -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.items[] | select(.name == "attendance") | .id'
+
+# The ids of that API's scopes, with their values
+curl -s http://localhost:8000/admin/apis/$API_ID/scopes -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.items[] | "\(.id)  \(.value)"'
+
+# A role's id, from its name
+curl -s http://localhost:8000/admin/roles -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.items[] | select(.name == "developer") | .id'
+
+# A person's id, from part of their email
+curl -s "http://localhost:8000/admin/users?search=sarah" -H "Authorization: Bearer $ADMIN_TOKEN" \
+  | jq -r '.items[] | "\(.id)  \(.email)"'
+```
+
+Save the one you need in a shell variable, such as `export CLIENT_ID_UUID=0b9e4c2a-…`, and the
+examples that use `$CLIENT_ID_UUID` work as written. Replace `localhost:8000` with your issuer
+when you are not on a laptop install.

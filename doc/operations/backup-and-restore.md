@@ -32,7 +32,8 @@ docker compose -f deploy/docker-compose.yml exec -T postgres \
 `-Fc` is PostgreSQL's custom format: compressed, and restorable selectively. A seeded deployment
 with no people in it is about 44 KB, so this stays small for a long time.
 
-**Check the dump is readable** rather than trusting that it was written:
+**Check the dump is readable** rather than trusting that it was written. Here and below,
+`iden-2026-09-10.dump` stands for your own dump's file name:
 
 ```bash
 docker compose -f deploy/docker-compose.yml exec -T -i postgres \
@@ -56,7 +57,8 @@ Then put it somewhere you would be comfortable keeping a password — not beside
 
 ### Scheduling it
 
-A cron entry, a systemd timer, or whatever your organization already runs:
+Save this script on the server as `/usr/local/bin/iden-backup`. Change `/srv/iden` to the directory
+you cloned the repository into, and `/backup/iden` to where the dumps should go:
 
 ```bash
 #!/bin/sh
@@ -74,6 +76,21 @@ find "$out" -name 'iden-*.dump' -mtime +30 -delete
 
 `set -e` matters: without it, a failed dump leaves yesterday's file in place and the job reports
 success.
+
+Make it runnable, then run it every night with cron (`crontab -e`, as a user allowed to run
+`docker`) — this line runs it at 03:00:
+
+```bash
+sudo chmod +x /usr/local/bin/iden-backup
+```
+
+```text
+0 3 * * * /usr/local/bin/iden-backup
+```
+
+Run `/usr/local/bin/iden-backup` once by hand first, and check a dump appeared in `/backup/iden`.
+The keys are not in this script on purpose: they change only when you rotate them, so back them up
+by hand then, to somewhere else.
 
 ## Restoring
 
@@ -123,10 +140,15 @@ Never test by restoring over production. Restore on **another machine** instead.
 The Compose file publishes fixed ports on `127.0.0.1`, which the live deployment already holds, so
 the test can't run next to it. On the test machine:
 
-- Clone the repository, and **don't** create `deploy/.env`. The test copy runs with laptop defaults
-  on `localhost`.
-- Extract the key backup into `provider/keys/`. Restoring the keys is part of the test: without the
-  same `totp.key`, nobody with an authenticator can sign in.
+- Clone the repository, and **don't** copy your production `deploy/.env`. The test copy runs with
+  laptop defaults on `localhost`.
+- Extract the key backup into `provider/keys/`, from the repository root:
+  `tar xzf iden-keys-2026-09-10.tar.gz -C provider` (your file name). Restoring the keys is part of
+  the test: without the same `totp.key`, nobody with an authenticator can sign in.
+- Tell Compose who owns the extracted keys, as in the
+  [laptop install](../guides/local-docker.md#3-tell-compose-who-owns-the-keys):
+  `printf 'IDEN_UID=%s\nIDEN_GID=%s\n' "$(id -u)" "$(id -g)" >> deploy/.env`. That is the only
+  line `deploy/.env` should hold.
 
 The `-p` below gives the test its own project name and volumes, so it can't touch anything else on
 that machine either:

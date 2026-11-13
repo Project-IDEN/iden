@@ -147,9 +147,11 @@ Cloudflare creates the DNS record for you.
 cp deploy/.env.example deploy/.env
 ```
 
-Every value is explained in the file. Edit these:
+Open `deploy/.env` in a text editor. Every value is explained in a comment above it. Change the
+values below to your own, replacing `iden.example.org` and `example.org` with your hostname and
+your mail domain, and leave the rest of the file as it is:
 
-```bash
+```text
 # The hostname: all three are the same origin.
 IDEN_ENV=prod
 IDEN_ISSUER=https://iden.example.org
@@ -172,13 +174,14 @@ IDEN_S3_SECRET_KEY=...
 CLOUDFLARE_TUNNEL_TOKEN=<the token from step 2>
 ```
 
-Generate each of the four store credentials separately:
+For the four store credentials, run this command four times, and paste each output after the `=`
+of one of the four lines, so that each has its own value:
 
 ```bash
 openssl rand -hex 24
 ```
 
-Use hex so the values are safe inside a URL. The PostgreSQL and Redis passwords end up in connection
+Hex keeps the values safe inside a URL. The PostgreSQL and Redis passwords end up in connection
 strings, where a `/` or `+` from base64 would break them.
 
 What each group does:
@@ -226,9 +229,16 @@ Wrote engine token: /keys/engine.token
 `mkdir` and `--user` are required on Linux. The image runs as uid 1000, and without them Docker
 creates the directory as `root` and the generator fails with `Permission denied`.
 
-The keys are now readable by you alone, and the provider and engine run as uid 1000 unless told
-otherwise. If `id -u` is not 1000, add `IDEN_UID` and `IDEN_GID` to `deploy/.env`, set to the numbers
-`id -u` and `id -g` print.
+The keys are now readable by your user alone, so the provider and engine containers must run as
+your user too. Compose takes it from `IDEN_UID` and `IDEN_GID` in `deploy/.env`. Append your own
+ids to that file:
+
+```bash
+printf 'IDEN_UID=%s\nIDEN_GID=%s\n' "$(id -u)" "$(id -g)" >> deploy/.env
+```
+
+**Check it worked:** `tail -n 2 deploy/.env` shows `IDEN_UID=` and `IDEN_GID=` followed by the
+numbers `id -u` and `id -g` print. Run it once only; a second run adds the lines again.
 
 !!! danger "Back up `provider/keys/` now, separately from the database"
     Anyone who can read the `.pem` can mint a token for anyone. Losing it signs everyone out.
@@ -265,8 +275,14 @@ docker compose -f deploy/docker-compose.yml \
                -f deploy/docker-compose.tunnel.yml ps -a
 ```
 
-Eight services running, and `migrate` exited with code `0`. If `migrate` failed, read its log with
-`... logs migrate`. A line starting `Refusing to start with an unsafe configuration` lists exactly
+Eight services running, and `migrate` exited with code `0`. If `migrate` failed, read its log:
+
+```bash
+docker compose -f deploy/docker-compose.yml \
+               -f deploy/docker-compose.tunnel.yml logs migrate
+```
+
+A line starting `Refusing to start with an unsafe configuration` lists exactly
 which settings in `deploy/.env` need fixing.
 
 Then check the provider through nginx, without the round trip out to Cloudflare:
@@ -469,9 +485,15 @@ It prints `UPDATE 1`. `UPDATE 0` means there is no `dashboard` client yet: run t
 *malformed array literal*.
 
 **The store passwords.** PostgreSQL and SeaweedFS keep the credential their volume was initialised
-with, so a laptop volume still uses the published `iden`, and `prod` refuses to start on that. Change
-the database password first, with `alter user iden password '<new value>';` in the same `psql`,
-and then put the same value in `deploy/.env` as `IDEN_POSTGRES_PASSWORD`. SeaweedFS holds only
+with, so a laptop volume still uses the published `iden`, and `prod` refuses to start on that.
+Change the database password first, replacing `<new value>` with the value you generated:
+
+```bash
+docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tunnel.yml \
+  exec -T postgres psql -U iden -d iden -c "alter user iden password '<new value>';"
+```
+
+Then put the same value in `deploy/.env` as `IDEN_POSTGRES_PASSWORD` and run `up -d`. SeaweedFS holds only
 profile photos. If you can lose them, remove its volume
 (`docker volume rm iden-dev_seaweedfs-data`) before the next `up`.
 
@@ -574,17 +596,20 @@ Every command needs both files, which gets tedious. Set this once per shell, or 
 export COMPOSE_FILE=deploy/docker-compose.yml:deploy/docker-compose.tunnel.yml
 ```
 
-Then `docker compose ps`, `docker compose logs -f cloudflared` and the rest work unqualified. The
-examples below spell the flags out, so they work either way.
+Then `docker compose ps`, `docker compose logs -f cloudflared` and the rest work without the `-f`
+flags. The table assumes you have set it:
 
 | To | Run |
 |---|---|
-| See what is up | `docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.tunnel.yml ps` |
-| Follow the tunnel | `... logs -f cloudflared` |
-| Follow the application | `... logs -f provider` |
-| Apply a change to `deploy/.env` | `... up -d` — **not `restart`** |
-| Apply a change to `nginx/iden.conf` | `... restart nginx` |
-| Deploy a new version | `git pull && ... up -d --build` |
+| See what is up | `docker compose ps` |
+| Follow the tunnel | `docker compose logs -f cloudflared` |
+| Follow the application | `docker compose logs -f provider` |
+| Apply a change to `deploy/.env` | `docker compose up -d` — **not `restart`** |
+| Apply a change to `nginx/iden.conf` | `docker compose restart nginx` |
+| Deploy a new version | `git pull && docker compose up -d --build` |
+
+Without `COMPOSE_FILE`, put `-f deploy/docker-compose.yml -f deploy/docker-compose.tunnel.yml`
+after `docker compose` in each.
 
 !!! warning "`restart` does not re-read `deploy/.env`"
     Compose fixes a container's environment when it is **created**. `restart` starts the same

@@ -6,6 +6,9 @@ truncated between tests, and Redis logical database 15, flushed around every tes
 Not SQLite. The models use PostgreSQL arrays, UUIDs, JSONB, and partial indexes, and a test that
 passes on a different engine than production proves less than it appears to.
 
+Start PostgreSQL and Redis first, as in [Run the provider from source](../guides/quickstart.md#start-the-backing-services);
+the suite creates `iden_test` itself. Then, from `provider/`:
+
 ```bash
 uv run pytest
 uv run pytest tests/test_sso.py -v

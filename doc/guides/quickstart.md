@@ -37,7 +37,7 @@ frontends in containers, and their published ports would collide with the ones y
 cd provider
 
 uv sync                              # install dependencies
-cp .env.example .env                 # then read it — every setting is commented
+cp .env.example .env                 # works as copied; no edits needed
 
 uv run python -m scripts.gen_keys    # signing key, totp.key, engine.token; the provider needs them
 uv run alembic upgrade head          # create the schema

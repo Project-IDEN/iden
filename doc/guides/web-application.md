@@ -23,9 +23,13 @@ curl -X POST http://localhost:8000/admin/clients \
     "postLogoutRedirectUris": ["https://library.example.org/"],
     "backchannelLogoutUri": "https://library.example.org/backchannel-logout",
     "skipConsent": false,
-    "grantableScopeIds": ["<scope uuid>", "..."]
+    "grantableScopeIds": ["<scope id>"]
   }'
 ```
+
+`<scope id>` is the `id` of each of your API's scopes this application may request, such as
+`library:loans:read` — [how to find them](index.md#where-the-ids-in-the-examples-come-from). The
+OpenID scopes (`openid`, `profile`, `email`, `offline_access`) need no entry.
 
 | Choice | Guidance |
 |---|---|
@@ -37,7 +41,9 @@ curl -X POST http://localhost:8000/admin/clients \
 ## 2. Send the person to IDEN
 
 Generate a PKCE pair — a random `code_verifier`, and its SHA-256 hash, base64url-encoded without
-padding, as the `code_challenge`.
+padding, as the `code_challenge`. Then send the browser to this address on your issuer. It is shown
+one parameter per line and unencoded for reading; the real URL is one line, with each value
+URL-encoded (a space becomes `%20`):
 
 ```
 GET /oauth2/authorize

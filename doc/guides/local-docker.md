@@ -61,12 +61,29 @@ Wrote engine token: /keys/engine.token
     and the keys stay owned by you. Docker Desktop on macOS hides the problem, so the shorter command
     works on a Mac and then fails on a Linux server.
 
-    The keys are readable by you alone, so the provider and engine containers run as your uid too.
-    If `id -u` is not 1000, put `IDEN_UID` and `IDEN_GID` (from `id -u` and `id -g`) in
-    `deploy/.env`. Without them the provider cannot read its signing key and the engine cannot read
-    its token.
+## 3. Tell Compose who owns the keys
 
-## 3. Start everything
+The keys you just made can be read only by your user. The provider container has to run as that
+same user, or it cannot read its own signing key. Compose takes the user from two settings,
+`IDEN_UID` and `IDEN_GID`, in the file `deploy/.env`. Run this from the repository root to write
+your own ids into that file:
+
+```bash
+printf 'IDEN_UID=%s\nIDEN_GID=%s\n' "$(id -u)" "$(id -g)" >> deploy/.env
+```
+
+**Check it worked:** `cat deploy/.env` shows two lines with your numbers, for example:
+
+```text
+IDEN_UID=501
+IDEN_GID=20
+```
+
+`>>` adds to the file, creating it if it doesn't exist, so it is safe to run whatever is already in
+there. Run it once: running it twice adds the lines twice. (If both numbers are `1000` the step
+changes nothing, since that is the default, but it does no harm.)
+
+## 4. Start everything
 
 ```bash
 docker compose -f deploy/docker-compose.yml up -d --build
@@ -94,7 +111,7 @@ curl -s http://localhost:8000/health
 
 If the status is `degraded`, the response names the dependency that isn't answering.
 
-## 4. Create the first administrator
+## 5. Create the first administrator
 
 The schema is there but empty. The seed fills it with IDEN's own permission catalogue, the starting
 roles, one administrator, and the dashboard's client.
@@ -125,7 +142,7 @@ Seeded 27 system scopes across 3 APIs.
 The seed is **idempotent**, so you can re-run it any time. On a database that's already seeded, it
 prints `Nothing new to create` and leaves existing credentials alone.
 
-## 5. Sign in
+## 6. Sign in
 
 Open <http://localhost:3000/console/>. The dashboard redirects you to the sign-in page at
 <http://localhost:4000/auth/login>, and back again once you sign in. That round trip means the whole
@@ -146,16 +163,19 @@ covers setting up your organization.
 
 ## Branding it
 
-Both frontends and the provider read the organization's name and mail domain from `deploy/.env`.
-On a laptop, create that file with only the lines you want to change. Everything you leave out
-keeps its laptop default:
+Both frontends and the provider read the organization's name and mail domain from `deploy/.env`,
+the file step 3 created. Add only the lines you want to change; everything you leave out keeps its
+laptop default. Open `deploy/.env` in a text editor and add these below the two lines already
+there:
 
-```bash
-cat > deploy/.env <<'EOF'
+```text
 IDEN_ORG_NAME=Example University
 IDEN_MAIL_DOMAIN=example.org
-EOF
+```
 
+Save the file, then apply it:
+
+```bash
 docker compose -f deploy/docker-compose.yml up -d
 ```
 
@@ -204,6 +224,11 @@ bootstrap password. The keys in `provider/keys/` stay.
 ??? failure "`No signing keys in /keys`"
     Step 2 was skipped, or `provider/keys` didn't exist when Docker mounted it, so Docker created an
     empty one. Generate the keys, then run `docker compose -f deploy/docker-compose.yml restart provider`.
+
+??? failure "`Permission denied` reading `/keys/...` when the provider starts"
+    The provider runs as a different user from the one who owns the keys. Step 3 was skipped, or
+    `deploy/.env` holds the wrong numbers. Compare `cat deploy/.env` with what `id -u` and `id -g`
+    print, correct the file, then run `docker compose -f deploy/docker-compose.yml up -d`.
 
 ??? failure "`Refusing to start with an unsafe configuration`"
     `deploy/.env` sets `IDEN_ENV=prod` or an `https://` issuer, usually because it was copied from
