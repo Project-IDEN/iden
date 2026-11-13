@@ -10,7 +10,8 @@
 # once on the build machine's own architecture. Run under emulation instead —
 # arm64 on an x86 laptop — Node is slow and its native tools can crash.
 FROM --platform=$BUILDPLATFORM node:26.13.0-alpine AS client
-RUN corepack enable
+# pnpm switches itself to the version pinned in `packageManager`.
+RUN npm install -g pnpm
 WORKDIR /app
 COPY client/package.json client/pnpm-lock.yaml client/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
