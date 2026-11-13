@@ -51,7 +51,7 @@ export function explain(error: unknown, retry?: Retry): Problem {
         retry,
       };
     case "consent_required":
-      // The wording changed during the visit — a setting changed in IDEN.
+      // The wording changed during the visit, in IDEN or one of its settings.
       return {
         kind: "problem",
         title: "Please read this again",

@@ -34,7 +34,8 @@ export function Consent({
           {consent.title}
         </h1>
       </div>
-      <ul className="flex flex-col gap-3 border-y border-hairline py-5 short:gap-1.5 short:py-3">
+      {/* Scrolls on its own so the buttons below stay on a short screen. */}
+      <ul className="flex min-h-0 flex-col gap-3 overflow-y-auto border-y border-hairline py-5 short:gap-1.5 short:py-3">
         {consent.statements.map((statement) => (
           <li key={statement} className="text-title-md text-body short:text-body-sm">
             {statement}

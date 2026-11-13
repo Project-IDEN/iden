@@ -167,8 +167,7 @@ class FaceTemplate(Base, TimestampMixin):
     # copied onto another account does not decrypt.
     embedding_encrypted: Mapped[str] = mapped_column(Text)
     quality: Mapped[float] = mapped_column(Float)
-    # The kiosk that enrolled it — the person is told, and sees it on their
-    # security page.
+    # The kiosk that enrolled it, shown to the person on their security page.
     enrolled_by: Mapped[str] = mapped_column(String(255))
     # The enrolment photo in blob storage, encrypted, kept only when
     # IDEN_BIOMETRIC_KEEP_IMAGES is on.
@@ -178,6 +177,21 @@ class FaceTemplate(Base, TimestampMixin):
     # consent was asked for.
     consent_version: Mapped[str | None] = mapped_column(String(64))
     consented_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ConsentWording(Base):
+    """The words behind a consent version, saved the first time someone agrees
+    to them, so the version on a face still names readable words after the
+    text changes."""
+
+    __tablename__ = "consent_wordings"
+
+    version: Mapped[str] = mapped_column(String(64), primary_key=True)
+    title: Mapped[str] = mapped_column(Text)
+    statements: Mapped[list[str]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
 
 
 # --------------------------------------------------------------------------

@@ -18,7 +18,7 @@ from provider.biometric.engine_client import (
 )
 from provider.core.config import settings
 from provider.core.security import decrypt_bytes
-from provider.shared.models import AuditEvent, FaceTemplate
+from provider.shared.models import AuditEvent, ConsentWording, FaceTemplate
 from tests.biometric import (
     SPOOF,
     VECTORS,
@@ -268,6 +268,14 @@ class TestKioskEnrolment:
         rows = list(await db.scalars(select(FaceTemplate)))
         assert {row.consent_version for row in rows} == {consent.version()}
         assert all(row.consented_at is not None for row in rows)
+
+        # The words survive a later change to the text.
+        wording = await db.get(ConsentWording, consent.version())
+        assert wording is not None
+        assert wording.statements == consent.statements()
+
+    async def test_no_consent_statement_promises_an_email(self):
+        assert "email" not in " ".join(consent.statements())
 
     @pytest.mark.parametrize("given", [None, "an-older-version"])
     async def test_no_consent_to_the_current_text_enrols_nobody(

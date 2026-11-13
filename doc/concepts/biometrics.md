@@ -51,8 +51,9 @@ A ticket:
 
 ### Consent
 
-Before the camera turns on, the kiosk shows what enrolling involves — the photos, the encrypted
-template, what replacing a face and removing one mean — and asks the person to agree. *No, thanks*
+Before the camera turns on, the kiosk shows what enrolling involves — the photos and the liveness
+steps, that the kiosk keeps nothing, the encrypted template, what the face is used for and who never
+sees it, what replacing a face and removing one mean — and asks the person to agree. *No, thanks*
 ends the visit with nothing captured.
 
 The words come from IDEN (`biometric/consent.py`), not the kiosk, because they describe what this
@@ -62,6 +63,11 @@ sends the version the person agreed to with the capture; IDEN refuses anything b
 (`consent_required`) and stores the version and the time with the face, in
 `face_templates.consent_version` and `consented_at`. Faces enrolled before consent was asked for have
 neither.
+
+A version is only a hash, so the words behind it are kept too: the first enrolment under a version
+saves its title and statements in `consent_wordings`. Changing the text needs no other step — the next
+heartbeat hands kiosks the new version, and a person still looking at the old one is asked again.
+Faces keep the version they agreed to; nobody has to re-enrol.
 
 ### Kiosks are registered devices
 

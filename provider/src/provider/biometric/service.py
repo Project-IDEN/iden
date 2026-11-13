@@ -11,8 +11,10 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from sqlalchemy import delete, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from provider.biometric import consent
 from provider.biometric.challenges import FaceChallenge
 from provider.biometric.engine_client import Engine
 from provider.biometric.errors import (
@@ -30,7 +32,7 @@ from provider.core.security import (
     encrypt_secret,
 )
 from provider.core.storage import Storage
-from provider.shared.models import Client, FaceTemplate, User
+from provider.shared.models import Client, ConsentWording, FaceTemplate, User
 
 
 def pack(vector: list[float], user_id: UUID) -> str:
@@ -79,7 +81,7 @@ async def enrol(
     consent_version: str,
 ) -> list[FaceTemplate]:
     """Replace this person's face with the one in `frames`, which they agreed
-    to under `consent_version`."""
+    to under `consent_version` — the current one, which the caller has checked."""
     _matches_challenge(frames, challenge)
     result = await engine.enroll(frames, challenge.steps)
     if not result.usable:
@@ -121,6 +123,15 @@ async def enrol(
     # enrolled rather than none.
     await session.execute(delete(FaceTemplate).where(FaceTemplate.user_id == user.id))
     session.add_all(rows)
+    await session.execute(
+        insert(ConsentWording)
+        .values(
+            version=consent_version,
+            title=consent.TITLE,
+            statements=consent.statements(),
+        )
+        .on_conflict_do_nothing()
+    )
     await session.commit()
     await _delete_images(storage, previous)
     return rows

@@ -1842,9 +1842,9 @@ export interface paths {
          * Enrol the face in a capture
          * @description Multipart: `ticket`, `faceChallengeId`, `consent`, and one `frames` part per step of the challenge, in order, as JPEG.
          *
-         *     `consent` is the version of the consent text the person agreed to, from the heartbeat's `consent`. Anything but the current version is refused with `422 consent_required`; the version and the time are stored with the face.
+         *     `consent` is the version of the consent text the person agreed to, from the heartbeat's `consent`. Anything but the current version is refused with `422 consent_required`; the version and the time are stored with the face, and the words of that version in `consent_wordings`.
          *
-         *     The capture must pass every liveness check: the anti-spoofing model, the two actions, and the same face throughout. Any face already enrolled on the account is replaced, and the person is told by email.
+         *     The capture must pass every liveness check: the anti-spoofing model, the two actions, and the same face throughout. Any face already enrolled on the account is replaced.
          *
          *     A `422 poor_capture` lists what to fix (`too_dark`, `too_small`, `blurred`, …) and a `422 not_live` the checks that failed; both leave the ticket usable for another attempt.
          *
