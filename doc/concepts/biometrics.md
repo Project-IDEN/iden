@@ -135,8 +135,9 @@ of the anti-spoofing check and never kept as a template.
 
 When a capture is not good enough to judge — too dark, too far away, blurred, two faces — nothing is
 decided. The person is told what to fix, and it does not count as a failed attempt. A capture that is
-judged and fails is refused without saying which check failed, and five of those in fifteen minutes
-lock face sign-in for that account for a while.
+judged and fails is refused without saying which check failed, and three of those in fifteen minutes
+lock face sign-in for that account until fifteen minutes after the first. A successful face sign-in
+starts the count again.
 
 ### What it does not stop
 
