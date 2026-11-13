@@ -2,7 +2,7 @@
 
 # Dependencies are installed in their own stage and copied forward, so the
 # runtime image carries no uv, no build tools, and no lockfile.
-FROM ghcr.io/astral-sh/uv:0.13.7-python3.14-trixie-slim AS builder
+FROM ghcr.io/astral-sh/uv:0.13.8-python3.14-trixie-slim AS builder
 
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
