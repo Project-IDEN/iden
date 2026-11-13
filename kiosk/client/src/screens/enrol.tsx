@@ -124,11 +124,11 @@ export function Enrolment({ state }: { state: KioskState }) {
       return (
         <Screen name={state.name} footer={footer}>
           <Lede>Enrolling the face of</Lede>
-          <p className="font-display text-display-xl text-ink short:text-display-lg">
+          <p className="max-w-full text-balance break-words font-display text-display-xl text-ink short:text-display-lg">
             {phase.challenge.displayName}
           </p>
           <Lede>Is this you?</Lede>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             <BigButton onClick={() => setPhase({ ...phase, kind: "capture" })}>
               Yes, start
             </BigButton>
@@ -185,12 +185,12 @@ export function Enrolment({ state }: { state: KioskState }) {
             className="h-16 w-16 text-accent-amber short:h-12 short:w-12"
           />
           <Title>{phase.title}</Title>
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col items-center gap-2">
             {phase.lines.map((line) => (
               <Lede key={line}>{line}</Lede>
             ))}
           </div>
-          <div className="flex gap-4">
+          <div className="flex flex-wrap justify-center gap-4">
             {phase.retry && phase.retry.left > 0 ? (
               <BigButton onClick={() => void begin(phase.retry?.ticket ?? "", false)}>
                 Try again ({phase.retry.left} left)

@@ -34,12 +34,12 @@ export function Maintenance({
             key={label}
             className="flex justify-between gap-8 border-b border-hairline py-3 last:border-b-0 short:py-2"
           >
-            <dt className="text-muted-foreground">{label}</dt>
-            <dd className="text-ink">{value}</dd>
+            <dt className="shrink-0 text-muted-foreground">{label}</dt>
+            <dd className="min-w-0 break-words text-right text-ink">{value}</dd>
           </div>
         ))}
       </dl>
-      <div className="flex gap-4">
+      <div className="flex flex-wrap justify-center gap-4">
         <BigButton onClick={onPair}>Pair again</BigButton>
         <BigButton variant="quiet" onClick={onClose}>
           Close

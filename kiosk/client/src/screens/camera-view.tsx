@@ -24,7 +24,7 @@ export function CameraView({
   return (
     <div
       className={cn(
-        "relative aspect-[4/3] h-[min(56dvh,27rem)] max-w-full overflow-hidden rounded-xl bg-surface-dark",
+        "relative aspect-[4/3] h-[min(52dvh,25rem)] max-w-full overflow-hidden rounded-xl bg-surface-dark",
         className,
       )}
     >

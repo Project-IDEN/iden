@@ -187,7 +187,7 @@ export function FaceCapture({
   const idle = !phase && !checking;
 
   const buttonClass =
-    "inline-flex min-h-16 min-w-36 items-center justify-center rounded-lg px-8 text-title-lg transition-colors disabled:opacity-50 short:min-h-14 short:min-w-32 short:px-6 short:text-title-md";
+    "inline-flex min-h-16 min-w-36 items-center justify-center whitespace-nowrap rounded-lg px-8 text-title-lg transition-colors disabled:opacity-50 short:min-h-14 short:min-w-32 short:px-6 short:text-title-md";
 
   return (
     <div
@@ -206,7 +206,7 @@ export function FaceCapture({
         ) : (
           <p
             aria-live="assertive"
-            className="flex items-center gap-4 font-display text-display-md text-ink short:text-display-sm [&_svg]:h-9 [&_svg]:w-9 [&_svg]:shrink-0 [&_svg]:text-primary short:[&_svg]:h-7 short:[&_svg]:w-7"
+            className="flex items-center gap-4 text-balance font-display text-display-md text-ink short:text-display-sm [&_svg]:h-9 [&_svg]:w-9 [&_svg]:shrink-0 [&_svg]:text-primary short:[&_svg]:h-7 short:[&_svg]:w-7"
           >
             {shown.icon}
             {shown.prompt}
@@ -242,7 +242,7 @@ export function FaceCapture({
             </p>
           </div>
         ) : idle ? (
-          <p className="max-w-md text-title-md text-body short:text-body-md">
+          <p className="max-w-md text-pretty text-title-md text-body short:text-body-md">
             Stand about an arm's length away. Look straight at the camera, then do the two things
             the screen asks: turn or tilt your head, blink, or smile. Each time, keep going until
             you hear a chime, then face the screen again.
@@ -272,7 +272,7 @@ export function FaceCapture({
         </div>
       </div>
 
-      <div className="relative aspect-[4/3] h-[min(62dvh,30rem)] max-w-full overflow-hidden rounded-xl bg-surface-dark portrait:order-first portrait:h-auto portrait:w-full">
+      <div className="relative aspect-[4/3] h-[min(56dvh,26rem)] max-w-full overflow-hidden rounded-xl bg-surface-dark portrait:order-first portrait:h-auto portrait:w-full">
         <video
           ref={video}
           autoPlay

@@ -21,26 +21,26 @@ export function Screen({
 }) {
   return (
     <div className="flex h-dvh flex-col overflow-hidden bg-canvas text-ink">
-      <header className="flex shrink-0 items-center justify-between px-8 py-5 short:px-6 short:py-3">
-        <span className="flex items-center gap-2 text-title-md text-ink">
+      <header className="flex shrink-0 items-center justify-between gap-8 px-12 py-6 short:px-6 short:py-3">
+        <span className="flex shrink-0 items-center gap-2 text-title-md text-ink">
           <Logo className="h-7 w-7 text-primary short:h-6 short:w-6" />
           IDEN
         </span>
-        <span className="flex items-center gap-4 text-body-md text-muted-foreground">
-          {name ? <span>{name}</span> : null}
+        <span className="flex min-w-0 items-center gap-4 text-body-md text-muted-foreground">
+          {name ? <span className="truncate">{name}</span> : null}
           {aside}
         </span>
       </header>
       <main
         className={cn(
-          "step-in mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col items-center justify-center gap-8 px-8 text-center short:gap-4 short:px-6",
+          "step-in mx-auto flex min-h-0 w-full max-w-6xl flex-1 flex-col items-center justify-center gap-8 px-12 text-center short:gap-4 short:px-6",
           className,
         )}
       >
         {children}
       </main>
       {footer ? (
-        <footer className="shrink-0 px-8 py-5 text-center text-body-md text-muted-foreground short:px-6 short:py-3 short:text-body-sm">
+        <footer className="shrink-0 text-balance px-12 py-6 text-center text-body-md text-muted-foreground short:px-6 short:py-3 short:text-body-sm">
           {footer}
         </footer>
       ) : null}
@@ -57,7 +57,9 @@ export function Title({ children }: { children: ReactNode }) {
 }
 
 export function Lede({ children }: { children: ReactNode }) {
-  return <p className="max-w-2xl text-title-lg text-body short:text-title-md">{children}</p>;
+  return (
+    <p className="max-w-2xl text-balance text-title-lg text-body short:text-title-md">{children}</p>
+  );
 }
 
 /** A finger-sized button. */
@@ -78,7 +80,7 @@ export function BigButton({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "inline-flex min-h-16 min-w-56 items-center justify-center gap-3 rounded-lg px-8 text-title-lg transition-colors disabled:opacity-50 short:min-h-14 short:min-w-44 short:px-6 short:text-title-md",
+        "inline-flex min-h-16 min-w-48 items-center justify-center gap-3 whitespace-nowrap rounded-lg px-8 text-title-lg transition-colors disabled:opacity-50 short:min-h-14 short:min-w-44 short:px-6 short:text-title-md",
         variant === "primary"
           ? "bg-primary text-on-primary active:bg-primary-active"
           : "bg-surface-card text-ink active:bg-surface-cream-strong",
