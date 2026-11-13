@@ -271,7 +271,7 @@ class TestAChallengeCarriesNothingTheCallerSent:
 
     async def test_a_hostile_kid_is_left_out(self, client):
         token = jwt.encode(
-            {"sub": "x"}, "k", algorithm="HS256", headers={"kid": 'a", b="c\u2603'}
+            {"sub": "x"}, "k" * 32, algorithm="HS256", headers={"kid": 'a", b="c\u2603'}
         )
 
         response = await client.get(
