@@ -19,7 +19,7 @@ COPY client/ .
 RUN pnpm build
 
 
-FROM ghcr.io/astral-sh/uv:0.13.7-python3.14-trixie-slim AS server
+FROM ghcr.io/astral-sh/uv:0.13.8-python3.14-trixie-slim AS server
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
 COPY server/pyproject.toml server/uv.lock ./
