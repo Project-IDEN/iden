@@ -24,7 +24,7 @@ export function Consent({
   onDecline: () => void;
 }) {
   return (
-    <Screen name={name} footer={footer} className="items-stretch text-left">
+    <Screen name={name} footer={footer} className="max-w-5xl items-stretch text-left">
       <div className="flex items-center gap-4 short:gap-3">
         <ShieldCheck
           aria-hidden="true"
@@ -37,12 +37,12 @@ export function Consent({
       {/* Scrolls on its own so the buttons below stay on a short screen. */}
       <ul className="flex min-h-0 flex-col gap-3 overflow-y-auto border-y border-hairline py-5 short:gap-1.5 short:py-3">
         {consent.statements.map((statement) => (
-          <li key={statement} className="text-title-md text-body short:text-body-sm">
+          <li key={statement} className="text-pretty text-title-md text-body short:text-body-sm">
             {statement}
           </li>
         ))}
       </ul>
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center justify-center gap-4">
         <BigButton onClick={onAgree}>I agree, continue</BigButton>
         <BigButton variant="quiet" onClick={onDecline}>
           No, thanks
