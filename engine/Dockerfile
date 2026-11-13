@@ -8,7 +8,7 @@
 # Model files are not in either image. They are mounted read-only at
 # /app/models, fetched once with `python -m scripts.fetch_models`.
 
-FROM ghcr.io/astral-sh/uv:0.13.7-python3.14-trixie-slim AS cpu-builder
+FROM ghcr.io/astral-sh/uv:0.13.8-python3.14-trixie-slim AS cpu-builder
 
 ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy
 WORKDIR /app
