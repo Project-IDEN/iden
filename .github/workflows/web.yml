@@ -26,7 +26,7 @@ jobs:
 
       # v6.0.10, pinned by commit like the other third-party action in
       # this repository.
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115
         with:
           # The version comes from "packageManager" in the workspace manifest, so
           # CI and a developer's machine cannot drift. This path is relative to
