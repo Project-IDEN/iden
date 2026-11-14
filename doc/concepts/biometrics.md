@@ -137,7 +137,8 @@ When a capture is not good enough to judge — too dark, too far away, blurred, 
 decided. The person is told what to fix, and it does not count as a failed attempt. A capture that is
 judged and fails is refused without saying which check failed, and three of those in fifteen minutes
 lock face sign-in for that account until fifteen minutes after the first. A successful face sign-in
-starts the count again.
+starts the count again. `IDEN_FACE_LOGIN_ATTEMPTS` and `IDEN_FACE_LOGIN_WINDOW` change the three and
+the fifteen minutes.
 
 ### What it does not stop
 
