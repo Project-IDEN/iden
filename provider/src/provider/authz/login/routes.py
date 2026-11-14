@@ -404,8 +404,11 @@ async def face_challenge(
         "`422 poor_capture` lists what to fix and does not count as a failed "
         "attempt. `401 face_rejected` does, and deliberately does not say "
         "whether the face did not match or was not live. Its "
-        "`details.attemptsLeft` says how many of the three tries in fifteen "
-        "minutes remain, and on the last `details.retryAfter` says in how many "
+        f"`details.attemptsLeft` says how many of the "
+        f"{settings.iden_face_login_attempts} tries in "
+        f"{settings.iden_face_login_window // 60} minutes remain and "
+        "`details.attemptLimit` how many there were; on the last "
+        "`details.retryAfter` says in how many "
         "seconds face sign-in opens again; until then it answers `429`.\n\n"
         "**Required scope:** none — requires an existing session."
     ),
@@ -462,6 +465,7 @@ async def biometric(
         )
         left = max(ratelimit.FACE_FAILURES["limit"] - failures, 0)
         exc.details["attemptsLeft"] = left
+        exc.details["attemptLimit"] = ratelimit.FACE_FAILURES["limit"]
         if left == 0:
             exc.details["retryAfter"] = await ratelimit.seconds_left(
                 redis,

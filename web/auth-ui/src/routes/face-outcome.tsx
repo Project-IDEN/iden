@@ -12,9 +12,6 @@ import {
 import type { ReactNode } from "react";
 import { duration } from "../duration";
 
-/** What the provider allows: three faces that do not match in fifteen minutes. */
-const TRIES = 3;
-
 type Tone = "error" | "caution" | "info";
 
 interface Outcome {
@@ -23,8 +20,8 @@ interface Outcome {
   title: string;
   body: ReactNode;
   tips?: string[];
-  /** Present after a face that did not match: how many tries remain. */
-  triesLeft?: number;
+  /** Present after a face that did not match: tries remaining, out of how many. */
+  tries?: { left: number; limit: number };
   /** Whether trying again can help. */
   retry: boolean;
 }
@@ -34,13 +31,14 @@ function paused(seconds: number): Outcome {
     tone: "info",
     glyph: Clock,
     title: "Face sign-in is paused",
-    body: `After ${TRIES} tries that didn't match, it's paused for ${duration(seconds)} to protect your account.`,
+    body: `After too many tries that didn't match, it's paused for ${duration(seconds)} to protect your account.`,
     retry: false,
   };
 }
 
 function outcomeOf(problem: IdenError): Outcome {
   const left = problem.details.attemptsLeft;
+  const limit = problem.details.attemptLimit;
   const resumesIn = problem.details.retryAfter;
 
   if (problem.code === "poor_capture") {
@@ -60,7 +58,7 @@ function outcomeOf(problem: IdenError): Outcome {
       glyph: ShieldAlert,
       title: "That didn't match",
       body: "Look straight at the camera in even light, with nothing covering your face.",
-      triesLeft: typeof left === "number" ? left : undefined,
+      tries: typeof left === "number" && typeof limit === "number" ? { left, limit } : undefined,
       retry: true,
     };
   }
@@ -133,11 +131,11 @@ function OvalBadge({ tone, glyph: Glyph }: { tone: Tone; glyph: LucideIcon }) {
 }
 
 /** One small oval per try, filled while it is still yours to use. */
-function Tries({ left }: { left: number }) {
+function Tries({ left, limit }: { left: number; limit: number }) {
   return (
     <p className="flex items-center justify-center gap-3 text-caption text-muted-foreground">
       <span aria-hidden="true" className="flex gap-1.5">
-        {Array.from({ length: TRIES }, (_, index) => (
+        {Array.from({ length: limit }, (_, index) => (
           <svg key={index} viewBox="0 0 10 13" className="h-[13px] w-2.5">
             <ellipse
               cx="5"
@@ -190,7 +188,7 @@ export function FaceOutcome({
         </ul>
       ) : null}
 
-      {outcome.triesLeft !== undefined ? <Tries left={outcome.triesLeft} /> : null}
+      {outcome.tries ? <Tries {...outcome.tries} /> : null}
 
       {outcome.retry ? (
         <Button variant="default" className="self-stretch" onClick={onRetry}>

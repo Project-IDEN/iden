@@ -78,6 +78,9 @@ for as long as the container lives, where `docker inspect` reads it.
 | `IDEN_ENGINE_TIMEOUT` | `20` (seconds) | How long to wait for the engine to judge a capture. |
 | `IDEN_BIOMETRIC_KEEP_IMAGES` | `false` | Keep enrolment photos, encrypted, in blob storage, so a model upgrade can re-embed them with `scripts.reembed_faces`. Off, only embeddings are stored and people enrol again after an upgrade. Needs blob storage; refused in prod without it. |
 | `IDEN_FACE_TICKET_TTL` | `900` (15 min) | How long the QR code that lets a kiosk enrol someone's face stays usable. |
+| `IDEN_FACE_ENROL_ATTEMPTS` | `5` | Capture attempts one enrolment QR code allows; after the last, the person asks the dashboard for a new one. |
+| `IDEN_FACE_LOGIN_ATTEMPTS` | `3` | Faces that fail to match one account within `IDEN_FACE_LOGIN_WINDOW` before face sign-in pauses for it. A poor capture does not count; a successful sign-in resets the count. Not enforced when `IDEN_RATE_LIMIT_ENABLED` is off. |
+| `IDEN_FACE_LOGIN_WINDOW` | `900` (15 min) | The window those failures are counted over, which is also how long face sign-in stays paused. |
 | `IDEN_KIOSK_PAIRING_TTL` | `900` (15 min) | How long the code that pairs a new kiosk device stays usable. |
 
 ## Docker Compose only

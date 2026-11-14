@@ -71,7 +71,7 @@ async def read_status(user: CurrentUserDep, session: DBSessionDep) -> FaceStatus
         "Returns a single-use ticket to show the kiosk as a QR code. It names "
         "you to the kiosk, which otherwise has nobody it may enrol. Expires in "
         f"{settings.iden_face_ticket_ttl // 60} minutes, allows "
-        f"{tickets.MAX_ATTEMPTS} capture attempts, and replaces any ticket you "
+        f"{settings.iden_face_enrol_attempts} capture attempts, and replaces any ticket you "
         "asked for earlier. Enrolling replaces a face already on file.\n\n"
         + FRESHNESS
         + "**Required scope:** `entity:face:write`"

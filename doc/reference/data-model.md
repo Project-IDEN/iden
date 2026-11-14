@@ -53,7 +53,7 @@ job rather than a cleanup job's.
 | `denylist:{jti}` | Until the access token would have expired |
 | `refresh_replay:{hash}` | 30 seconds — see [refresh rotation](../concepts/tokens.md#the-honest-double-use-problem) |
 | `refresh_lock:{hash}` | Held while one refresh token is exchanged; 10 seconds at most |
-| `face-ticket:{hash}` | 15 minutes — lets a kiosk enrol one person's face, until used or after five attempts |
+| `face-ticket:{hash}` | 15 minutes — lets a kiosk enrol one person's face, until used or after `IDEN_FACE_ENROL_ATTEMPTS` (five) attempts |
 | `face-ticket-user:{user_id}` | With the ticket — so a new ticket retires the last |
 | `kiosk-pairing:{hash}` | 15 minutes, single use — pairs a new device with its kiosk |
 | `kiosk-pairing-kiosk:{kiosk_id}` | With the code — so a new code retires the last |

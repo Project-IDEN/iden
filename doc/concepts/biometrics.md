@@ -45,8 +45,8 @@ secret, on its own, enrols no one.
 A ticket:
 
 - names one person, and lasts 15 minutes (`IDEN_FACE_TICKET_TTL`)
-- allows five capture attempts — poor light should not end the visit, but a ticket is not a way to
-  try forever
+- allows five capture attempts (`IDEN_FACE_ENROL_ATTEMPTS`) — poor light should not end the
+  visit, but a ticket is not a way to try forever
 - is gone once a face is enrolled with it, and asking for a new one retires the old one
 
 ### Consent

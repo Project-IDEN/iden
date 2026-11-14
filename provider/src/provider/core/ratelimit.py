@@ -140,7 +140,8 @@ AUTHORIZE_PER_IP = limit_by_ip("authorize-ip", limit=120, window=60)
 # stuffing, which rotates addresses and not the target.
 LOGIN_FAILURES = {"bucket": "login-fail", "limit": 8, "window": 900}
 TOTP_FAILURES = {"bucket": "totp-fail", "limit": 8, "window": 900}
-# Fewer than a code allows: a face that fails is a spoof being tuned at least as
-# often as a person in bad light, and bad light is a 422 that does not count.
-# Three is what the sign-in page tells people they have.
-FACE_FAILURES = {"bucket": "face-fail", "limit": 3, "window": 900}
+FACE_FAILURES = {
+    "bucket": "face-fail",
+    "limit": settings.iden_face_login_attempts,
+    "window": settings.iden_face_login_window,
+}

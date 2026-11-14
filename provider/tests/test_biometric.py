@@ -492,6 +492,7 @@ class TestSignIn:
         tries = [(await face_step(client, challenge_id)).json() for _ in range(3)]
         assert [t["code"] for t in tries] == ["face_rejected"] * 3
         assert [t["details"]["attemptsLeft"] for t in tries] == [2, 1, 0]
+        assert {t["details"]["attemptLimit"] for t in tries} == {3}
         assert 0 < tries[-1]["details"]["retryAfter"] <= 900
         assert "retryAfter" not in tries[0]["details"]
 
@@ -654,4 +655,4 @@ async def test_attempts_at_once_cannot_exceed_the_limit(redis):
             *(tickets.holder(redis, ticket, attempt=True) for _ in range(10))
         )
 
-        assert sum(r is not None for r in results) == tickets.MAX_ATTEMPTS
+        assert sum(r is not None for r in results) == settings.iden_face_enrol_attempts

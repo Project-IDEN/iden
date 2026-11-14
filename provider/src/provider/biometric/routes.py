@@ -188,7 +188,7 @@ async def heartbeat(
         "chosen at random from the four head movements, a blink and a smile."
         "\n\n"
         "Every call counts one attempt against the ticket; a ticket allows "
-        f"{tickets.MAX_ATTEMPTS}.\n\n"
+        f"{settings.iden_face_enrol_attempts}.\n\n"
         "**Required scope:** `biometric:enroll`"
     ),
     responses=CAPTURE_FAILURES,

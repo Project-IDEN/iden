@@ -15,10 +15,6 @@ from redis.asyncio import Redis
 from provider.core.config import settings
 from provider.core.security import generate_token, hash_token
 
-# Each capture attempt at the kiosk counts; poor light should not end the visit,
-# but a ticket must not be a way to try forever.
-MAX_ATTEMPTS = 5
-
 
 def _key(ticket: str) -> str:
     return f"face-ticket:{hash_token(ticket)}"
@@ -63,12 +59,12 @@ async def holder(
     user_id = UUID(json.loads(raw)["user_id"])
     if attempt:
         attempts = await redis.incr(_attempts_key(key))
-        if attempts > MAX_ATTEMPTS:
+        if attempts > settings.iden_face_enrol_attempts:
             await redis.delete(key)
             return None
     else:
         attempts = int(await redis.get(_attempts_key(key)) or 0)
-    return user_id, MAX_ATTEMPTS - attempts
+    return user_id, settings.iden_face_enrol_attempts - attempts
 
 
 async def spend(redis: Redis, ticket: str, user_id: UUID) -> None:

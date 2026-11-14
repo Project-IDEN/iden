@@ -124,6 +124,15 @@ class Settings(BaseSettings):
     iden_biometric_keep_images: bool = False
     # How long the QR code that lets a kiosk enrol your face stays usable.
     iden_face_ticket_ttl: int = 900
+    # Capture attempts one enrolment ticket allows. Poor light should not end
+    # the visit, but a ticket must not be a way to try forever.
+    iden_face_enrol_attempts: int = 5
+    # Faces that fail to match one account within the window before face sign-in
+    # pauses for it. Kept below what a TOTP code allows: a face that fails is a
+    # spoof being tuned at least as often as a person in bad light, and bad light
+    # is a 422 that does not count.
+    iden_face_login_attempts: int = 3
+    iden_face_login_window: int = 900
     # How long the code that pairs a new kiosk with its registration stays usable.
     iden_kiosk_pairing_ttl: int = 900
 
