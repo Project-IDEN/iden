@@ -77,7 +77,7 @@ export function UsersRoute() {
       <div className="mb-6">
         <SearchInput
           className="max-w-sm"
-          placeholder="Search by name, username or email"
+          placeholder="Search by username or email"
           value={search}
           onChange={(event) => {
             setSearch(event.target.value);
@@ -95,7 +95,7 @@ export function UsersRoute() {
           title={search ? "No one matches that search" : "No users yet"}
           body={
             search
-              ? "Try a different name, username, or email address."
+              ? "Try a different username or email address."
               : "Add the people who need accounts. You can assign their roles as you go."
           }
           action={
