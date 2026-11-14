@@ -24,13 +24,13 @@ export function IdentityHeader({ profile }: { profile: Profile }) {
   const name = profile.displayName || profile.username;
 
   return (
-    <section className="flex flex-col items-start gap-6 rounded-lg bg-surface-card p-6 sm:flex-row sm:items-center sm:gap-8 sm:p-8">
+    <section className="flex flex-col items-center gap-6 rounded-lg bg-surface-card p-6 text-center sm:flex-row sm:gap-8 sm:p-8 sm:text-left">
       <Avatar size="lg" name={name} src={profile.pictureUrl} />
 
       <div className="w-full min-w-0 sm:flex-1">
         <h2 className="text-title-lg text-ink">{name}</h2>
 
-        <p className="mt-1 flex flex-col items-start gap-1 text-body-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-2">
+        <p className="mt-1 flex flex-col items-center gap-1 text-body-sm text-muted-foreground sm:flex-row sm:flex-wrap sm:gap-x-2">
           <span className="font-identity">@{profile.username}</span>
           <span aria-hidden="true" className="hidden sm:inline">
             ·
@@ -46,7 +46,7 @@ export function IdentityHeader({ profile }: { profile: Profile }) {
           )}
         </p>
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
           <Button size="sm" disabled={busy} onClick={() => picker.current?.click()}>
             <Camera aria-hidden="true" />
             {profile.pictureUrl ? "Change photo" : "Add photo"}
