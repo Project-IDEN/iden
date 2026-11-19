@@ -2,7 +2,7 @@
 #
 # The workspace root is the build context: `@iden/shared` is a workspace
 # dependency, so a context of `auth-ui/` alone could not resolve it.
-FROM node:26.13.0-alpine AS build
+FROM node:26.13.1-alpine AS build
 # pnpm switches itself to the version pinned in `packageManager`.
 RUN npm install -g pnpm
 WORKDIR /app
