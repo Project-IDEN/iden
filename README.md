@@ -18,6 +18,32 @@ Everything deploys via Docker Compose.
 
 ---
 
+## Try It Locally
+
+One script runs the whole system in Docker on `localhost`, on the CPU: the provider and its stores,
+the sign-in page, the dashboard, the biometric engine and a kiosk. You need only Docker, and ports
+3000, 4000, 5432, 6379, 8000, 8080 and 8333 free.
+
+```bash
+./local.sh          # build and start everything; safe to re-run
+./local.sh down     # stop, keeping the data
+./local.sh reset    # stop and delete the data
+```
+
+The first run takes a while: it builds the images and downloads the face models (about 290 MB). It
+ends by printing the administrator's email and password, **shown only once**, and these addresses:
+
+| URL | What it is |
+|---|---|
+| <http://localhost:3000/console/> | The dashboard; sign in here |
+| <http://localhost:8080> | The kiosk, using this computer's webcam. Pair it under **Administration → Kiosks** |
+| <http://localhost:8000/docs> | The provider's API docs |
+
+Lost the password? `./local.sh reset`, then `./local.sh` again. On Windows, run it from WSL or Git
+Bash.
+
+---
+
 ## Documentation
 
 Full documentation — concepts, integration guides, reference, and operations — lives in

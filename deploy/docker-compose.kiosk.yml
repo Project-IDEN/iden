@@ -1,0 +1,30 @@
+# A kiosk on the provider's host, for trying enrolment from a laptop's webcam.
+# Added to the main file, so it reaches the provider over the Compose network:
+#
+#   docker compose -f deploy/docker-compose.yml \
+#                  -f deploy/docker-compose.kiosk.yml up -d --build
+#
+# Then open http://localhost:8080. A real kiosk runs kiosk/deploy instead; see
+# doc/operations/kiosks.md.
+
+services:
+  kiosk:
+    build:
+      context: ../kiosk
+    environment:
+      # dev, because prod refuses a plain-http issuer that is a hostname rather
+      # than an address. The kiosk only uses it as a base URL, so the provider's
+      # name on this network works where `localhost` would mean the kiosk itself.
+      KIOSK_ENV: dev
+      KIOSK_ISSUER: http://provider:8000
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - kiosk-data:/data
+    depends_on:
+      provider:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  kiosk-data:
