@@ -7,6 +7,14 @@
 set -euo pipefail
 cd "$(dirname "$0")"
 
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*)
+    # Git Bash rewrites the container paths in the docker run calls below.
+    echo "On Windows, run local.cmd instead (or this script from WSL)."
+    exit 1
+    ;;
+esac
+
 export IDEN_UID="$(id -u)" IDEN_GID="$(id -g)" IDEN_BIOMETRIC_ENABLED=true
 compose() {
   docker compose -f deploy/docker-compose.yml \

@@ -1,0 +1,5 @@
+# Keep the launchers runnable whatever core.autocrlf says: a CR breaks bash's
+# shebang, and cmd.exe misreads batch files with bare LF line endings.
+*.sh text eol=lf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf

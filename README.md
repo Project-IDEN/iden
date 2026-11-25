@@ -30,6 +30,12 @@ the sign-in page, the dashboard, the biometric engine and a kiosk. You need only
 ./local.sh reset    # stop and delete the data
 ```
 
+On Windows, use `local.cmd` from PowerShell or Command Prompt, with the same commands:
+
+```powershell
+.\local.cmd          # or: .\local.cmd down, .\local.cmd reset
+```
+
 The first run takes a while: it builds the images and downloads the face models (about 290 MB). It
 ends by printing the administrator's email and password, **shown only once**, and these addresses:
 
@@ -39,8 +45,8 @@ ends by printing the administrator's email and password, **shown only once**, an
 | <http://localhost:8080> | The kiosk, using this computer's webcam. Pair it under **Administration → Kiosks** |
 | <http://localhost:8000/docs> | The provider's API docs |
 
-Lost the password? `./local.sh reset`, then `./local.sh` again. On Windows, run it from WSL or Git
-Bash.
+Lost the password? `./local.sh reset`, then `./local.sh` again (`.\local.cmd reset`, then
+`.\local.cmd` on Windows).
 
 ---
 
