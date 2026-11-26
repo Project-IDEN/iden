@@ -50,7 +50,7 @@ services:
       IDEN_FORWARDED_ALLOW_IPS: ${IDEN_FORWARDED_ALLOW_IPS:?set IDEN_FORWARDED_ALLOW_IPS in deploy/.env}
 
   nginx:
-    image: nginx:1.31.8-alpine
+    image: nginx:1.31.9-alpine
     volumes:
       # Copy nginx/iden.conf.example to nginx/iden.conf and edit that. Mounted
       # over default.conf so the image's own server block, which also listens
