@@ -315,7 +315,7 @@ function SettingsForm({ url, record }: { url: string; record: KioskRecord }) {
         <Field
           label="Name"
           required
-          hint="People see it in the email telling them their face was enrolled."
+          hint="People see it on their Security page when their face is enrolled here."
         >
           {(props) => (
             <Input {...props} value={name} onChange={(e) => setName(e.target.value)} required />

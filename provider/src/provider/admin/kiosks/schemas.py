@@ -42,8 +42,8 @@ class KioskCreate(CamelCaseBaseModel):
     name: str = Field(
         min_length=1,
         max_length=255,
-        description="What people see in the email telling them their face was "
-        "enrolled, e.g. `Library Kiosk 2`.",
+        description="What people see on their Security page when their face is "
+        "enrolled here, e.g. `Library Kiosk 2`.",
     )
     location: str | None = Field(default=None, max_length=255)
 

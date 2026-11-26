@@ -80,7 +80,7 @@ export function KioskCreateRoute() {
         <Field
           label="Name"
           required
-          hint="People see it in the email telling them their face was enrolled."
+          hint="People see it on their Security page when their face is enrolled here."
         >
           {(props) => (
             <Input
