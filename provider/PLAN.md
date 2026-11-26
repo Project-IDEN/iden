@@ -877,7 +877,7 @@ it does not protect against, is [doc/concepts/biometrics.md](../doc/concepts/bio
 - **Enrolment only at a kiosk, named by a ticket.** The kiosk's credential (`biometric:enroll`)
   names nobody. The person creates a single-use ticket in the dashboard after a fresh sign-in and
   shows it as a QR code; that is what says whose face it is. A stolen kiosk secret enrols no one.
-  The person is emailed when a face is enrolled.
+  An enrolled face shows on the person's Security page and in the kiosk's history.
 - **Liveness is three checks, each against a different attack.** An anti-spoofing model (prints,
   screens), two random head movements (photos, earlier recordings), one face throughout (swaps).
   The movements are a single-use challenge per capture. No screen flashes: a colour sequence on the

@@ -148,7 +148,7 @@ async def create_user(
     user = User(
         email=email,
         # IDEN assigned the address on the organization's own domain, so there
-        # is nothing for a verification email to prove.
+        # is nothing left to verify.
         email_verified_at=now(),
         username=data.username,
         display_name=data.display_name,

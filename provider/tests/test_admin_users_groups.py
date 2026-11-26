@@ -69,8 +69,8 @@ class TestUserCreation:
         assert user["email"] == "student@test.local"
 
     async def test_the_address_starts_verified(self, user, db):
-        """IDEN assigned it on the organization's domain; there is nothing for a
-        verification email to prove."""
+        """IDEN assigned it on the organization's domain; there is nothing left
+        to verify."""
         created = await db.get(User, UUID(user["id"]))
         assert created.email_verified_at is not None
 
